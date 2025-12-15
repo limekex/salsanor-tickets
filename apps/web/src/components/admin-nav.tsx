@@ -3,12 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, Settings, Users, LayoutDashboard } from 'lucide-react'
+import { Calendar, Settings, Users, LayoutDashboard, UserCog } from 'lucide-react'
 import { OrgSelector } from './org-selector'
 
 const navItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/organizers', label: 'Organizers', icon: Users },
+    { href: '/admin/users', label: 'User Management', icon: UserCog },
     { href: '/admin/periods', label: 'Periods', icon: Calendar },
     { href: '/admin/settings/payments', label: 'Settings', icon: Settings },
 ]
@@ -34,6 +35,9 @@ export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange 
         
         // Show Organizers only for global admins
         if (item.href === '/admin/organizers') return isGlobalAdmin
+        
+        // Show User Management for all admins (filtered on the page level)
+        if (item.href === '/admin/users') return true
         
         // Show Periods only when an org is selected OR user is not global admin
         if (item.href === '/admin/periods') return currentOrgId !== null || !isGlobalAdmin
