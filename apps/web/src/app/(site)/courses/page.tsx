@@ -72,7 +72,13 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
             <CourseFilters 
                 availableLevels={availableLevels}
                 organizers={organizers}
-                currentFilters={params}
+                currentFilters={{
+                    org: org || 'all',
+                    level: level || 'all',
+                    weekday: weekday || 'all',
+                    timeAfter: timeAfter || 'all',
+                    timeBefore: timeBefore || 'all',
+                }}
             />
 
             {periods.length === 0 && (

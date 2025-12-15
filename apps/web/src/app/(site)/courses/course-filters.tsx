@@ -14,11 +14,11 @@ interface CourseFiltersProps {
     }>
     availableLevels: string[]
     currentFilters: {
-        org?: string
-        level?: string
-        weekday?: string
-        timeAfter?: string
-        timeBefore?: string
+        org: string
+        level: string
+        weekday: string
+        timeAfter: string
+        timeBefore: string
     }
 }
 
@@ -46,11 +46,11 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
     const router = useRouter()
     
     const [filters, setFilters] = useState({
-        org: currentFilters.org || 'all',
-        level: currentFilters.level || 'all',
-        weekday: currentFilters.weekday || 'all',
-        timeAfter: currentFilters.timeAfter || 'all',
-        timeBefore: currentFilters.timeBefore || 'all',
+        org: currentFilters.org,
+        level: currentFilters.level,
+        weekday: currentFilters.weekday,
+        timeAfter: currentFilters.timeAfter,
+        timeBefore: currentFilters.timeBefore,
     })
 
     const updateFilter = (key: string, value: string) => {
