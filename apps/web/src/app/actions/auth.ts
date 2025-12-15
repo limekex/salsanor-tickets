@@ -38,17 +38,11 @@ export async function signup(prevState: any, formData: FormData) {
 
     revalidatePath('/', 'layout')
 
-    // If email confirmation is enabled, it might not log them in immediately, 
-    // but for this dev setup it likely sends a magic link or just works if confirm is off.
-    // Standard Supabase allows login after signup if confirm is off.
-    // We'll redirect to a check-email page or root if implicitly logged in.
-
-    // Let's assume for now we redirect to a success message or root.
-    // Ideally, if 'session' exists, we are good.
-
+    // If email confirmation is enabled, it might not log them in immediately
     const { data: { session } } = await supabase.auth.getSession()
     if (session) {
-        redirect('/')
+        // User is logged in, redirect to onboarding
+        redirect('/onboarding')
     } else {
         // Check email flow
         return { message: 'Check your email to confirm your account.' }
