@@ -1,20 +1,37 @@
-import { getPublicCoursePeriods } from '@/app/actions/courses'
+import { getPublicCoursePeriods, getAvailableCourseLevels } from '@/app/actions/courses'
 import { getPublicOrganizers } from '@/app/actions/organizers'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
+import { CourseFilters } from './course-filters'
 
-type SearchParams = Promise<{ org?: string }>
+type SearchParams = Promise<{ 
+    org?: string
+    level?: string
+    weekday?: string
+    timeAfter?: string
+    timeBefore?: string
+}>
 
 export default async function CoursesPage({ searchParams }: { searchParams: SearchParams }) {
-    const { org } = await searchParams
-    const periods = await getPublicCoursePeriods(org)
+    const params = await searchParams
+    const { org, level, weekday, timeAfter, timeBefore } = params
+    
+    const filters = {
+        organizerId: org && org !== 'all' ? org : undefined,
+        levelLabel: level && level !== 'all' ? level : undefined,
+        weekday: weekday ? parseInt(weekday) : undefined,
+        timeAfter,
+        timeBefore,
+    }
+    
+    const periods = await getPublicCoursePeriods(filters)
     const organizers = await getPublicOrganizers()
+    const availableLevels = await getAvailableCourseLevels()
 
     // Get user's existing registrations
     const supabase = await createClient()
@@ -51,26 +68,12 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                 <p className="text-lg text-muted-foreground">Find your next salsa class and join the fun!</p>
             </div>
 
-            {/* Organizer Filter */}
-            {organizers.length > 1 && (
-                <form action="/courses" method="get" className="flex justify-center">
-                    <div className="w-full max-w-xs">
-                        <Select name="org" defaultValue={org || 'all'}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Filter by organizer" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Organizers</SelectItem>
-                                {organizers.map((organizer) => (
-                                    <SelectItem key={organizer.id} value={organizer.id}>
-                                        {organizer.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </form>
-            )}
+            {/* Filters */}
+            <CourseFilters 
+                availableLevels={availableLevels}
+                organizers={organizers}
+                currentFilters={params}
+            />
 
             {periods.length === 0 && (
                 <div className="text-center py-20 bg-muted/20 rounded-lg">

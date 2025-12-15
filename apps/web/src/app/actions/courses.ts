@@ -2,16 +2,35 @@
 
 import { prisma } from '@/lib/db'
 
-export async function getPublicCoursePeriods(organizerId?: string) {
+export interface CourseFilters {
+    organizerId?: string
+    levelLabel?: string
+    weekday?: number
+    timeAfter?: string // HH:MM format
+    timeBefore?: string // HH:MM format
+}
+
+export async function getPublicCoursePeriods(filters?: CourseFilters) {
     const now = new Date()
 
-    // Fetch periods that are either active or upcoming
-    // We might want to see closed ones too potentially, but let's focus on purchasable ones or recent ones.
-    // Actually, let's just fetch all future or currently open ones.
+    // Build track filter conditions
+    const trackWhere: any = {}
+    if (filters?.levelLabel) {
+        trackWhere.levelLabel = filters.levelLabel
+    }
+    if (filters?.weekday !== undefined && filters.weekday > 0) {
+        trackWhere.weekday = filters.weekday
+    }
+    if (filters?.timeAfter) {
+        trackWhere.timeStart = { gte: filters.timeAfter }
+    }
+    if (filters?.timeBefore) {
+        trackWhere.timeStart = { lte: filters.timeBefore }
+    }
 
-    return await prisma.coursePeriod.findMany({
+    const periods = await prisma.coursePeriod.findMany({
         where: {
-            ...(organizerId && { organizerId }),
+            ...(filters?.organizerId && { organizerId: filters.organizerId }),
             salesOpenAt: { lte: now },
             salesCloseAt: { gte: now }
         },
@@ -25,6 +44,7 @@ export async function getPublicCoursePeriods(organizerId?: string) {
                 }
             },
             tracks: {
+                where: Object.keys(trackWhere).length > 0 ? trackWhere : undefined,
                 orderBy: [
                     { weekday: 'asc' },
                     { timeStart: 'asc' }
@@ -33,6 +53,9 @@ export async function getPublicCoursePeriods(organizerId?: string) {
         },
         orderBy: { startDate: 'asc' }
     })
+
+    // Filter out periods with no tracks after filtering
+    return periods.filter(p => p.tracks.length > 0)
 }
 
 export async function getCourseTrack(trackId: string) {
@@ -42,4 +65,24 @@ export async function getCourseTrack(trackId: string) {
             period: true
         }
     })
+}
+
+export async function getAvailableCourseLevels() {
+    const tracks = await prisma.courseTrack.findMany({
+        where: {
+            period: {
+                salesOpenAt: { lte: new Date() },
+                salesCloseAt: { gte: new Date() }
+            }
+        },
+        select: {
+            levelLabel: true
+        },
+        distinct: ['levelLabel']
+    })
+    
+    return tracks
+        .map(t => t.levelLabel)
+        .filter((level): level is string => level !== null)
+        .sort()
 }
