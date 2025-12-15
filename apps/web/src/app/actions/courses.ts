@@ -83,6 +83,6 @@ export async function getAvailableCourseLevels() {
     
     return tracks
         .map(t => t.levelLabel)
-        .filter((level): level is string => level !== null)
+        .filter((level): level is string => level !== null && level !== '' && level.trim() !== '')
         .sort()
 }
