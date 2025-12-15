@@ -8,18 +8,16 @@ import Link from 'next/link'
 import { 
     LayoutDashboard, 
     Users, 
-    Calendar, 
     UserCheck, 
     DollarSign, 
     ClipboardList,
-    Settings,
     Building2
 } from 'lucide-react'
 
 const ROLE_INFO: Record<string, {
     label: string
     description: string
-    icon: any
+    icon: React.ComponentType<{ className?: string }>
     color: string
     permissions: string[]
 }> = {
@@ -125,13 +123,13 @@ export default async function DashboardPage() {
     const { globalRoles, organizers } = await getUserRoles()
 
     // If no roles, show message
-    if (globalRoles.length === 0 && organizers.length === 0) {
+    if ((globalRoles?.length ?? 0) === 0 && organizers.length === 0) {
         return (
             <div className="container mx-auto py-10">
                 <Card>
                     <CardHeader>
                         <CardTitle>Dashboard</CardTitle>
-                        <CardDescription>You don't have any staff roles assigned yet</CardDescription>
+                        <CardDescription>You don&apos;t have any staff roles assigned yet</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground mb-4">
@@ -154,11 +152,11 @@ export default async function DashboardPage() {
             </div>
 
             {/* Global Roles */}
-            {globalRoles.length > 0 && (
+            {(globalRoles?.length ?? 0) > 0 && (
                 <div className="space-y-4">
                     <h2 className="text-2xl font-semibold">Global Access</h2>
                     <div className="grid gap-6 md:grid-cols-2">
-                        {globalRoles.map(role => {
+                        {globalRoles?.map(role => {
                             const roleInfo = ROLE_INFO[role]
                             if (!roleInfo) return null
 
