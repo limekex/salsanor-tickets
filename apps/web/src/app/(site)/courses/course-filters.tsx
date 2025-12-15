@@ -49,8 +49,8 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
         org: currentFilters.org || 'all',
         level: currentFilters.level || 'all',
         weekday: currentFilters.weekday || 'all',
-        timeAfter: currentFilters.timeAfter || '',
-        timeBefore: currentFilters.timeBefore || '',
+        timeAfter: currentFilters.timeAfter || 'all',
+        timeBefore: currentFilters.timeBefore || 'all',
     })
 
     const updateFilter = (key: string, value: string) => {
@@ -69,10 +69,10 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
         if (filters.weekday && filters.weekday !== 'all') {
             params.set('weekday', filters.weekday)
         }
-        if (filters.timeAfter) {
+        if (filters.timeAfter && filters.timeAfter !== 'all') {
             params.set('timeAfter', filters.timeAfter)
         }
-        if (filters.timeBefore) {
+        if (filters.timeBefore && filters.timeBefore !== 'all') {
             params.set('timeBefore', filters.timeBefore)
         }
 
@@ -84,8 +84,8 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
             org: 'all',
             level: 'all',
             weekday: 'all',
-            timeAfter: '',
-            timeBefore: '',
+            timeAfter: 'all',
+            timeBefore: 'all',
         })
         router.push('/courses')
     }
@@ -93,8 +93,8 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
     const hasActiveFilters = filters.org !== 'all' || 
                             filters.level !== 'all' || 
                             filters.weekday !== 'all' ||
-                            filters.timeAfter !== '' ||
-                            filters.timeBefore !== ''
+                            filters.timeAfter !== 'all' ||
+                            filters.timeBefore !== 'all'
 
     return (
         <div className="space-y-4 bg-muted/30 p-6 rounded-lg">
@@ -190,7 +190,7 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
                             <SelectValue placeholder="Any Time" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Any Time</SelectItem>
+                            <SelectItem value="all">Any Time</SelectItem>
                             {TIME_OPTIONS.map((time) => (
                                 <SelectItem key={time.value} value={time.value}>
                                     {time.label}
@@ -211,7 +211,7 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
                             <SelectValue placeholder="Any Time" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Any Time</SelectItem>
+                            <SelectItem value="all">Any Time</SelectItem>
                             {TIME_OPTIONS.map((time) => (
                                 <SelectItem key={time.value} value={time.value}>
                                     {time.label}
