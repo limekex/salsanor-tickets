@@ -27,6 +27,23 @@ interface AdminNavProps {
 export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange }: AdminNavProps) {
     const pathname = usePathname()
 
+    // Filter nav items based on whether an org is selected
+    const filteredNavItems = navItems.filter(item => {
+        // Always show Dashboard
+        if (item.href === '/admin') return true
+        
+        // Show Organizers only for global admins
+        if (item.href === '/admin/organizers') return isGlobalAdmin
+        
+        // Show Periods only when an org is selected OR user is not global admin
+        if (item.href === '/admin/periods') return currentOrgId !== null || !isGlobalAdmin
+        
+        // Show Settings for all admins
+        if (item.href === '/admin/settings/payments') return true
+        
+        return true
+    })
+
     return (
         <nav className="border-b bg-background">
             <div className="container mx-auto px-4">
@@ -45,7 +62,7 @@ export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange 
                     )}
                     
                     <div className="flex gap-1 ml-auto">
-                        {navItems.map((item) => {
+                        {filteredNavItems.map((item) => {
                             const Icon = item.icon
                             const isActive = pathname === item.href ||
                                 (item.href !== '/admin' && pathname.startsWith(item.href))
