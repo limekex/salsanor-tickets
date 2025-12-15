@@ -51,8 +51,13 @@ const ROLE_LABELS: Record<string, { label: string; color: string; description: s
     },
 }
 
-export default async function UserDetailPage({ params }: { params: { userId: string } }) {
-    const user = await getUserById(params.userId)
+export default async function UserDetailPage({ 
+    params 
+}: { 
+    params: Promise<{ userId: string }> 
+}) {
+    const { userId } = await params
+    const user = await getUserById(userId)
     
     if (!user) {
         notFound()
