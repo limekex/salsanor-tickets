@@ -1,0 +1,331 @@
+// prisma/schema.prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  ADMIN           // Global admin - can manage all organizers
+  ORGANIZER       // Deprecated - use ORG_ADMIN instead
+  ORG_ADMIN       // Organizer admin - can manage their organizer's periods/tracks
+  ORG_FINANCE     // Organizer finance - can view financial reports for their organizer
+  ORG_CHECKIN     // Organizer check-in staff - can check in for their organizer's events
+  INSTRUCTOR      // Can view participant lists
+  CHECKIN         // Global check-in staff
+  STAFF           // General staff
+  PARTICIPANT     // Regular participant
+}
+
+enum RegistrationStatus {
+  DRAFT
+  PENDING_PAYMENT
+  ACTIVE
+  WAITLIST
+  CANCELLED
+  REFUNDED
+}
+
+enum TrackRole {
+  LEADER
+  FOLLOWER
+  ANY
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  STRIPE
+  VIPPS
+}
+
+enum PaymentStatus {
+  REQUIRES_ACTION
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum WaitlistStatus {
+  ON_WAITLIST
+  OFFERED
+  EXPIRED
+  ACCEPTED
+  REMOVED
+}
+
+enum TicketStatus {
+  ACTIVE
+  VOIDED
+}
+
+enum CheckInType {
+  PERIOD_ENTRY
+  SESSION_ENTRY
+}
+
+model UserAccount {
+  id            String   @id @default(uuid())
+  supabaseUid   String   @unique
+  email         String   @unique
+  createdAt     DateTime @default(now())
+  roles         UserAccountRole[]
+  personProfile PersonProfile?
+}
+
+model UserAccountRole {
+  id           String   @id @default(uuid())
+  userId       String
+  role         UserRole
+  organizerId  String?  // Optional: for ORGANIZER role scoping
+  createdAt    DateTime @default(now())
+  user         UserAccount @relation(fields: [userId], references: [id])
+  organizer    Organizer? @relation(fields: [organizerId], references: [id])
+  @@unique([userId, role, organizerId])
+  @@index([organizerId])
+}
+
+model PersonProfile {
+  id          String   @id @default(uuid())
+  userId      String?  @unique
+  firstName   String
+  lastName    String
+  phone       String?
+  email       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  memberships Membership[]
+  registrations Registration[]
+  tickets     Ticket[]
+  orders      Order[]
+  user        UserAccount? @relation(fields: [userId], references: [id])
+  @@index([email])
+}
+
+model Organizer {
+  id            String   @id @default(uuid())
+  slug          String   @unique
+  name          String
+  description   String?
+  logoUrl       String?
+  website       String?
+  contactEmail  String?
+  city          String?
+  country       String   @default("Norway")
+  timezone      String   @default("Europe/Oslo")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  periods       CoursePeriod[]
+  userRoles     UserAccountRole[]
+  @@index([slug])
+}
+
+model CoursePeriod {
+  id            String   @id @default(uuid())
+  organizerId   String
+  code          String   @unique // e.g., "TB-2026-P1"
+  name          String
+  city          String
+  locationName  String?
+  startDate     DateTime
+  endDate       DateTime
+  salesOpenAt   DateTime
+  salesCloseAt  DateTime
+  timezone      String   @default("Europe/Oslo")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  organizer     Organizer @relation(fields: [organizerId], references: [id])
+  tracks        CourseTrack[]
+  pairGroups    PairGroup[]
+  registrations Registration[]
+  discountRules DiscountRule[]
+  orders        Order[]
+  tickets       Ticket[]
+  @@index([organizerId])
+  @@index([startDate, endDate])
+}
+
+model CourseTrack {
+  id             String   @id @default(uuid())
+  periodId       String
+  title          String
+  levelLabel     String?  // "Intro", "L2", etc.
+  weekday        Int      // 1=Mon..7=Sun
+  timeStart      String   // "19:00"
+  timeEnd        String   // "20:15"
+  capacityTotal  Int
+  capacityLeaders Int?    // optional split capacity
+  capacityFollowers Int?  // optional split capacity
+  rolePolicy     TrackRole @default(ANY)
+  waitlistEnabled Boolean @default(true)
+  priceSingleCents Int
+  pricePairCents   Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  period         CoursePeriod @relation(fields: [periodId], references: [id])
+  sessions       TrackSession[]
+  registrations  Registration[]
+  @@index([periodId])
+}
+
+model TrackSession {
+  id        String   @id @default(uuid())
+  trackId   String
+  startsAt  DateTime
+  endsAt    DateTime
+  track     CourseTrack @relation(fields: [trackId], references: [id])
+  checkIns  CheckIn[]
+  @@index([trackId, startsAt])
+}
+
+model PairGroup {
+  id        String   @id @default(uuid())
+  periodId  String
+  createdAt DateTime @default(now())
+  period    CoursePeriod @relation(fields: [periodId], references: [id])
+  members   Registration[]
+  @@index([periodId])
+}
+
+model Registration {
+  id            String   @id @default(uuid())
+  periodId      String
+  trackId       String
+  personId      String
+  status        RegistrationStatus @default(DRAFT)
+  chosenRole    TrackRole @default(ANY) // participant choice: leader/follower/any
+  pairGroupId   String?
+  orderId       String?
+  waitlist      WaitlistEntry?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  period        CoursePeriod @relation(fields: [periodId], references: [id])
+  track         CourseTrack  @relation(fields: [trackId], references: [id])
+  person        PersonProfile @relation(fields: [personId], references: [id])
+  pairGroup     PairGroup? @relation(fields: [pairGroupId], references: [id])
+  order         Order? @relation(fields: [orderId], references: [id])
+  @@unique([trackId, personId]) // prevent duplicates in same track
+  @@index([periodId, trackId])
+}
+
+model WaitlistEntry {
+  id            String   @id @default(uuid())
+  registrationId String @unique
+  status        WaitlistStatus @default(ON_WAITLIST)
+  offeredUntil  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  registration  Registration @relation(fields: [registrationId], references: [id])
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  periodId    String
+  purchaserPersonId String
+  status      OrderStatus @default(DRAFT)
+  currency    String   @default("NOK")
+  subtotalCents Int
+  discountCents Int
+  totalCents  Int
+  pricingSnapshot Json // store applied rules + breakdown for audit
+  providerCheckoutRef String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  period      CoursePeriod @relation(fields: [periodId], references: [id])
+  purchaser   PersonProfile @relation(fields: [purchaserPersonId], references: [id])
+  registrations Registration[]
+  payments    Payment[]
+  @@index([periodId, status])
+}
+
+model Payment {
+  id          String @id @default(uuid())
+  orderId     String
+  provider    PaymentProvider
+  providerPaymentRef String
+  status      PaymentStatus
+  amountCents Int
+  currency    String @default("NOK")
+  rawPayload  Json
+  createdAt   DateTime @default(now())
+  order       Order @relation(fields: [orderId], references: [id])
+  @@index([orderId])
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  periodId    String
+  personId    String
+  status      TicketStatus @default(ACTIVE)
+  qrTokenHash String   @unique // store hash only
+  issuedAt    DateTime @default(now())
+  period      CoursePeriod @relation(fields: [periodId], references: [id])
+  person      PersonProfile @relation(fields: [personId], references: [id])
+  checkIns    CheckIn[]
+  @@unique([periodId, personId]) // one ticket per person per period
+  @@index([periodId])
+}
+
+model CheckIn {
+  id          String   @id @default(uuid())
+  ticketId    String
+  type        CheckInType
+  sessionId   String?
+  scannedByUserId String?
+  scannedAt   DateTime @default(now())
+  meta        Json?
+  ticket      Ticket @relation(fields: [ticketId], references: [id])
+  session     TrackSession? @relation(fields: [sessionId], references: [id])
+  @@index([ticketId, scannedAt])
+}
+
+model Membership {
+  id          String   @id @default(uuid())
+  personId    String
+  org         String   @default("SALSANOR")
+  memberNumber String?
+  validFrom   DateTime
+  validTo     DateTime
+  status      String   @default("ACTIVE") // keep flexible; could be enum later
+  source      String   @default("IMPORT")
+  createdAt   DateTime @default(now())
+  person      PersonProfile @relation(fields: [personId], references: [id])
+  @@index([personId, validTo])
+}
+
+model DiscountRule {
+  id          String   @id @default(uuid())
+  periodId    String
+  code        String   // internal code e.g. "MULTI_2", "MEMBER_15"
+  name        String
+  priority    Int      // evaluation order
+  enabled     Boolean  @default(true)
+  ruleType    String   // e.g. "MULTI_COURSE", "MEMBERSHIP", "PAIR_PRICE", "PROMO_CODE"
+  config      Json     // structured config per type
+  createdAt   DateTime @default(now())
+  period      CoursePeriod @relation(fields: [periodId], references: [id])
+  @@unique([periodId, code])
+  @@index([periodId, priority])
+}
+
+model PaymentConfig {
+  id        String   @id @default(uuid())
+  provider  PaymentProvider @unique
+  enabled   Boolean  @default(false)
+  isTest    Boolean  @default(true)
+  secretKey String?  // Encrypted or protected via RLS (Admin only)
+  publishableKey String?
+  webhookSecret String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

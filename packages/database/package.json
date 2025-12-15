@@ -1,0 +1,20 @@
+{
+    "name": "@salsanor/database",
+    "version": "0.0.1",
+    "main": "index.ts",
+    "types": "index.ts",
+    "scripts": {
+        "postinstall": "prisma generate"
+    },
+    "dependencies": {
+        "@prisma/client": "5.22.0"
+    },
+    "devDependencies": {
+        "prisma": "5.22.0",
+        "typescript": "^5.3.3",
+        "tsx": "^4.7.1"
+    },
+    "prisma": {
+        "seed": "npx tsx prisma/seed.ts"
+    }
+}

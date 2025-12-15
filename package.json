@@ -1,0 +1,8 @@
+{
+  "name": "salsanor-tickets-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

@@ -1,0 +1,135 @@
+
+import { prisma } from '@/lib/db'
+import { requireAdmin } from '@/utils/auth-admin'
+import { notFound } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { promoteToOffered } from '@/app/actions/waitlist'
+import { formatDistanceToNow } from 'date-fns'
+
+/* 
+  NOTE: This is a Server Component. 
+  We import server actions directly for forms, but for "button clicks" without forms 
+  we often use a client component wrapper OR a simple form with hidden input.
+  For MVP, I'll use a small Client Component for the Promote Button to handle startTransition/pending.
+*/
+import { PromoteButton } from './promote-button'
+
+type Params = Promise<{ id: string }>
+
+export default async function TrackDetailPage({ params }: { params: Params }) {
+    await requireAdmin()
+    const { id } = await params
+
+    const track = await prisma.courseTrack.findUnique({
+        where: { id },
+        include: {
+            period: true,
+            registrations: {
+                include: {
+                    person: true,
+                    waitlist: true
+                },
+                orderBy: { createdAt: 'asc' } // First come first serve
+            }
+        }
+    })
+
+    if (!track) return notFound()
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold">{track.title}</h2>
+                    <p className="text-muted-foreground">{track.period.name} • {track.weekday} {track.timeStart}</p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" disabled>Edit Track</Button>
+                </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm">Capacity</CardTitle></CardHeader>
+                    <CardContent className="text-2xl font-bold">
+                        {track.registrations.filter(r => r.status === 'ACTIVE').length} / {track.capacityTotal}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm">Waitlist</CardTitle></CardHeader>
+                    <CardContent className="text-2xl font-bold">
+                        {track.registrations.filter(r => r.status === 'WAITLIST').length}
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Registrations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Registered</TableHead>
+                                <TableHead>Waitlist Info</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {track.registrations.map((reg) => (
+                                <TableRow key={reg.id}>
+                                    <TableCell className="font-medium">
+                                        {reg.person.firstName} {reg.person.lastName}
+                                        <div className="text-xs text-muted-foreground">{reg.person.email}</div>
+                                    </TableCell>
+                                    <TableCell>{reg.chosenRole}</TableCell>
+                                    <TableCell>
+                                        <StatusBadge status={reg.status} />
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {new Date(reg.createdAt).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell>
+                                        {reg.waitlist && (
+                                            <div className="text-sm">
+                                                {reg.waitlist.status === 'OFFERED' && (
+                                                    <span className="text-orange-600 font-semibold">
+                                                        Expires {formatDistanceToNow(reg.waitlist.offeredUntil!, { addSuffix: true })}
+                                                    </span>
+                                                )}
+                                                {reg.waitlist.status === 'EXPIRED' && <span className="text-red-500">Expired</span>}
+                                                {reg.waitlist.status === 'ON_WAITLIST' && <span>Position: ?</span>}
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {reg.status === 'WAITLIST' && (
+                                            <PromoteButton registrationId={reg.id} />
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+function StatusBadge({ status }: { status: string }) {
+    switch (status) {
+        case 'ACTIVE': return <Badge className="bg-green-600">Active</Badge>
+        case 'WAITLIST': return <Badge variant="secondary">Waitlist</Badge>
+        case 'DRAFT': return <Badge variant="outline">Draft</Badge>
+        case 'CANCELLED': return <Badge variant="destructive">Cancelled</Badge>
+        default: return <Badge variant="outline">{status}</Badge>
+    }
+}
