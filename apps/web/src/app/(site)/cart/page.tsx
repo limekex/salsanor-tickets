@@ -56,12 +56,12 @@ export default function CartPage() {
             const result = await createOrderFromCart(items)
             if (result?.error) {
                 setError(result.error)
+                // @ts-ignore - redirectToOnboarding might exist on result
+                if (result?.redirectToOnboarding) {
+                    router.push('/onboarding')
+                }
             } else if (result?.orderId) {
                 clearCart() // Success!
-                // Redirect to payment or confirmation
-                // For MVP without payment, maybe directly to profile or a success page?
-                // Spec Phase 5 is payments. Phase 4 is just pricing.
-                // Let's redirect to Profile for now as "Order Placed (Draft)"
                 router.push('/profile')
             }
         })

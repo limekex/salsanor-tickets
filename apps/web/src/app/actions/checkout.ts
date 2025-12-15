@@ -69,30 +69,24 @@ export async function createOrderFromCart(items: { trackId: string, role: string
 
     if (!user) return { error: 'Must be logged in' }
 
-    // 1. Re-calculate Pricing to ensure integrity
-    // (In a real app, we might cache the quote ID to avoid race conditions, but re-calc is safer)
-    const pricing = await getCartPricing(items)
-    if (!pricing) return { error: 'Empty cart' }
-
-    // 2. Get User Profile
+    // 1. Check if user has completed onboarding
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: { personProfile: true }
     })
 
-    let personId = userAccount?.personProfile?.id
-    if (!personId) {
-        // Create profile if missing
-        const newProfile = await prisma.personProfile.create({
-            data: {
-                userId: userAccount!.id,
-                email: user.email!,
-                firstName: user.user_metadata?.full_name?.split(' ')[0] || 'Unknown',
-                lastName: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || 'User',
-            }
-        })
-        personId = newProfile.id
+    if (!userAccount?.personProfile) {
+        return { 
+            error: 'Please complete your profile before checking out.',
+            redirectToOnboarding: true 
+        }
     }
+
+    // 2. Re-calculate Pricing to ensure integrity
+    const pricing = await getCartPricing(items)
+    if (!pricing) return { error: 'Empty cart' }
+
+    const personId = userAccount.personProfile.id
 
     // 3. Create Order
     // Assuming all items are same period for now? 

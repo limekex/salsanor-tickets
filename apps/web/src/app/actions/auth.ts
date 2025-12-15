@@ -30,21 +30,38 @@ export async function signup(prevState: any, formData: FormData) {
         password: formData.get('password') as string,
     }
 
-    const { error } = await supabase.auth.signUp(data)
+    const { data: authData, error } = await supabase.auth.signUp(data)
 
     if (error) {
         return { error: error.message }
     }
 
-    revalidatePath('/', 'layout')
+    // If user was created and session exists, ensure UserAccount exists
+    if (authData.user && authData.session) {
+        const { prisma } = await import('@/lib/db')
+        
+        // Wait a moment for trigger to fire
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Check if UserAccount was created, if not create it manually
+        let userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: authData.user.id }
+        })
 
-    // If email confirmation is enabled, it might not log them in immediately
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-        // User is logged in, redirect to onboarding
+        if (!userAccount) {
+            // Trigger didn't fire, create manually
+            userAccount = await prisma.userAccount.create({
+                data: {
+                    supabaseUid: authData.user.id,
+                    email: authData.user.email!
+                }
+            })
+        }
+
+        revalidatePath('/', 'layout')
         redirect('/onboarding')
     } else {
-        // Check email flow
+        // Email confirmation required
         return { message: 'Check your email to confirm your account.' }
     }
 }

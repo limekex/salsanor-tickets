@@ -41,13 +41,8 @@ export async function createRegistration(prevState: any, formData: FormData) {
     let personId = userAccount.personProfile?.id
 
     if (!personId) {
-        // Create profile using email/metadata
-        // Ideally we ask for name in the wizard, but let's grab from metadata or placeholder
-        const newProfile = await prisma.personProfile.create({
-            data: {
-                userId: userAccount.id,
-                email: user.email!,
-                firstName: user.user_metadata?.full_name?.split(' ')[0] || 'Unknown',
+        // User needs to complete onboarding first
+        return { error: 'Please complete your profile before registering for courses.', redirectToOnboarding: true }
                 lastName: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || 'User',
             }
         })

@@ -16,17 +16,38 @@ export async function GET(request: Request) {
             const { data: { user } } = await supabase.auth.getUser()
             
             if (user) {
-                const userAccount = await prisma.userAccount.findUnique({
+                // Wait a moment for trigger to fire
+                await new Promise(resolve => setTimeout(resolve, 500))
+                
+                // Check if UserAccount was created, if not create it manually
+                let userAccount = await prisma.userAccount.findUnique({
                     where: { supabaseUid: user.id },
                     select: { 
+                        id: true,
                         personProfile: {
                             select: { id: true }
                         }
                     }
                 })
 
+                if (!userAccount) {
+                    // Trigger didn't fire, create manually
+                    userAccount = await prisma.userAccount.create({
+                        data: {
+                            supabaseUid: user.id,
+                            email: user.email!
+                        },
+                        select: {
+                            id: true,
+                            personProfile: {
+                                select: { id: true }
+                            }
+                        }
+                    })
+                }
+
                 // If no person profile, redirect to onboarding
-                if (userAccount && !userAccount.personProfile) {
+                if (!userAccount.personProfile) {
                     const forwardedHost = request.headers.get('x-forwarded-host')
                     const isLocalEnv = process.env.NODE_ENV === 'development'
                     

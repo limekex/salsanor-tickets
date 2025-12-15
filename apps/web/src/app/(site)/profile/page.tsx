@@ -41,14 +41,9 @@ export default async function ProfilePage() {
         }
     })
 
-    // If no profile yet, show empty
+    // If no profile yet, redirect to onboarding
     if (!userAccount?.personProfile) {
-        return (
-            <div className="container mx-auto py-10">
-                <h1 className="text-3xl font-bold mb-6">My Profile</h1>
-                <p>Welcome! You have no registrations yet.</p>
-            </div>
-        )
+        redirect('/onboarding')
     }
 
     const { registrations, tickets } = userAccount.personProfile
