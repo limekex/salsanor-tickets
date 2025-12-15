@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Calendar, Settings, Users, LayoutDashboard } from 'lucide-react'
+import { OrgSelector } from './org-selector'
 
 const navItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -12,7 +13,18 @@ const navItems = [
     { href: '/admin/settings/payments', label: 'Settings', icon: Settings },
 ]
 
-export function AdminNav() {
+interface AdminNavProps {
+    isGlobalAdmin: boolean
+    organizers: Array<{
+        id: string
+        name: string
+        slug: string
+    }>
+    currentOrgId: string | null
+    onOrgChange: (orgId: string) => Promise<void>
+}
+
+export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange }: AdminNavProps) {
     const pathname = usePathname()
 
     return (
@@ -22,6 +34,16 @@ export function AdminNav() {
                     <Link href="/admin" className="font-bold text-lg">
                         SalsaNor Admin
                     </Link>
+                    
+                    {/* Organization Selector - Only for Global Admins */}
+                    {isGlobalAdmin && organizers.length > 0 && (
+                        <OrgSelector 
+                            organizers={organizers}
+                            currentOrgId={currentOrgId}
+                            onOrgChange={onOrgChange}
+                        />
+                    )}
+                    
                     <div className="flex gap-1 ml-auto">
                         {navItems.map((item) => {
                             const Icon = item.icon

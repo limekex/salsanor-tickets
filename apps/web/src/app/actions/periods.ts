@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/utils/auth-admin'
+import { getAdminSelectedOrg } from '@/utils/admin-org-context'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { coursePeriodSchema } from '@/lib/schemas/period'
@@ -104,7 +105,19 @@ export async function updateCoursePeriod(periodId: string, prevState: any, formD
 
 export async function getCoursePeriods() {
     await requireAdmin()
+    const selectedOrgId = await getAdminSelectedOrg()
+    
     return await prisma.coursePeriod.findMany({
+        where: selectedOrgId ? { organizerId: selectedOrgId } : undefined,
+        include: {
+            organizer: {
+                select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                }
+            }
+        },
         orderBy: { startDate: 'desc' }
     })
 }

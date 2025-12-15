@@ -35,6 +35,7 @@ export default async function CoursePeriodsPage() {
                             <TableRow>
                                 <TableHead>Code</TableHead>
                                 <TableHead>Name</TableHead>
+                                <TableHead>Organizer</TableHead>
                                 <TableHead>Dates</TableHead>
                                 <TableHead>Sales</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -45,6 +46,7 @@ export default async function CoursePeriodsPage() {
                                 <TableRow key={period.id}>
                                     <TableCell className="font-medium">{period.code}</TableCell>
                                     <TableCell>{period.name}</TableCell>
+                                    <TableCell className="text-muted-foreground">{period.organizer.name}</TableCell>
                                     <TableCell>
                                         {format(period.startDate, 'MMM d, yyyy')} -{' '}
                                         {format(period.endDate, 'MMM d, yyyy')}
@@ -65,7 +67,7 @@ export default async function CoursePeriodsPage() {
                             ))}
                             {periods.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                                         No course periods found. Create one to get started.
                                     </TableCell>
                                 </TableRow>
