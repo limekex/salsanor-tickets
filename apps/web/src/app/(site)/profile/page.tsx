@@ -1,14 +1,16 @@
-
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { format } from 'date-fns'
 import { PayButton } from '@/components/pay-button'
 import { TicketQR } from '@/components/ticket-qr'
 import { AcceptOfferButton, DeclineOfferButton } from './offer-buttons'
 import { formatDistanceToNow } from 'date-fns'
+import { LayoutDashboard } from 'lucide-react'
 
 export default async function ProfilePage() {
     const supabase = await createClient()
@@ -37,7 +39,8 @@ export default async function ProfilePage() {
                         where: { status: 'ACTIVE' }
                     }
                 }
-            }
+            },
+            roles: true
         }
     })
 
@@ -47,10 +50,21 @@ export default async function ProfilePage() {
     }
 
     const { registrations, tickets } = userAccount.personProfile
+    const hasStaffRoles = userAccount.roles.length > 0
 
-    return (
-        <div className="container mx-auto py-10 space-y-8">
-            <div>
+    return ( className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold">My Registrations</h1>
+                    <p className="text-muted-foreground">{user.email}</p>
+                </div>
+                {hasStaffRoles && (
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard">
+                            <LayoutDashboard className="h-4 w-4 mr-2" />
+                            Staff Dashboard
+                        </Link>
+                    </Button>
+                )}
                 <h1 className="text-3xl font-bold">My Registrations</h1>
                 <p className="text-muted-foreground">{user.email}</p>
             </div>

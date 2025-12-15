@@ -10,13 +10,19 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser()
 
   let isAdmin = false
+  let hasStaffRoles = false
 
   if (user) {
     const userAccount = await prisma.userAccount.findUnique({
       where: { supabaseUid: user.id },
       include: { roles: true }
     })
-    isAdmin = userAccount?.roles.some(r => r.role === 'ADMIN' || r.role === 'ORGANIZER') || false
+    
+    if (userAccount?.roles) {
+      isAdmin = userAccount.roles.some(r => r.role === 'ADMIN' || r.role === 'ORGANIZER')
+      // Check if user has any staff/admin roles
+      hasStaffRoles = userAccount.roles.length > 0
+    }
   }
 
   return (
@@ -32,6 +38,11 @@ export default async function Home() {
               <Button asChild variant="ghost" size="sm">
                 <Link href="/profile">My Profile</Link>
               </Button>
+              {hasStaffRoles && (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+              )}
               <form action={signout}>
                 <Button variant="outline" size="sm">Sign Out</Button>
               </form>
@@ -57,9 +68,14 @@ export default async function Home() {
             <Link href="/courses">Browse Courses</Link>
           </Button>
 
-          {user ? (
-            <>
-              <Button asChild variant="outline" size="lg">
+          {userhasStaffRoles && (
+                <Button asChild variant="secondary" size="lg">
+                  <Link href="/dashboard">Staff Dashboard</Link>
+                </Button>
+              )}
+              {isAdmin && (
+                <Button asChild variant="secondary" size="lg">
+                  <Link href="/admin">Admin Panel"lg">
                 <Link href="/profile">My Profile</Link>
               </Button>
               {isAdmin && (
