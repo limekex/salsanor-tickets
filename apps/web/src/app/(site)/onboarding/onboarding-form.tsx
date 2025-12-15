@@ -23,9 +23,14 @@ export function OnboardingForm({ email }: { email: string }) {
         if (result.error) {
             setError(result.error)
             setLoading(false)
-        } else {
+        } else if (result.success) {
+            // Success! Redirect to home
             router.push('/')
             router.refresh()
+        } else {
+            // Unexpected response
+            setError('Unexpected error occurred')
+            setLoading(false)
         }
     }
 

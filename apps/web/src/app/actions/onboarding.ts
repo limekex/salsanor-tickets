@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
+import { revalidatePath } from 'next/cache'
 
 export async function checkOnboardingStatus() {
     const supabase = await createClient()
@@ -68,6 +69,10 @@ export async function completeOnboarding(formData: FormData) {
                 phone: phone || null
             }
         })
+
+        // Revalidate to update layout checks
+        revalidatePath('/', 'layout')
+        revalidatePath('/onboarding')
 
         return { success: true }
     } catch (error) {
