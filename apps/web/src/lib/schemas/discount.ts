@@ -2,13 +2,14 @@
 import { z } from 'zod'
 
 export const ruleTypeEnum = z.enum([
-    'MEMBERSHIP_PERCENT',
+    'MEMBERSHIP_TIER_PERCENT',  // Updated to support tiers
     'MULTI_COURSE_TIERED',
     'PROMO_CODE_FIXED'
     // Add more as needed
 ])
 
-export const membershipConfigSchema = z.object({
+export const membershipTierConfigSchema = z.object({
+    tierIds: z.array(z.string()).optional(), // If empty, applies to all tiers
     discountPercent: z.number().min(0).max(100),
 })
 
@@ -31,12 +32,12 @@ export const discountRuleSchema = z.object({
 })
     // Refinement
     .superRefine((data, ctx) => {
-        if (data.ruleType === 'MEMBERSHIP_PERCENT') {
-            const result = membershipConfigSchema.safeParse(data.config)
+        if (data.ruleType === 'MEMBERSHIP_TIER_PERCENT') {
+            const result = membershipTierConfigSchema.safeParse(data.config)
             if (!result.success) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
-                    message: 'Invalid membership config',
+                    message: 'Invalid membership tier config',
                     path: ['config']
                 })
             }

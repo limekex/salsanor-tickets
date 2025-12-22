@@ -37,21 +37,106 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object as Stripe.Checkout.Session
-        const orderId = session.metadata?.orderId
+    // Handle different event types
+    switch (event.type) {
+        case 'checkout.session.completed': {
+            const session = event.data.object as Stripe.Checkout.Session
+            const orderId = session.metadata?.orderId
 
-        if (orderId) {
-            try {
-                await fulfillOrder(orderId, session.id)
-            } catch (e) {
-                console.error('Fulfillment error', e)
-                return NextResponse.json({ error: 'Fulfillment failed' }, { status: 500 })
+            if (orderId) {
+                try {
+                    await fulfillOrder(orderId, session.id)
+                    
+                    // Send order confirmation email
+                    try {
+                        const { emailService } = await import('@/lib/email/email-service')
+                        const order = await prisma.order.findUnique({
+                            where: { id: orderId },
+                            include: {
+                                purchaser: true,
+                                period: {
+                                    include: {
+                                        organizer: true
+                                    }
+                                },
+                                registrations: {
+                                    include: {
+                                        track: true
+                                    }
+                                }
+                            }
+                        })
+                        
+                        if (order?.purchaser?.email && order.period) {
+                            const trackNames = order.registrations.map(r => r.track?.title || 'Track').join(', ')
+                            await emailService.sendTransactional({
+                                organizerId: order.period.organizerId,
+                                templateSlug: 'order-confirmation',
+                                recipientEmail: order.purchaser.email,
+                                recipientName: `${order.purchaser.firstName} ${order.purchaser.lastName}`.trim() || undefined,
+                                variables: {
+                                    recipientName: order.purchaser.firstName || 'Customer',
+                                    organizationName: order.period.organizer.name,
+                                    eventName: order.period.name,
+                                    orderNumber: order.id.slice(0, 8),
+                                    orderTotal: `${order.currency.toUpperCase()} ${(order.totalCents / 100).toFixed(2)}`,
+                                    ticketCount: order.registrations.length.toString(),
+                                    trackNames: trackNames,
+                                },
+                                language: 'en',
+                            })
+                        }
+                    } catch (emailError) {
+                        // Log but don't fail webhook if email fails
+                        console.error('Failed to send order confirmation email:', emailError)
+                    }
+                } catch (e) {
+                    console.error('Fulfillment error', e)
+                    return NextResponse.json({ error: 'Fulfillment failed' }, { status: 500 })
+                }
+            } else {
+                console.error('Webhook: Missing orderId in metadata')
             }
-        } else {
-            console.error('Webhook: Missing orderId in metadata')
+            break
         }
-    } else {
+
+        case 'account.updated': {
+            const account = event.data.object as Stripe.Account
+            
+            console.log(`Webhook: Received account.updated for ${account.id}`)
+            console.log(`  - Details submitted: ${account.details_submitted}`)
+            console.log(`  - Charges enabled: ${account.charges_enabled}`)
+            console.log(`  - Payouts enabled: ${account.payouts_enabled}`)
+            
+            // Find organizer with this Stripe account ID
+            const organizer = await prisma.organizer.findFirst({
+                where: { stripeConnectAccountId: account.id }
+            })
+
+            if (organizer) {
+                console.log(`Webhook: Updating organizer ${organizer.slug} (${organizer.name})`)
+                
+                // Update organizer status based on Stripe account capabilities
+                await prisma.organizer.update({
+                    where: { id: organizer.id },
+                    data: {
+                        stripeOnboardingComplete: account.details_submitted || false,
+                        stripeChargesEnabled: account.charges_enabled || false,
+                        stripePayoutsEnabled: account.payouts_enabled || false,
+                    }
+                })
+
+                console.log(`Webhook: ✅ Successfully updated organizer ${organizer.slug}`)
+            } else {
+                console.log(`Webhook: ℹ️  No organizer found for Stripe account ${account.id}`)
+                console.log(`Webhook: This is expected for test events from 'stripe trigger'`)
+                console.log(`Webhook: To test with your real account, trigger an update from Stripe Dashboard or complete onboarding`)
+            }
+            break
+        }
+
+        default:
+            console.log(`Webhook: Unhandled event type ${event.type}`)
     }
 
     return NextResponse.json({ received: true })

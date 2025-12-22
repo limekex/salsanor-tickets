@@ -25,7 +25,7 @@ const ROLE_INFO: Record<string, {
         label: 'Global Admin',
         description: 'Full system access across all organizations',
         icon: LayoutDashboard,
-        color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+        color: 'bg-rn-danger/10 text-rn-danger',
         permissions: [
             'Manage all organizations',
             'Manage all users and roles',
@@ -38,7 +38,7 @@ const ROLE_INFO: Record<string, {
         label: 'Organization Admin',
         description: 'Full administrative access within organization',
         icon: Building2,
-        color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+        color: 'bg-rn-primary/10 text-rn-primary',
         permissions: [
             'Manage organization users',
             'Create and manage periods',
@@ -51,7 +51,7 @@ const ROLE_INFO: Record<string, {
         label: 'Finance Manager',
         description: 'Financial and payment management access',
         icon: DollarSign,
-        color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+        color: 'bg-rn-success/10 text-rn-success',
         permissions: [
             'View financial reports',
             'Export payment data',
@@ -64,7 +64,7 @@ const ROLE_INFO: Record<string, {
         label: 'Check-in Staff',
         description: 'Check-in and attendance management',
         icon: UserCheck,
-        color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+        color: 'bg-rn-warning/10 text-rn-warning',
         permissions: [
             'Scan QR codes at door',
             'Verify participant eligibility',
@@ -145,17 +145,17 @@ export default async function DashboardPage() {
     }
 
     return (
-        <div className="container mx-auto py-10 space-y-8">
+        <main className="container mx-auto py-rn-7 px-rn-4 space-y-rn-6">
             <div>
-                <h1 className="text-3xl font-bold">Staff Dashboard</h1>
-                <p className="text-muted-foreground">Manage your responsibilities and access your tools</p>
+                <h1 className="rn-h1">Staff Dashboard</h1>
+                <p className="rn-meta text-rn-text-muted">Manage your responsibilities and access your tools</p>
             </div>
 
             {/* Global Roles */}
             {(globalRoles?.length ?? 0) > 0 && (
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Global Access</h2>
-                    <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-rn-4">
+                    <h2 className="rn-h2">Global Access</h2>
+                    <div className="grid gap-rn-6 md:grid-cols-2">
                         {globalRoles?.map(role => {
                             const roleInfo = ROLE_INFO[role]
                             if (!roleInfo) return null
@@ -177,10 +177,10 @@ export default async function DashboardPage() {
                                             </div>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
+                                    <CardContent className="space-y-rn-4">
                                         <div>
-                                            <p className="text-sm font-medium mb-2">Permissions:</p>
-                                            <ul className="text-sm text-muted-foreground space-y-1">
+                                            <p className="rn-meta font-medium mb-rn-2">Permissions:</p>
+                                            <ul className="rn-meta text-rn-text-muted space-y-1">
                                                 {roleInfo.permissions.map((perm, idx) => (
                                                     <li key={idx}>• {perm}</li>
                                                 ))}
@@ -206,13 +206,13 @@ export default async function DashboardPage() {
 
             {/* Organization Roles */}
             {organizers.map(({ organizer, roles }) => (
-                <div key={organizer.id} className="space-y-4">
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-semibold">{organizer.name}</h2>
+                <div key={organizer.id} className="space-y-rn-4">
+                    <div className="flex items-center gap-rn-3">
+                        <h2 className="rn-h2">{organizer.name}</h2>
                         <Badge variant="outline">{roles.length} {roles.length === 1 ? 'role' : 'roles'}</Badge>
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-rn-6 md:grid-cols-2">
                         {roles.map(role => {
                             const roleInfo = ROLE_INFO[role]
                             if (!roleInfo) return null
@@ -234,19 +234,19 @@ export default async function DashboardPage() {
                                             </div>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
+                                    <CardContent className="space-y-rn-4">
                                         <div>
-                                            <p className="text-sm font-medium mb-2">Your Access:</p>
-                                            <ul className="text-sm text-muted-foreground space-y-1">
+                                            <p className="rn-meta font-medium mb-rn-2">Your Access:</p>
+                                            <ul className="rn-meta text-rn-text-muted space-y-1">
                                                 {roleInfo.permissions.map((perm, idx) => (
                                                     <li key={idx}>• {perm}</li>
                                                 ))}
                                             </ul>
                                         </div>
                                         {role === 'ORG_ADMIN' && (
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-rn-2">
                                                 <Button asChild className="flex-1">
-                                                    <Link href={`/admin`}>Admin Panel</Link>
+                                                    <Link href={`/staffadmin`}>Admin Panel</Link>
                                                 </Button>
                                             </div>
                                         )}
@@ -272,6 +272,6 @@ export default async function DashboardPage() {
                     </div>
                 </div>
             ))}
-        </div>
+        </main>
     )
 }

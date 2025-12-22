@@ -2,9 +2,10 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, SlidersHorizontal } from 'lucide-react'
 
 interface CourseFiltersProps {
     organizers: Array<{
@@ -32,25 +33,30 @@ const WEEKDAYS = [
     { value: '7', label: 'Sunday' },
 ]
 
-const TIME_OPTIONS = [
-    { value: '16:00', label: '4:00 PM' },
-    { value: '17:00', label: '5:00 PM' },
-    { value: '18:00', label: '6:00 PM' },
-    { value: '19:00', label: '7:00 PM' },
-    { value: '20:00', label: '8:00 PM' },
-    { value: '21:00', label: '9:00 PM' },
-    { value: '22:00', label: '10:00 PM' },
+const TIME_RANGES = [
+    { value: 'all', label: 'Any Time' },
+    { value: 'morning', label: 'Morning (8-12)', after: '08:00', before: '12:00' },
+    { value: 'afternoon', label: 'Afternoon (12-17)', after: '12:00', before: '17:00' },
+    { value: 'evening', label: 'Evening (17-21)', after: '17:00', before: '21:00' },
+    { value: 'night', label: 'Night (21-24)', after: '21:00', before: '23:59' },
 ]
 
 export function CourseFilters({ organizers, availableLevels, currentFilters }: CourseFiltersProps) {
     const router = useRouter()
     
+    // Determine initial time range based on current filters
+    const getInitialTimeRange = () => {
+        const range = TIME_RANGES.find(
+            r => r.after === currentFilters.timeAfter && r.before === currentFilters.timeBefore
+        )
+        return range?.value || 'all'
+    }
+    
     const [filters, setFilters] = useState({
         org: currentFilters.org,
         level: currentFilters.level,
         weekday: currentFilters.weekday,
-        timeAfter: currentFilters.timeAfter,
-        timeBefore: currentFilters.timeBefore,
+        timeRange: getInitialTimeRange(),
     })
 
     const updateFilter = (key: string, value: string) => {
@@ -69,11 +75,12 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
         if (filters.weekday && filters.weekday !== 'all') {
             params.set('weekday', filters.weekday)
         }
-        if (filters.timeAfter && filters.timeAfter !== 'all') {
-            params.set('timeAfter', filters.timeAfter)
-        }
-        if (filters.timeBefore && filters.timeBefore !== 'all') {
-            params.set('timeBefore', filters.timeBefore)
+        
+        // Convert time range to timeAfter/timeBefore
+        const selectedRange = TIME_RANGES.find(r => r.value === filters.timeRange)
+        if (selectedRange && selectedRange.after) {
+            params.set('timeAfter', selectedRange.after)
+            params.set('timeBefore', selectedRange.before!)
         }
 
         router.push(`/courses?${params.toString()}`)
@@ -84,8 +91,7 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
             org: 'all',
             level: 'all',
             weekday: 'all',
-            timeAfter: 'all',
-            timeBefore: 'all',
+            timeRange: 'all',
         })
         router.push('/courses')
     }
@@ -93,144 +99,129 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
     const hasActiveFilters = filters.org !== 'all' || 
                             filters.level !== 'all' || 
                             filters.weekday !== 'all' ||
-                            filters.timeAfter !== 'all' ||
-                            filters.timeBefore !== 'all'
+                            filters.timeRange !== 'all'
 
     return (
-        <div className="space-y-4 bg-muted/30 p-6 rounded-lg">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Filter Courses</h3>
-                {hasActiveFilters && (
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={clearFilters}
-                        className="gap-2"
-                    >
-                        <X className="h-4 w-4" />
-                        Clear all
-                    </Button>
-                )}
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* Organizer Filter */}
-                {organizers.length > 1 && (
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Organizer</label>
-                        <Select 
-                            value={filters.org} 
-                            onValueChange={(value: string) => updateFilter('org', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Organizers" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Organizers</SelectItem>
-                                {organizers.map((organizer) => (
-                                    <SelectItem key={organizer.id} value={organizer.id}>
-                                        {organizer.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+        <Card className="border-rn-border">
+            <CardContent className="pt-rn-6">
+                <div className="space-y-rn-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-rn-2">
+                            <SlidersHorizontal className="h-5 w-5 text-rn-text-muted" />
+                            <h3 className="rn-h4">Filter Courses</h3>
+                        </div>
+                        {hasActiveFilters && (
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={clearFilters}
+                                className="gap-rn-2 text-rn-text-muted hover:text-rn-text"
+                            >
+                                <X className="h-4 w-4" />
+                                Clear all
+                            </Button>
+                        )}
                     </div>
-                )}
 
-                {/* Level Filter */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Level</label>
-                    <Select 
-                        value={filters.level} 
-                        onValueChange={(value: string) => updateFilter('level', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="All Levels" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Levels</SelectItem>
-                            {availableLevels.map((level) => (
-                                <SelectItem key={level} value={level}>
-                                    {level}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                    <div className="grid gap-rn-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {/* Organizer Filter */}
+                        {organizers.length > 1 && (
+                            <div className="space-y-rn-2">
+                                <label className="rn-meta font-medium">Organizer</label>
+                                <Select 
+                                    value={filters.org} 
+                                    onValueChange={(value: string) => updateFilter('org', value)}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="All Organizers" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Organizers</SelectItem>
+                                        {organizers.map((organizer) => (
+                                            <SelectItem key={organizer.id} value={organizer.id}>
+                                                {organizer.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
 
-                {/* Weekday Filter */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Day of Week</label>
-                    <Select 
-                        value={filters.weekday} 
-                        onValueChange={(value: string) => updateFilter('weekday', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Any Day" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Any Day</SelectItem>
-                            {WEEKDAYS.map((day) => (
-                                <SelectItem key={day.value} value={day.value}>
-                                    {day.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                        {/* Level Filter */}
+                        <div className="space-y-rn-2">
+                            <label className="rn-meta font-medium">Level</label>
+                            <Select 
+                                value={filters.level} 
+                                onValueChange={(value: string) => updateFilter('level', value)}
+                            >
+                                <SelectTrigger className="h-10">
+                                    <SelectValue placeholder="All Levels" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Levels</SelectItem>
+                                    {availableLevels.map((level) => (
+                                        <SelectItem key={level} value={level}>
+                                            {level}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                {/* Time After Filter */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Starts After</label>
-                    <Select 
-                        value={filters.timeAfter} 
-                        onValueChange={(value: string) => updateFilter('timeAfter', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Any Time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Any Time</SelectItem>
-                            {TIME_OPTIONS.map((time) => (
-                                <SelectItem key={time.value} value={time.value}>
-                                    {time.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                        {/* Weekday Filter */}
+                        <div className="space-y-rn-2">
+                            <label className="rn-meta font-medium">Day of Week</label>
+                            <Select 
+                                value={filters.weekday} 
+                                onValueChange={(value: string) => updateFilter('weekday', value)}
+                            >
+                                <SelectTrigger className="h-10">
+                                    <SelectValue placeholder="Any Day" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Any Day</SelectItem>
+                                    {WEEKDAYS.map((day) => (
+                                        <SelectItem key={day.value} value={day.value}>
+                                            {day.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                {/* Time Before Filter */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Starts Before</label>
-                    <Select 
-                        value={filters.timeBefore} 
-                        onValueChange={(value: string) => updateFilter('timeBefore', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Any Time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Any Time</SelectItem>
-                            {TIME_OPTIONS.map((time) => (
-                                <SelectItem key={time.value} value={time.value}>
-                                    {time.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                        {/* Time Range Filter */}
+                        <div className="space-y-rn-2">
+                            <label className="rn-meta font-medium">Time of Day</label>
+                            <Select 
+                                value={filters.timeRange} 
+                                onValueChange={(value: string) => updateFilter('timeRange', value)}
+                            >
+                                <SelectTrigger className="h-10">
+                                    <SelectValue placeholder="Any Time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {TIME_RANGES.map((range) => (
+                                        <SelectItem key={range.value} value={range.value}>
+                                            {range.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
 
-                {/* Apply Button */}
-                <div className="space-y-2 flex items-end">
-                    <Button 
-                        onClick={applyFilters} 
-                        className="w-full"
-                    >
-                        Apply Filters
-                    </Button>
+                    {/* Apply Button */}
+                    <div className="flex justify-end pt-rn-2">
+                        <Button 
+                            onClick={applyFilters} 
+                            size="lg"
+                            className="w-full sm:w-auto min-w-[200px]"
+                        >
+                            Apply Filters
+                        </Button>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     )
 }

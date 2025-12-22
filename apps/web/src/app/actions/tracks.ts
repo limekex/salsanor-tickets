@@ -59,3 +59,32 @@ export async function getTracksByPeriod(periodId: string) {
         orderBy: { weekday: 'asc' } // sort by day then time?
     })
 }
+
+export async function getAllTracks() {
+    await requireAdmin()
+    return await prisma.courseTrack.findMany({
+        include: {
+            period: {
+                include: {
+                    organizer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            slug: true
+                        }
+                    }
+                }
+            },
+            _count: {
+                select: {
+                    registrations: true
+                }
+            }
+        },
+        orderBy: [
+            { period: { organizer: { name: 'asc' } } },
+            { period: { startDate: 'desc' } },
+            { weekday: 'asc' }
+        ]
+    })
+}

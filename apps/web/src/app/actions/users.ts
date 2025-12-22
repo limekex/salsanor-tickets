@@ -179,3 +179,54 @@ export async function getOrganizationUsers(organizerId: string) {
 
     return users
 }
+
+export async function updateUserInfo(
+    userId: string,
+    data: {
+        email: string
+        firstName: string
+        lastName: string
+        phone?: string
+    }
+) {
+    await requireAdmin()
+
+    // Update UserAccount email
+    await prisma.userAccount.update({
+        where: { id: userId },
+        data: { email: data.email }
+    })
+
+    // Find or create PersonProfile
+    const user = await prisma.userAccount.findUnique({
+        where: { id: userId },
+        include: { personProfile: true }
+    })
+
+    if (user?.personProfile) {
+        // Update existing profile
+        await prisma.personProfile.update({
+            where: { id: user.personProfile.id },
+            data: {
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                phone: data.phone || null,
+            }
+        })
+    } else {
+        // Create new profile
+        await prisma.personProfile.create({
+            data: {
+                userId: userId,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                phone: data.phone || null,
+            }
+        })
+    }
+
+    revalidatePath('/admin/users')
+    revalidatePath(`/admin/users/${userId}`)
+}

@@ -2,7 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { calculatePricing, CartItem } from '@/lib/pricing/engine'
+import { calculatePricing, CartItem, calculateOrderTotal } from '@/lib/pricing/engine'
+import { createAuditLog } from '@/lib/audit'
 import { redirect } from 'next/navigation'
 
 export async function getCartPricing(items: { trackId: string, role: string, hasPartner: boolean, partnerEmail?: string }[]) {
@@ -33,15 +34,32 @@ export async function getCartPricing(items: { trackId: string, role: string, has
     const { data: { user } } = await supabase.auth.getUser()
 
     let isMember = false
+    let membershipTierId: string | undefined
+    
     if (user) {
         const userAccount = await prisma.userAccount.findUnique({
             where: { supabaseUid: user.id },
-            include: { personProfile: { include: { memberships: true } } }
+            include: { 
+                personProfile: { 
+                    include: { 
+                        memberships: {
+                            where: {
+                                validTo: { gt: new Date() }
+                            },
+                            orderBy: {
+                                validTo: 'desc' // Get most recent active membership
+                            },
+                            take: 1
+                        }
+                    } 
+                } 
+            }
         })
 
-        if (userAccount?.personProfile?.memberships) {
-            const activeMembership = userAccount.personProfile.memberships.find(m => m.validTo > new Date())
-            if (activeMembership) isMember = true
+        const activeMembership = userAccount?.personProfile?.memberships?.[0]
+        if (activeMembership) {
+            isMember = true
+            membershipTierId = activeMembership.tierId
         }
     }
 
@@ -60,7 +78,7 @@ export async function getCartPricing(items: { trackId: string, role: string, has
         }
     })
 
-    return calculatePricing(fullCartItems, rules, { isMember })
+    return calculatePricing(fullCartItems, rules, { isMember, membershipTierId })
 }
 
 export async function createOrderFromCart(items: { trackId: string, role: string, hasPartner: boolean, partnerEmail?: string }[]) {
@@ -101,12 +119,40 @@ export async function createOrderFromCart(items: { trackId: string, role: string
     const allSamePeriod = tracks.every(t => t.periodId === periodId)
     if (!allSamePeriod) return { error: 'All items must be from the same course period.' }
 
-    // Check for duplicate registrations
+    // Clean up old registrations that should not block re-registration:
+    // - DRAFT: incomplete checkouts
+    // - CANCELLED: user cancelled and should be able to re-register
+    // - REFUNDED: refunded registrations, user should be able to buy again
+    // This must happen BEFORE we check for active duplicates
+    const deletedRegistrations = await prisma.registration.deleteMany({
+        where: {
+            personId: personId!,
+            trackId: { in: items.map(i => i.trackId) },
+            status: { in: ['DRAFT', 'CANCELLED', 'REFUNDED'] }
+        }
+    })
+    
+    // Also clean up DRAFT orders that now have no registrations
+    // (CANCELLED orders with CANCELLED registrations should remain for audit history)
+    if (deletedRegistrations.count > 0) {
+        await prisma.order.deleteMany({
+            where: {
+                purchaserPersonId: personId!,
+                status: 'DRAFT',
+                registrations: {
+                    none: {}
+                }
+            }
+        })
+    }
+
+    // Check for active duplicate registrations
+    // Only PENDING_PAYMENT, ACTIVE, and WAITLIST should block re-registration
     const existingRegistrations = await prisma.registration.findMany({
         where: {
             personId: personId!,
             trackId: { in: items.map(i => i.trackId) },
-            status: { in: ['DRAFT', 'PENDING_PAYMENT', 'ACTIVE', 'WAITLIST'] }
+            status: { in: ['PENDING_PAYMENT', 'ACTIVE', 'WAITLIST'] }
         }
     })
 
@@ -119,30 +165,60 @@ export async function createOrderFromCart(items: { trackId: string, role: string
     }
 
     try {
+        // Get organizer MVA rate
+        const period = await prisma.coursePeriod.findUniqueOrThrow({
+            where: { id: periodId },
+            include: { organizer: true }
+        })
+        
+        const mvaRate = period.organizer.mvaReportingRequired 
+            ? Number(period.organizer.mvaRate) 
+            : 0
+            
+        // Calculate order total with MVA
+        const orderPricing = calculateOrderTotal({
+            subtotalCents: pricing.subtotalCents,
+            discountCents: pricing.discountTotalCents,
+            mvaRate
+        })
+        
         const order = await prisma.order.create({
             data: {
                 periodId,
                 purchaserPersonId: personId!,
                 status: 'DRAFT',
-                subtotalCents: pricing.subtotalCents,
-                discountCents: pricing.discountTotalCents,
-                totalCents: pricing.finalTotalCents,
-                pricingSnapshot: JSON.stringify(pricing), // Store full breakdown
+                subtotalCents: orderPricing.subtotalBeforeDiscountCents,
+                discountCents: orderPricing.discountCents,
+                subtotalAfterDiscountCents: orderPricing.subtotalAfterDiscountCents,
+                mvaRate: orderPricing.mvaRate,
+                mvaCents: orderPricing.mvaCents,
+                totalCents: orderPricing.totalCents,
+                pricingSnapshot: JSON.stringify({
+                    ...pricing,
+                    mva: {
+                        rate: orderPricing.mvaRate,
+                        amount: orderPricing.mvaCents
+                    }
+                }),
                 registrations: {
                     create: items.map(item => ({
                         periodId,
                         trackId: item.trackId,
                         personId: personId!,
-                        // Wait, if I buy 2 courses, I am the person for both. 
-                        // If I buy for someone else? "Partner". 
-                        // The spec says "Participant ... can add multiple tracks ... to my cart".
-                        // Logic implies simpler self-registration for now.
                         status: 'DRAFT',
                         chosenRole: item.role as any,
-                        // PairGroup logic omitted for brevity in this step, but partnerEmail should trigger it.
                     }))
                 }
             }
+        })
+        
+        // Audit log
+        await createAuditLog({
+            userId: userAccount?.id,
+            entityType: 'Order',
+            entityId: order.id,
+            action: 'CREATE',
+            changes: { status: 'DRAFT', totalCents: order.totalCents, mvaCents: order.mvaCents }
         })
 
         return { orderId: order.id }

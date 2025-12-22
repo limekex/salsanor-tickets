@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import Link from 'next/link'
-import { Globe, Mail, MapPin } from 'lucide-react'
+import { Globe, Mail, MapPin, Settings, UserPlus } from 'lucide-react'
+import { createClient } from '@/utils/supabase/server'
+import { prisma } from '@/lib/db'
 
 type Params = Promise<{ slug: string }>
 
@@ -15,27 +17,66 @@ export default async function OrganizerPage({ params }: { params: Params }) {
 
     if (!organizer) return notFound()
 
+    // Check if user has admin access to this organizer
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    let hasOrgAccess = false
+    
+    if (user) {
+        const userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: user.id },
+            include: { roles: true }
+        })
+        const isGlobalAdmin = userAccount?.roles.some(r => r.role === 'ADMIN')
+        const isOrgAdmin = userAccount?.roles.some(
+            r => (r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER') && r.organizerId === organizer.id
+        )
+        hasOrgAccess = isGlobalAdmin || isOrgAdmin
+    }
+
     const weekDayName = (n: number) => {
         return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][n - 1] || '?'
     }
 
     return (
-        <div className="container mx-auto py-10 space-y-10 max-w-5xl">
+        <div className="container mx-auto py-rn-10 space-y-rn-10 max-w-5xl">
             {/* Organizer Header */}
-            <div className="space-y-4">
-                <div className="flex items-start gap-6">
+            <div className="space-y-rn-4">
+                <div className="flex items-start gap-rn-6">
                     {organizer.logoUrl && (
                         <img
                             src={organizer.logoUrl}
                             alt={organizer.name}
-                            className="w-24 h-24 object-contain rounded-lg border"
+                            className="w-24 h-24 object-contain rounded-rn-2 border"
                         />
                     )}
                     <div className="flex-1">
-                        <h1 className="text-4xl font-bold tracking-tight">{organizer.name}</h1>
-                        {organizer.description && (
-                            <p className="text-lg text-muted-foreground mt-2">{organizer.description}</p>
-                        )}
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h1 className="rn-h1">{organizer.name}</h1>
+                                {organizer.description && (
+                                    <p className="rn-h3 text-rn-text-muted mt-2">{organizer.description}</p>
+                                )}
+                            </div>
+                            <div className="flex gap-rn-2">
+                                {organizer.membershipEnabled && organizer.membershipSalesOpen && (
+                                    <Button variant="default" size="sm" asChild>
+                                        <Link href={`/org/${slug}/membership`}>
+                                            <UserPlus className="h-4 w-4 mr-2" />
+                                            Become a Member
+                                        </Link>
+                                    </Button>
+                                )}
+                                {hasOrgAccess && (
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link href="/staffadmin">
+                                            <Settings className="h-4 w-4 mr-2" />
+                                            Admin
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                         <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
                             {organizer.city && (
                                 <div className="flex items-center gap-1">

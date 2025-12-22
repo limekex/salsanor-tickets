@@ -62,16 +62,17 @@ export default function CartPage() {
                 }
             } else if (result?.orderId) {
                 clearCart() // Success!
-                router.push('/profile')
+                // Redirect directly to payment instead of profile
+                router.push(`/checkout/${result.orderId}`)
             }
         })
     }
 
-    if (!isLoaded) return <div className="p-8">Loading cart...</div>
+    if (!isLoaded) return <div className="container mx-auto p-8">Loading cart...</div>
 
     if (items.length === 0) {
         return (
-            <div className="container max-w-2xl py-12 text-center space-y-4">
+            <div className="container mx-auto max-w-2xl py-12 text-center space-y-4">
                 <h1 className="text-2xl font-bold">Your Cart is Empty</h1>
                 <p className="text-muted-foreground">Looks like you haven't added any courses yet.</p>
                 <Button asChild>
@@ -82,7 +83,8 @@ export default function CartPage() {
     }
 
     return (
-        <div className="container max-w-4xl py-12 grid gap-8 md:grid-cols-3">
+        <main className="container mx-auto max-w-4xl py-rn-8 px-rn-4">
+            <div className="grid gap-rn-6 md:grid-cols-3">
             <div className="md:col-span-2 space-y-4">
                 <h1 className="text-2xl font-bold">Shopping Cart</h1>
 
@@ -181,5 +183,6 @@ export default function CartPage() {
                 </Card>
             </div>
         </div>
+        </main>
     )
 }

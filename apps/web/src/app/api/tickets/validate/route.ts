@@ -1,39 +1,83 @@
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/utils/auth-admin'
+import { createClient } from '@/utils/supabase/server'
 
 export async function POST(req: Request) {
-    // Basic admin check - scanner app should be protected?
-    // For now, let's assume the API route is protected or the page calling it is.
-    // The spec said "Crew". We reused Admin check for simplicity or need a Crew role.
-    // Let's use requireAdmin for MVP.
-    // If we want a separate Crew role, we'd need to add it.
-    try {
-        await requireAdmin()
-    } catch {
-        // If strict admin required.
+    // Authenticate user and check roles
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { token } = await req.json()
+    const userAccount = await prisma.userAccount.findUnique({
+        where: { supabaseUid: user.id },
+        include: {
+            roles: {
+                where: {
+                    OR: [
+                        { role: 'ADMIN' },
+                        { role: 'ORG_ADMIN' },
+                        { role: 'ORG_CHECKIN' }
+                    ]
+                },
+                include: {
+                    organizer: true
+                }
+            }
+        }
+    })
 
-    if (!token) {
-        return NextResponse.json({ error: 'Token required' }, { status: 400 })
+    if (!userAccount || userAccount.roles.length === 0) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
+    const { token, trackId } = await req.json()
+
+    if (!token || !trackId) {
+        return NextResponse.json({ error: 'Token and trackId required' }, { status: 400 })
+    }
+
+    // Check if global admin
+    const isGlobalAdmin = userAccount.roles.some(r => r.role === 'ADMIN')
+    
+    // Get organizer IDs for org-specific roles
+    const organizerIds = userAccount.roles
+        .filter(r => r.organizerId)
+        .map(r => r.organizerId!)
+
+    // Fetch the ticket with person and registrations
     const ticket = await prisma.ticket.findFirst({
         where: { qrTokenHash: token },
         include: {
             person: {
                 include: {
                     registrations: {
-                        where: { status: 'ACTIVE' },
-                        include: { track: true }
+                        where: { 
+                            status: 'ACTIVE',
+                            trackId: trackId // Only get registration for this specific track
+                        },
+                        include: { 
+                            track: {
+                                include: {
+                                    period: {
+                                        include: {
+                                            organizer: true
+                                        }
+                                    }
+                                }
+                            } 
+                        }
                     }
                 }
             },
-            period: true
+            period: {
+                include: {
+                    organizer: true
+                }
+            }
         }
     })
 
@@ -45,17 +89,29 @@ export async function POST(req: Request) {
         return NextResponse.json({ valid: false, message: `Ticket is ${ticket.status}` })
     }
 
-    // Check period (if we passed a target period, we could validate against it)
+    // Check organization access for non-global admins
+    if (!isGlobalAdmin && !organizerIds.includes(ticket.period.organizerId)) {
+        return NextResponse.json({ 
+            valid: false, 
+            message: 'Ticket is for a different organization' 
+        })
+    }
 
-    // Filter registrations to match the ticket's period
-    const relevantRegistrations = ticket.person.registrations.filter(r => r.periodId === ticket.periodId)
+    // Check if person is registered for the scanned track
+    const registration = ticket.person.registrations.find(r => r.trackId === trackId)
 
-    const courses = relevantRegistrations.map(r => `${r.track.title} (${r.chosenRole})`).join(', ')
+    if (!registration) {
+        return NextResponse.json({ 
+            valid: false, 
+            message: `Not registered for this track. Please check ${ticket.period.organizer.name} - ${ticket.period.name}` 
+        })
+    }
 
+    // Valid ticket for the correct track
     return NextResponse.json({
         valid: true,
         personName: `${ticket.person.firstName} ${ticket.person.lastName}`,
-        courses: courses || 'No active courses for this period',
+        course: `${registration.track.title} (${registration.chosenRole})`,
         periodName: ticket.period.name,
         ticketId: ticket.id
     })
