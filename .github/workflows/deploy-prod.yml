@@ -1,0 +1,91 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          cd apps/web && npm install
+
+      - name: Generate Prisma Client
+        working-directory: ./packages/database
+        run: npx prisma generate
+
+      - name: Build Next.js app
+        working-directory: ./apps/web
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.PROD_STRIPE_SECRET_KEY }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.PROD_STRIPE_PUBLISHABLE_KEY }}
+          BREVO_API_KEY: ${{ secrets.PROD_BREVO_API_KEY }}
+          BREVO_SENDER_EMAIL: ${{ secrets.BREVO_SENDER_EMAIL }}
+          NEXT_PUBLIC_APP_URL: https://reginor.events
+          AUTH_SECRET: ${{ secrets.PROD_AUTH_SECRET }}
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USERNAME }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT }}
+          script: |
+            cd ~/reginor-events.dileque.no
+            
+            # Pull latest code
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Install dependencies
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use 18
+            
+            npm install
+            cd apps/web && npm install
+            
+            # Generate Prisma Client
+            cd ~/reginor-events.dileque.no/packages/database
+            npx prisma generate
+            
+            # Run migrations
+            npx dotenv-cli -e .env.prod -- npx prisma migrate deploy
+            
+            # Build Next.js
+            cd ~/reginor-events.dileque.no/apps/web
+            npm run build
+            
+            # Restart PM2
+            pm2 restart reginor-prod
+            
+            echo "Production deployment completed!"
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f https://reginor.events || exit 1

@@ -376,3 +376,14 @@ buck-out/
 .fakebuckversion
 
 # End of https://www.toptal.com/developers/gitignore/api/nextjs,node,react,reactnative
+# Deployment env files (contain secrets)
+packages/database/.env.prod
+packages/database/.env.stage
+apps/web/.env.stage
+apps/web/.env.prod
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+id_ed25519*
