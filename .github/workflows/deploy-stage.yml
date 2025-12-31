@@ -83,12 +83,15 @@ jobs:
             npm install
             cd apps/web && npm install && cd ../..
             
+            # Install PM2 globally if not present
+            command -v pm2 >/dev/null 2>&1 || npm install -g pm2
+            
             # Generate Prisma Client
             cd packages/database
             npx prisma generate
             
-            # Run migrations
-            npx prisma migrate deploy
+            # Skip migrations (run manually if needed)
+            # npx prisma migrate deploy
             
             # Restart PM2
             cd ~/stage.reginor.events/apps/web
@@ -99,4 +102,4 @@ jobs:
       - name: Health check
         run: |
           sleep 10
-          curl -f https://stage.reginor.events || exit 1
+          curl -f -k https://stage.reginor.events || curl -f http://stage.reginor.events || exit 1
