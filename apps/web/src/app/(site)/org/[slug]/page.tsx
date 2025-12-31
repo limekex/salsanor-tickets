@@ -31,7 +31,7 @@ export default async function OrganizerPage({ params }: { params: Params }) {
         const isOrgAdmin = userAccount?.roles.some(
             r => (r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER') && r.organizerId === organizer.id
         )
-        hasOrgAccess = isGlobalAdmin || isOrgAdmin
+        hasOrgAccess = (isGlobalAdmin || isOrgAdmin) ?? false
     }
 
     const weekDayName = (n: number) => {
