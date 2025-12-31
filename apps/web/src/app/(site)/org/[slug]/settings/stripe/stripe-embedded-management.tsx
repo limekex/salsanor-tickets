@@ -64,7 +64,7 @@ export function StripeEmbeddedManagement({ organizerId, publishableKey }: Stripe
 
     useEffect(() => {
         if (stripeConnect && containerRef.current) {
-            const component = stripeConnect.create('account-management')
+            const component = stripeConnect.create('account-management') as any
             containerRef.current.innerHTML = ''
             component.mount(containerRef.current)
         }

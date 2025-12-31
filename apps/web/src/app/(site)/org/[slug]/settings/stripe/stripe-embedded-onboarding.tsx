@@ -64,7 +64,7 @@ export function StripeEmbeddedOnboarding({ organizerId, publishableKey }: Stripe
 
     useEffect(() => {
         if (stripeConnect && containerRef.current) {
-            const component = stripeConnect.create('account-onboarding')
+            const component = stripeConnect.create('account-onboarding') as any
             component.setOnExit(() => {
                 // User exited onboarding - reload page to show updated status
                 window.location.reload()
