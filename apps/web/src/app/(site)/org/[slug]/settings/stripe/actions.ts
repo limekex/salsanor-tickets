@@ -186,7 +186,7 @@ export async function createStripeConnectLink(
             }
         })
 
-        if (!userAccount?.roles?.includes('ADMIN')) {
+        if (!userAccount?.roles?.some(r => r.role === 'ADMIN')) {
             // TODO: Also check if user is organizer admin
             return { success: false, error: 'Unauthorized' }
         }
