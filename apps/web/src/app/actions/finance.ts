@@ -38,9 +38,11 @@ export async function getFinancialOverview() {
     })
 
     // Calculate revenue by organization
-    const revenueByOrg = orders.reduce((acc, order) => {
-        const orgId = order.period.organizer.id
-        const orgName = order.period.organizer.name
+    const revenueByOrg = orders
+        .filter(order => order.period !== null)
+        .reduce((acc, order) => {
+        const orgId = order.period!.organizer.id
+        const orgName = order.period!.organizer.name
         
         if (!acc[orgId]) {
             acc[orgId] = {
@@ -60,16 +62,18 @@ export async function getFinancialOverview() {
     }, {} as Record<string, any>)
 
     // Calculate revenue by period
-    const revenueByPeriod = orders.reduce((acc, order) => {
-        const periodId = order.period.id
-        const periodName = order.period.name
-        const orgName = order.period.organizer.name
+    const revenueByPeriod = orders
+        .filter(order => order.period !== null)
+        .reduce((acc, order) => {
+        const periodId = order.period!.id
+        const periodName = order.period!.name
+        const orgName = order.period!.organizer.name
         
         if (!acc[periodId]) {
             acc[periodId] = {
                 periodId,
                 periodName,
-                periodCode: order.period.code,
+                periodCode: order.period!.code,
                 organizerName: orgName,
                 totalRevenue: 0,
                 orderCount: 0,
@@ -189,11 +193,13 @@ export async function getDiscountUsage() {
         }
     })
 
-    return orders.map(order => ({
+    return orders
+        .filter(order => order.period !== null)
+        .map(order => ({
         orderId: order.id,
-        organizerName: order.period.organizer.name,
-        periodName: order.period.name,
-        periodCode: order.period.code,
+        organizerName: order.period!.organizer.name,
+        periodName: order.period!.name,
+        periodCode: order.period!.code,
         subtotalCents: order.subtotalCents,
         discountCents: order.discountCents,
         totalCents: order.totalCents,
@@ -229,14 +235,16 @@ export async function exportFinancialData(format: 'csv' | 'json' = 'csv') {
         }
     })
 
-    const exportData = orders.map(order => ({
+    const exportData = orders
+        .filter(order => order.period !== null)
+        .map(order => ({
         orderId: order.id,
-        organizerId: order.period.organizer.id,
-        organizerName: order.period.organizer.name,
-        organizerOrgNr: order.period.organizer.organizationNumber || '',
-        periodId: order.period.id,
-        periodName: order.period.name,
-        periodCode: order.period.code,
+        organizerId: order.period!.organizer.id,
+        organizerName: order.period!.organizer.name,
+        organizerOrgNr: order.period!.organizer.organizationNumber || '',
+        periodId: order.period!.id,
+        periodName: order.period!.name,
+        periodCode: order.period!.code,
         subtotalCents: order.subtotalCents,
         discountCents: order.discountCents,
         subtotalAfterDiscountCents: order.subtotalAfterDiscountCents,
