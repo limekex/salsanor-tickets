@@ -26,6 +26,12 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env.stage
+.env.prod
+
+# sensitive documentation with actual secrets (NEVER commit)
+docs/SECRETS.md
+docs/.secrets/
 
 # vercel
 .vercel
@@ -381,6 +387,7 @@ packages/database/.env.prod
 packages/database/.env.stage
 apps/web/.env.stage
 apps/web/.env.prod
+SSH_SETUP.md
 
 # SSH keys
 *.pem
