@@ -243,6 +243,7 @@ export async function getPublicMembershipTiers(organizerSlug: string) {
       benefits: t.benefits as string[] || [],
       discountPercent: Number(t.discountPercent),
       priority: t.priority,
+      validationRequired: t.validationRequired,
     }))
   }
 }
