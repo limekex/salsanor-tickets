@@ -195,7 +195,7 @@ class EmailService {
         providerMessageId: params.providerMessageId || null,
         sentAt: params.status === 'SENT' ? new Date() : null,
         errorMessage: params.errorMessage || null,
-        metadata: params.metadata || null,
+        metadata: params.metadata || undefined,
       },
     });
   }
