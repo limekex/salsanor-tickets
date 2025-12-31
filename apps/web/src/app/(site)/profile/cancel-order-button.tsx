@@ -53,7 +53,7 @@ export function CancelOrderButton({ orderId }: { orderId: string }) {
                 <AlertDialogFooter>
                     <AlertDialogCancel disabled={isPending}>Keep Order</AlertDialogCancel>
                     <AlertDialogAction 
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                             e.preventDefault()
                             handleCancel()
                         }}
