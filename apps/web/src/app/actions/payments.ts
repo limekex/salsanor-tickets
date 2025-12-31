@@ -59,7 +59,7 @@ export async function cancelOrder(orderId: string) {
         }
 
         // Only allow canceling unpaid orders
-        if (order.status !== 'DRAFT' && order.status !== 'PENDING_PAYMENT') {
+        if (order.status !== 'DRAFT' && order.status !== 'PENDING') {
             return { error: 'Cannot cancel paid orders' }
         }
 

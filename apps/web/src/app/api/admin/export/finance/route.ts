@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        return new NextResponse(result.data, {
+        return new NextResponse(result.data as string, {
             headers: {
                 'Content-Disposition': `attachment; filename="${result.filename}"`,
                 'Content-Type': result.mimeType || 'text/csv'

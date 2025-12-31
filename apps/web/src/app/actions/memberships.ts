@@ -61,6 +61,16 @@ export async function importMemberships(formData: FormData) {
     return { error: 'No file provided' }
   }
 
+  // Get default tier for this organization (or first available tier)
+  const defaultTier = await prisma.membershipTier.findFirst({
+    where: { organizerId },
+    orderBy: { createdAt: 'asc' }
+  })
+
+  if (!defaultTier) {
+    return { error: 'No membership tiers found for this organization. Please create a membership tier first.' }
+  }
+
   try {
     const text = await file.text()
     
@@ -169,6 +179,7 @@ export async function importMemberships(formData: FormData) {
             data: {
               personId: person.id,
               organizerId: organizerId,
+              tierId: defaultTier.id,
               memberNumber,
               validFrom: validFrom,
               validTo: validTo,
@@ -315,7 +326,10 @@ export async function updateMembership(id: string, data: {
   try {
     await prisma.membership.update({
       where: { id },
-      data
+      data: {
+        ...data,
+        status: data.status as any
+      }
     })
 
     revalidatePath('/staffadmin/memberships')
@@ -439,7 +453,11 @@ export async function createMembershipOrder(data: {
     
     await prisma.userAccount.update({
       where: { id: userAccount.id },
-      data: { personProfileId: person.id }
+      data: { 
+        personProfile: {
+          connect: { id: person.id }
+        }
+      }
     })
     
     personId = person.id

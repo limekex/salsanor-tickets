@@ -13,7 +13,7 @@ export function PromoteFromWaitlistButton({ registrationId }: { registrationId: 
             try {
                 const res = await promoteToOffered(registrationId)
                 if (!res.success) {
-                    throw new Error(res.error || 'Failed to promote')
+                    throw new Error((res as any).error || 'Failed to promote')
                 }
                 toast.success('Waitlist offer sent', {
                     description: 'Participant has 48 hours to accept the offer'

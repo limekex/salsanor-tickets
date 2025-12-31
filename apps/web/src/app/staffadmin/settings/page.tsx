@@ -77,7 +77,7 @@ export default async function StaffAdminSettingsPage() {
                     } : null
                     
                     return serializedOrg ? (
-                        <OrgSettingsForm key={serializedOrg.id} organizer={serializedOrg} />
+                        <OrgSettingsForm key={serializedOrg.id} organizer={serializedOrg as any} />
                     ) : null
                 })}
             </div>

@@ -182,7 +182,7 @@ export function RuleForm({ periodId, existingRule }: Props) {
                         Configuration: {ruleType}
                     </h3>
 
-                    {ruleType === 'MEMBERSHIP_PERCENT' && (
+                    {ruleType === 'MEMBERSHIP_TIER_PERCENT' && (
                         <div className="space-y-4">
                             <FormItem>
                                 <FormLabel>Discount Percentage</FormLabel>

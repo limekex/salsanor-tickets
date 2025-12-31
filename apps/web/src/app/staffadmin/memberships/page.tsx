@@ -136,7 +136,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
 
   const [memberships, totalCount] = await Promise.all([
     prisma.membership.findMany({
-      where,
+      where: where as any,
       include: {
         person: {
           select: {
@@ -163,7 +163,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
       skip,
       take: perPage
     }),
-    prisma.membership.count({ where })
+    prisma.membership.count({ where: where as any })
   ])
 
   const totalPages = Math.ceil(totalCount / perPage)

@@ -39,13 +39,13 @@ export default async function StaffAdminUsersPage() {
         }
     })
 
-    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) || []
+    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')
     }
 
-    const adminOrganizers = userAccount.roles.map(r => r.organizer)
+    const adminOrganizers = userAccount?.roles.map(r => r.organizer) || []
 
     // Get all users with roles in these organizations
     const usersWithRoles = await prisma.userAccount.findMany({
@@ -86,6 +86,8 @@ export default async function StaffAdminUsersPage() {
             </div>
 
             {adminOrganizers.map(org => {
+                if (!org) return null
+                
                 const orgUsers = usersWithRoles.filter(u => 
                     u.roles.some(r => r.organizerId === org.id)
                 )

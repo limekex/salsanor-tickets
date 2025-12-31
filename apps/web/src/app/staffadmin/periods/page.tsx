@@ -38,7 +38,7 @@ export default async function StaffAdminPeriodsPage() {
         }
     })
 
-    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) || []
+    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')

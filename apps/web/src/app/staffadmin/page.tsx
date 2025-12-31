@@ -44,7 +44,7 @@ export default async function StaffAdminPage() {
             </div>
 
             <div className="grid gap-6">
-                {adminOrganizers.map(org => (
+                {adminOrganizers.map(org => org && (
                     <Card key={org.id}>
                         <CardHeader>
                             <div className="flex items-center justify-between">

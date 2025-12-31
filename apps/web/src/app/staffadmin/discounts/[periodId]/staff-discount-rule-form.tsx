@@ -224,7 +224,7 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
                                                 <Checkbox
                                                     id={`tier-${tier.id}`}
                                                     checked={selectedTiers.includes(tier.id)}
-                                                    onCheckedChange={(checked) => {
+                                                    onCheckedChange={(checked: boolean) => {
                                                         const newTiers = checked
                                                             ? [...selectedTiers, tier.id]
                                                             : selectedTiers.filter(id => id !== tier.id)

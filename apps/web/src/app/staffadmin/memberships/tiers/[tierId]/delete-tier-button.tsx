@@ -75,7 +75,7 @@ export function DeleteTierButton({ tierId, tierName, hasMemberships }: DeleteTie
           <AlertDialogFooter>
             <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 e.preventDefault()
                 handleDelete()
               }}

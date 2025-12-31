@@ -43,6 +43,8 @@ const sheetVariants = {
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> {
   side?: "top" | "bottom" | "left" | "right"
+  className?: string
+  children?: React.ReactNode
 }
 
 const SheetContent = React.forwardRef<

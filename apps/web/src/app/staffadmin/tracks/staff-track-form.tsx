@@ -123,7 +123,7 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Weekday</FormLabel>
-                                        <Select onValueChange={(val) => field.onChange(parseInt(val))} defaultValue={field.value.toString()}>
+                                        <Select onValueChange={(val: string) => field.onChange(parseInt(val))} defaultValue={field.value.toString()}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select day" />

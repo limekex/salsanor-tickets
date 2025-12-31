@@ -42,7 +42,7 @@ export function StripeFormClient({ initialConfig }: { initialConfig?: any }) {
             if (result.success) {
                 setMessage({ type: 'success', text: 'Stripe settings saved successfully.' })
             } else {
-                setMessage({ type: 'error', text: result.error || 'Failed to save settings.' })
+                setMessage({ type: 'error', text: (result as any).error || 'Failed to save settings.' })
             }
         })
     }

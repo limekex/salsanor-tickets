@@ -78,7 +78,7 @@ export async function createStripeEmbeddedSession(
                 email: organizer.contactEmail || undefined,
                 business_profile: {
                     name: organizer.name,
-                    url: organizer.websiteUrl || undefined,
+                    url: organizer.website || undefined,
                 },
                 metadata: {
                     organizerId: organizer.id,

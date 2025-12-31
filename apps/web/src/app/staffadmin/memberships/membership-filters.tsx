@@ -54,7 +54,7 @@ export function MembershipFilters() {
       
       <Select
         value={status}
-        onValueChange={(value) => {
+        onValueChange={(value: string) => {
           setStatus(value)
           updateFilters(undefined, value)
         }}

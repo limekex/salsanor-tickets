@@ -36,7 +36,11 @@ const organizerSchema = z.object({
 type OrganizerFormValues = z.infer<typeof organizerSchema>
 
 interface OrganizerFormProps {
-    organizer?: Organizer
+    organizer?: Omit<Organizer, 'mvaRate' | 'stripeFeePercentage' | 'fiscalYearStart'> & {
+        mvaRate: number
+        stripeFeePercentage: number
+        fiscalYearStart: string | null
+    }
 }
 
 export function OrganizerForm({ organizer }: OrganizerFormProps) {

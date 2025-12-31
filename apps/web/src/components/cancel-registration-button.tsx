@@ -89,7 +89,7 @@ export function CancelRegistrationButton({
           <div className="space-y-rn-4 py-rn-4">
             <div className="space-y-rn-3">
               <Label>Refund Option</Label>
-              <RadioGroup value={refundType} onValueChange={(value) => setRefundType(value as any)}>
+              <RadioGroup value={refundType} onValueChange={(value: string) => setRefundType(value as any)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="full" id="full" />
                   <Label htmlFor="full" className="font-normal cursor-pointer">

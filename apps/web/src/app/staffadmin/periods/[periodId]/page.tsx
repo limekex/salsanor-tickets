@@ -31,7 +31,7 @@ export default async function EditStaffPeriodPage({
         }
     })
 
-    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) || []
+    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
     const organizers = userAccount?.roles.map(r => r.organizer).filter(Boolean) || []
 
     if (adminOrgIds.length === 0) {
@@ -60,7 +60,7 @@ export default async function EditStaffPeriodPage({
             <StaffPeriodForm 
                 period={period}
                 organizerIds={adminOrgIds}
-                organizers={organizers}
+                organizers={organizers as any}
             />
         </div>
     )

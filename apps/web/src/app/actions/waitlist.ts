@@ -218,6 +218,7 @@ export async function acceptWaitlistOffer(registrationId: string) {
                 purchaserPersonId: registration.personId,
                 status: 'DRAFT',
                 subtotalCents: pricing.subtotalCents,
+                subtotalAfterDiscountCents: pricing.subtotalCents - pricing.discountTotalCents,
                 discountCents: pricing.discountTotalCents,
                 totalCents: pricing.finalTotalCents,
                 pricingSnapshot: JSON.stringify(pricing),

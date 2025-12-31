@@ -77,7 +77,7 @@ export default async function StaffAdminUserDetailPage({
         }
     })
 
-    const adminOrgIds = currentUserAccount?.roles.map(r => r.organizerId).filter(Boolean) || []
+    const adminOrgIds = currentUserAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')

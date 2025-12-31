@@ -2,7 +2,7 @@ import * as brevo from '@getbrevo/brevo';
 import { TransactionalEmailsApiApiKeys } from '@getbrevo/brevo';
 import { convert } from 'html-to-text';
 import { prisma } from '@/lib/db';
-import type { EmailCategory } from '@repo/database';
+import type { EmailCategory } from '@prisma/client';
 
 // Types
 interface SendEmailParams {
