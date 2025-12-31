@@ -23,6 +23,10 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=optional
 
+      - name: Rebuild native dependencies
+        working-directory: ./apps/web
+        run: npm rebuild lightningcss --verbose
+
       - name: Generate Prisma Client
         working-directory: ./packages/database
         run: npx prisma generate
