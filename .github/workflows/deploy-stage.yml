@@ -25,7 +25,10 @@ jobs:
 
       - name: Rebuild native dependencies
         working-directory: ./apps/web
-        run: npm rebuild lightningcss --verbose
+        run: |
+          npm rebuild lightningcss --verbose
+          ls -la node_modules/lightningcss/*.node || echo "No .node files found"
+          find node_modules/lightningcss -name "*.node" -type f || echo "No native binaries found"
 
       - name: Generate Prisma Client
         working-directory: ./packages/database
