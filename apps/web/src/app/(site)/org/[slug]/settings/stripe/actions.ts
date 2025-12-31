@@ -160,7 +160,7 @@ export async function createStripeConnectLink(
                 name: true,
                 slug: true,
                 stripeConnectAccountId: true,
-                email: true,
+                contactEmail: true,
                 organizationNumber: true,
             }
         })
@@ -211,7 +211,7 @@ export async function createStripeConnectLink(
             // Create Connected Account
             const account = await stripe.accounts.create({
                 type: 'standard', // standard = full Stripe account, express = simpler
-                email: organizer.email || undefined,
+                email: organizer.contactEmail || undefined,
                 business_profile: {
                     name: organizer.name,
                 },
