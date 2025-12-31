@@ -212,14 +212,10 @@ export default async function ProfilePage() {
                                                 ...membership,
                                                 tier: {
                                                     name: membership.tier.name,
-                                                    slug: membership.tier.slug,
-                                                    discountPercent: Number(membership.tier.discountPercent)
+                                                    slug: membership.tier.slug
                                                 },
                                                 organizer: {
-                                                    name: membership.organizer.name,
-                                                    slug: membership.organizer.slug,
-                                                    mvaRate: Number(membership.organizer.mvaRate),
-                                                    stripeFeePercentage: Number(membership.organizer.stripeFeePercentage)
+                                                    name: membership.organizer.name
                                                 }
                                             }} 
                                         />
