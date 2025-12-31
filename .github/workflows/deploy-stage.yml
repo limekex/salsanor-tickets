@@ -21,9 +21,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix apps/web
+        run: npm ci --include=optional
 
       - name: Generate Prisma Client
         working-directory: ./packages/database
