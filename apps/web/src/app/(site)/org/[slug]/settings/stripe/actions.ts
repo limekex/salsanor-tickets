@@ -53,7 +53,7 @@ export async function createStripeEmbeddedSession(
                 name: true,
                 slug: true,
                 stripeConnectAccountId: true,
-                email: true,
+                contactEmail: true,
             }
         })
 
@@ -67,7 +67,7 @@ export async function createStripeEmbeddedSession(
         if (!accountId && type === 'onboarding') {
             const account = await stripe.accounts.create({
                 type: 'standard',
-                email: organizer.email || undefined,
+                email: organizer.contactEmail || undefined,
                 business_profile: {
                     name: organizer.name,
                 },
