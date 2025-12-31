@@ -46,6 +46,10 @@ export async function generateInvoice(orderId: string) {
         throw new Error('Can only generate invoice for paid orders')
     }
 
+    if (!order.period) {
+        throw new Error('Order has no associated period')
+    }
+
     // Check if invoice already exists
     const existingInvoice = await prisma.invoice.findUnique({
         where: { orderId }

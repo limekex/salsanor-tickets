@@ -69,15 +69,16 @@ export async function POST(req: Request) {
                         
                         if (order?.purchaser?.email && order.period) {
                             const trackNames = order.registrations.map(r => r.track?.title || 'Track').join(', ')
+                            const period = order.period // Type narrowing
                             await emailService.sendTransactional({
-                                organizerId: order.period.organizerId,
+                                organizerId: period.organizerId,
                                 templateSlug: 'order-confirmation',
                                 recipientEmail: order.purchaser.email,
                                 recipientName: `${order.purchaser.firstName} ${order.purchaser.lastName}`.trim() || undefined,
                                 variables: {
                                     recipientName: order.purchaser.firstName || 'Customer',
-                                    organizationName: order.period.organizer.name,
-                                    eventName: order.period.name,
+                                    organizationName: period.organizer.name,
+                                    eventName: period.name,
                                     orderNumber: order.id.slice(0, 8),
                                     orderTotal: `${order.currency.toUpperCase()} ${(order.totalCents / 100).toFixed(2)}`,
                                     ticketCount: order.registrations.length.toString(),
