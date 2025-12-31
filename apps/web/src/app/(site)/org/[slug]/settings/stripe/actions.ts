@@ -170,7 +170,7 @@ export async function createStripeConnectLink(
         }
 
         // Verify user has access to this organizer
-        const supabase = await createServerClient()
+        const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
         
         if (!user) {
