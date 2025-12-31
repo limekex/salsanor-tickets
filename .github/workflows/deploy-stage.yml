@@ -91,7 +91,7 @@ jobs:
             npx prisma migrate deploy
             
             # Restart PM2
-            cd ~/stage.reginor.events
+            cd ~/stage.reginor.events/apps/web
             pm2 restart reginor-stage || pm2 start npm --name "reginor-stage" -- start
             
             echo "Stage deployment completed!"
