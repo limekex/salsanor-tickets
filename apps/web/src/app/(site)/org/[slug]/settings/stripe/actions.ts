@@ -42,7 +42,7 @@ export async function createStripeEmbeddedSession(
 
         // Initialize Stripe
         const stripe = new Stripe(stripeKey, {
-            apiVersion: '2024-11-20.acacia' as any,
+            apiVersion: '2025-11-17.clover' as any,
         })
 
         // Get organizer

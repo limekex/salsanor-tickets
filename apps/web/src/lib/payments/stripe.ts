@@ -25,7 +25,7 @@ async function getStripeClient(options?: StripeClientOptions) {
     }
 
     const stripeConfig: Stripe.StripeConfig = {
-        apiVersion: '2024-11-20.acacia' as any,
+        apiVersion: '2025-11-17.clover' as any,
         typescript: true,
     }
 
