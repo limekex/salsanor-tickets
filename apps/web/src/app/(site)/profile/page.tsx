@@ -129,12 +129,12 @@ export default async function ProfilePage() {
                                 </div>
 
                                 {/* OFFER UI */}
-                                {reg.waitlist?.status === 'OFFERED' && (
+                                {reg.waitlist?.status === 'OFFERED' && reg.waitlist.offeredUntil && (
                                     <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-md border border-orange-200 dark:border-orange-800 space-y-3">
                                         <div>
                                             <h4 className="font-bold text-orange-800 dark:text-orange-400">Spot Offered!</h4>
                                             <p className="text-xs text-orange-700 dark:text-orange-500">
-                                                Expires {formatDistanceToNow(reg.waitlist.offeredUntil!, { addSuffix: true })}
+                                                Expires {formatDistanceToNow(reg.waitlist.offeredUntil, { addSuffix: true })}
                                             </p>
                                         </div>
                                         <div className="flex gap-2">
