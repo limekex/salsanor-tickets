@@ -196,6 +196,10 @@ model Organizer {
   stripeFeePercentage      Decimal  @default(2.5)
   stripeFixedFeeCents      Int      @default(0)
   
+  // Platform Fees (overrides global PaymentConfig if set)
+  platformFeePercent       Decimal? // Override global platform fee %
+  platformFeeFixed         Int?     // Override global fixed fee in cents
+  
   // Membership Product
   membershipEnabled        Boolean  @default(false)
   membershipSalesOpen      Boolean  @default(true)

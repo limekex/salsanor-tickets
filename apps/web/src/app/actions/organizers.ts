@@ -61,7 +61,16 @@ export async function getAllOrganizers() {
 
     return await prisma.organizer.findMany({
         orderBy: { name: 'asc' },
-        include: {
+        select: {
+            id: true,
+            slug: true,
+            name: true,
+            city: true,
+            country: true,
+            contactEmail: true,
+            stripeConnectAccountId: true,
+            platformFeePercent: true,
+            platformFeeFixed: true,
             _count: {
                 select: { periods: true }
             }
@@ -148,5 +157,29 @@ export async function updateOrganizer(organizerId: string, prevState: any, formD
             return { error: { slug: ['Slug must be unique'] } }
         }
         return { error: { _form: [e.message] } }
+    }
+}
+
+export async function updateOrganizerFees(data: {
+    organizerId: string
+    platformFeePercent: number | null
+    platformFeeFixed: number | null
+}) {
+    await requireAdmin()
+
+    try {
+        await prisma.organizer.update({
+            where: { id: data.organizerId },
+            data: {
+                platformFeePercent: data.platformFeePercent,
+                platformFeeFixed: data.platformFeeFixed,
+            }
+        })
+
+        revalidatePath(`/admin/organizers/${data.organizerId}/fees`)
+        revalidatePath('/admin/organizers')
+        return { success: true }
+    } catch (e: any) {
+        return { error: e.message }
     }
 }

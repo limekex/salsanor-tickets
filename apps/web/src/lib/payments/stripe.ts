@@ -146,12 +146,25 @@ export async function createStripeCheckout(orderId: string, successUrl: string, 
 
     // If using Stripe Connect, add application fee
     if (config?.useStripeConnect && organizer.stripeConnectAccountId) {
-        // Calculate platform fee
-        const platformFeePercent = config.platformFeePercent ? Number(config.platformFeePercent) : 0
-        const platformFeeFixed = config.platformFeeFixed || 0
+        // Use organizer-specific fees if set, otherwise fall back to global config
+        const platformFeePercent = organizer.platformFeePercent !== null && organizer.platformFeePercent !== undefined
+            ? Number(organizer.platformFeePercent)
+            : (config.platformFeePercent ? Number(config.platformFeePercent) : 0)
+        
+        const platformFeeFixed = organizer.platformFeeFixed !== null && organizer.platformFeeFixed !== undefined
+            ? organizer.platformFeeFixed
+            : (config.platformFeeFixed || 0)
         
         const percentFee = Math.round((order.totalCents * platformFeePercent) / 100)
         const totalPlatformFee = percentFee + platformFeeFixed
+
+        console.log(`Platform Fee Calculation for ${organizer.slug}:`, {
+            useOrgSpecific: organizer.platformFeePercent !== null,
+            percentFee: platformFeePercent,
+            fixedFee: platformFeeFixed,
+            orderTotal: order.totalCents,
+            calculatedFee: totalPlatformFee
+        })
 
         if (totalPlatformFee > 0) {
             sessionOptions.payment_intent_data = {

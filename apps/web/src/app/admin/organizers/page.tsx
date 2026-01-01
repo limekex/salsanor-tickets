@@ -40,12 +40,25 @@ export default async function OrganizersPage() {
                                     <span className="text-muted-foreground">Contact:</span> {org.contactEmail}
                                 </div>
                             )}
+                            {org.stripeConnectAccountId && (
+                                <div className="text-sm">
+                                    <span className="text-muted-foreground">Stripe:</span>{' '}
+                                    {org.platformFeePercent !== null ? (
+                                        <span className="text-green-600 font-medium">Custom fees</span>
+                                    ) : (
+                                        <span className="text-muted-foreground">Default fees</span>
+                                    )}
+                                </div>
+                            )}
                             <div className="flex gap-2 pt-2">
                                 <Button asChild variant="outline" size="sm">
                                     <Link href={`/admin/organizers/${org.id}/edit`}>Edit</Link>
                                 </Button>
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={`/admin/organizers/${org.id}/fees`}>Fees</Link>
+                                </Button>
                                 <Button asChild variant="ghost" size="sm">
-                                    <Link href={`/org/${org.slug}`} target="_blank">View Page</Link>
+                                    <Link href={`/org/${org.slug}`} target="_blank">View</Link>
                                 </Button>
                             </div>
                         </CardContent>
