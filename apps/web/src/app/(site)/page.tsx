@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { prisma } from '@/lib/db'
 import { Footer } from '@/components/footer'
 import { CheckCircle2, Users, CreditCard, QrCode } from 'lucide-react'
+import { AuthCodeHandler } from '@/components/auth-code-handler'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -29,6 +30,7 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <AuthCodeHandler />
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-rn-background-subtle to-white py-rn-8 md:py-20">
         <div className="container mx-auto px-rn-4">
