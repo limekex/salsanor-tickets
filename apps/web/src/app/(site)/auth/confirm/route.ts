@@ -15,88 +15,108 @@ export async function GET(request: NextRequest) {
   redirectTo.searchParams.delete('type')
   redirectTo.searchParams.delete('code')
 
-  // Handle PKCE flow (code parameter - modern Supabase)
-  if (code) {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
-    if (!error) {
-      redirectTo.searchParams.delete('next')
+  try {
+    // Handle PKCE flow (code parameter - modern Supabase)
+    if (code) {
+      const supabase = await createClient()
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
       
-      // After successful verification, check if user needs onboarding
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { prisma } = await import('@/lib/db')
-        const userAccount = await prisma.userAccount.findUnique({
-          where: { supabaseUid: user.id },
-          include: { personProfile: true }
-        })
+      if (!error) {
+        redirectTo.searchParams.delete('next')
+        
+        // After successful verification, check if user needs onboarding
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.email) {
+          const { prisma } = await import('@/lib/db')
+          
+          try {
+            const userAccount = await prisma.userAccount.findUnique({
+              where: { supabaseUid: user.id },
+              include: { personProfile: true }
+            })
 
-        // If no account exists, create it and redirect to onboarding
-        if (!userAccount) {
-          await prisma.userAccount.create({
-            data: {
-              supabaseUid: user.id,
-              email: user.email!
+            // If no account exists, create it and redirect to onboarding
+            if (!userAccount) {
+              await prisma.userAccount.create({
+                data: {
+                  supabaseUid: user.id,
+                  email: user.email
+                }
+              })
+              redirectTo.pathname = '/onboarding'
+              return NextResponse.redirect(redirectTo)
             }
-          })
-          redirectTo.pathname = '/onboarding'
-          return NextResponse.redirect(redirectTo)
-        }
 
-        // If account exists but no profile, redirect to onboarding
-        if (!userAccount.personProfile) {
-          redirectTo.pathname = '/onboarding'
-          return NextResponse.redirect(redirectTo)
-        }
-      }
-      
-      return NextResponse.redirect(redirectTo)
-    }
-  }
-
-  // Handle OTP flow (token_hash parameter - legacy)
-  if (token_hash && type) {
-    const supabase = await createClient()
-
-    const { error } = await supabase.auth.verifyOtp({
-      type,
-      token_hash,
-    })
-
-    if (!error) {
-      redirectTo.searchParams.delete('next')
-      
-      // After successful verification, check if user needs onboarding
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { prisma } = await import('@/lib/db')
-        const userAccount = await prisma.userAccount.findUnique({
-          where: { supabaseUid: user.id },
-          include: { personProfile: true }
-        })
-
-        // If no account exists, create it and redirect to onboarding
-        if (!userAccount) {
-          await prisma.userAccount.create({
-            data: {
-              supabaseUid: user.id,
-              email: user.email!
+            // If account exists but no profile, redirect to onboarding
+            if (!userAccount.personProfile) {
+              redirectTo.pathname = '/onboarding'
+              return NextResponse.redirect(redirectTo)
             }
-          })
-          redirectTo.pathname = '/onboarding'
-          return NextResponse.redirect(redirectTo)
+          } catch (dbError) {
+            console.error('Database error during confirmation:', dbError)
+            // Continue anyway - user is authenticated
+          }
         }
-
-        // If account exists but no profile, redirect to onboarding
-        if (!userAccount.personProfile) {
-          redirectTo.pathname = '/onboarding'
-          return NextResponse.redirect(redirectTo)
-        }
+        
+        return NextResponse.redirect(redirectTo)
+      } else {
+        console.error('Auth error during code exchange:', error)
       }
-      
-      return NextResponse.redirect(redirectTo)
     }
+
+    // Handle OTP flow (token_hash parameter - legacy)
+    if (token_hash && type) {
+      const supabase = await createClient()
+
+      const { error } = await supabase.auth.verifyOtp({
+        type,
+        token_hash,
+      })
+
+      if (!error) {
+        redirectTo.searchParams.delete('next')
+        
+        // After successful verification, check if user needs onboarding
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.email) {
+          const { prisma } = await import('@/lib/db')
+          
+          try {
+            const userAccount = await prisma.userAccount.findUnique({
+              where: { supabaseUid: user.id },
+              include: { personProfile: true }
+            })
+
+            // If no account exists, create it and redirect to onboarding
+            if (!userAccount) {
+              await prisma.userAccount.create({
+                data: {
+                  supabaseUid: user.id,
+                  email: user.email
+                }
+              })
+              redirectTo.pathname = '/onboarding'
+              return NextResponse.redirect(redirectTo)
+            }
+
+            // If account exists but no profile, redirect to onboarding
+            if (!userAccount.personProfile) {
+              redirectTo.pathname = '/onboarding'
+              return NextResponse.redirect(redirectTo)
+            }
+          } catch (dbError) {
+            console.error('Database error during confirmation:', dbError)
+            // Continue anyway - user is authenticated
+          }
+        }
+        
+        return NextResponse.redirect(redirectTo)
+      } else {
+        console.error('Auth error during OTP verification:', error)
+      }
+    }
+  } catch (error) {
+    console.error('Unexpected error in auth confirmation:', error)
   }
 
   // Return the user to an error page with some instructions
