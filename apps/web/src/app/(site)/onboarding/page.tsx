@@ -6,11 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export default async function OnboardingPage() {
     const { needsOnboarding, userAccount } = await checkOnboardingStatus()
 
+    console.log('Onboarding check:', { needsOnboarding, hasAccount: !!userAccount, hasProfile: !!userAccount?.personProfile })
+
     if (!needsOnboarding) {
+        console.log('Redirecting to home - onboarding not needed')
         redirect('/')
     }
 
     if (!userAccount) {
+        console.log('Redirecting to login - no user account')
         redirect('/auth/login')
     }
 
