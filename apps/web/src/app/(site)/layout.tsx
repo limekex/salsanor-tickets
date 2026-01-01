@@ -45,14 +45,17 @@ export default async function RootLayout({
       const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-          personProfile: {
-            select: { id: true }
-          },
+          personProfile: true,
           roles: true
         }
       })
 
-      needsOnboarding = !!userAccount && !userAccount.personProfile
+      // User needs onboarding if they don't have a profile OR if they're missing consent
+      needsOnboarding = !!userAccount && (
+        !userAccount.personProfile || 
+        !userAccount.personProfile.gdprConsentAt || 
+        !userAccount.personProfile.touConsentAt
+      )
       
       if (userAccount?.roles) {
         isAdmin = userAccount.roles.some(r => r.role === 'ADMIN' || r.role === 'ORGANIZER')
