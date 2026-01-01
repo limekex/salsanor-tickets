@@ -8,13 +8,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { PersonProfile } from '@prisma/client'
 
-export function OnboardingForm({ email }: { email: string }) {
+interface OnboardingFormProps {
+    email: string
+    existingProfile?: PersonProfile | null
+    isUpdate?: boolean
+}
+
+export function OnboardingForm({ email, existingProfile, isUpdate = false }: OnboardingFormProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    const [gdprConsent, setGdprConsent] = useState(false)
-    const [touConsent, setTouConsent] = useState(false)
+    const [gdprConsent, setGdprConsent] = useState(!!existingProfile?.gdprConsentAt)
+    const [touConsent, setTouConsent] = useState(!!existingProfile?.touConsentAt)
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
@@ -67,6 +74,7 @@ export function OnboardingForm({ email }: { email: string }) {
                     required 
                     disabled={loading}
                     placeholder="John"
+                    defaultValue={existingProfile?.firstName || ''}
                 />
             </div>
 
@@ -79,6 +87,7 @@ export function OnboardingForm({ email }: { email: string }) {
                     required 
                     disabled={loading}
                     placeholder="Doe"
+                    defaultValue={existingProfile?.lastName || ''}
                 />
             </div>
 
@@ -90,6 +99,7 @@ export function OnboardingForm({ email }: { email: string }) {
                     type="tel" 
                     disabled={loading}
                     placeholder="+47 123 45 678"
+                    defaultValue={existingProfile?.phone || ''}
                 />
                 <p className="text-sm text-muted-foreground">
                     Optional - used for SMS notifications
@@ -104,6 +114,7 @@ export function OnboardingForm({ email }: { email: string }) {
                     type="text" 
                     disabled={loading}
                     placeholder="Main Street 123"
+                    defaultValue={existingProfile?.streetAddress || ''}
                 />
             </div>
 
@@ -116,6 +127,7 @@ export function OnboardingForm({ email }: { email: string }) {
                         type="text" 
                         disabled={loading}
                         placeholder="0001"
+                        defaultValue={existingProfile?.postalCode || ''}
                     />
                 </div>
                 <div className="space-y-2">
@@ -126,6 +138,7 @@ export function OnboardingForm({ email }: { email: string }) {
                         type="text" 
                         disabled={loading}
                         placeholder="Oslo"
+                        defaultValue={existingProfile?.city || ''}
                     />
                 </div>
             </div>
@@ -137,7 +150,7 @@ export function OnboardingForm({ email }: { email: string }) {
                     name="country" 
                     type="text" 
                     disabled={loading}
-                    defaultValue="Norway"
+                    defaultValue={existingProfile?.country || 'Norway'}
                 />
             </div>
 
@@ -147,7 +160,7 @@ export function OnboardingForm({ email }: { email: string }) {
                     id="preferredLanguage"
                     name="preferredLanguage"
                     disabled={loading}
-                    defaultValue="no"
+                    defaultValue={existingProfile?.preferredLanguage || 'no'}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <option value="no">Norwegian (Norsk)</option>
@@ -191,6 +204,7 @@ export function OnboardingForm({ email }: { email: string }) {
                         name="reginorMarketingConsent"
                         disabled={loading}
                         className="mt-1"
+                        defaultChecked={existingProfile?.reginorMarketingConsent || false}
                     />
                     <Label htmlFor="reginorMarketingConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
                         I want to receive marketing emails and updates from RegiNor about new features and dance events
@@ -203,6 +217,7 @@ export function OnboardingForm({ email }: { email: string }) {
                         name="organizerMarketingConsent"
                         disabled={loading}
                         className="mt-1"
+                        defaultChecked={existingProfile?.organizerMarketingConsent || false}
                     />
                     <Label htmlFor="organizerMarketingConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
                         I want to receive marketing emails from event organizers I register with or make purchases from
@@ -217,7 +232,7 @@ export function OnboardingForm({ email }: { email: string }) {
             )}
 
             <Button type="submit" disabled={loading} className="w-full">
-                {loading ? 'Setting up...' : 'Complete Setup'}
+                {loading ? (isUpdate ? 'Updating...' : 'Setting up...') : (isUpdate ? 'Update Profile' : 'Complete Setup')}
             </Button>
         </form>
     )

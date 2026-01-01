@@ -65,9 +65,14 @@ export async function checkOnboardingStatus() {
         }
     }
 
+    // Check if profile exists but is missing required consent
+    const needsConsentUpdate = userAccount.personProfile && 
+        (!userAccount.personProfile.gdprConsentAt || !userAccount.personProfile.touConsentAt)
+
     return { 
-        needsOnboarding: !userAccount.personProfile,
-        userAccount 
+        needsOnboarding: !userAccount.personProfile || needsConsentUpdate,
+        userAccount,
+        needsConsentUpdate: needsConsentUpdate || false
     }
 }
 
@@ -80,7 +85,8 @@ export async function completeOnboarding(formData: FormData) {
     }
 
     const userAccount = await prisma.userAccount.findUnique({
-        where: { supabaseUid: user.id }
+        where: { supabaseUid: user.id },
+        include: { personProfile: true }
     })
 
     if (!userAccount) {
@@ -103,24 +109,37 @@ export async function completeOnboarding(formData: FormData) {
     }
 
     try {
-        await prisma.personProfile.create({
-            data: {
-                userId: userAccount.id,
-                email: userAccount.email || user.email || '',
-                firstName,
-                lastName,
-                phone: phone || null,
-                streetAddress: streetAddress || null,
-                postalCode: postalCode || null,
-                city: city || null,
-                country: country || 'Norway',
-                preferredLanguage: preferredLanguage || 'no',
-                gdprConsentAt: new Date(),
-                touConsentAt: new Date(),
-                reginorMarketingConsent,
-                organizerMarketingConsent
-            }
-        })
+        const profileData = {
+            email: userAccount.email || user.email || '',
+            firstName,
+            lastName,
+            phone: phone || null,
+            streetAddress: streetAddress || null,
+            postalCode: postalCode || null,
+            city: city || null,
+            country: country || 'Norway',
+            preferredLanguage: preferredLanguage || 'no',
+            gdprConsentAt: new Date(),
+            touConsentAt: new Date(),
+            reginorMarketingConsent,
+            organizerMarketingConsent
+        }
+
+        if (userAccount.personProfile) {
+            // Update existing profile
+            await prisma.personProfile.update({
+                where: { id: userAccount.personProfile.id },
+                data: profileData
+            })
+        } else {
+            // Create new profile
+            await prisma.personProfile.create({
+                data: {
+                    ...profileData,
+                    userId: userAccount.id
+                }
+            })
+        }
 
         // Revalidate to update layout checks
         revalidatePath('/', 'layout')
