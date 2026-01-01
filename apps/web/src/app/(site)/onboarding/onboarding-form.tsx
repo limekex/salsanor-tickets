@@ -163,7 +163,7 @@ export function OnboardingForm({ email }: { email: string }) {
                     <Checkbox
                         id="gdprConsent"
                         checked={gdprConsent}
-                        onCheckedChange={(checked) => setGdprConsent(checked as boolean)}
+                        onCheckedChange={(checked: boolean) => setGdprConsent(checked)}
                         disabled={loading}
                         className="mt-1"
                     />
@@ -176,7 +176,7 @@ export function OnboardingForm({ email }: { email: string }) {
                     <Checkbox
                         id="touConsent"
                         checked={touConsent}
-                        onCheckedChange={(checked) => setTouConsent(checked as boolean)}
+                        onCheckedChange={(checked: boolean) => setTouConsent(checked)}
                         disabled={loading}
                         className="mt-1"
                     />
