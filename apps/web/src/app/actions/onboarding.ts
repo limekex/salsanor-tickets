@@ -13,20 +13,56 @@ export async function checkOnboardingStatus() {
     }
 
     // Check if user has completed onboarding (has PersonProfile)
-    const userAccount = await prisma.userAccount.findUnique({
+    let userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: { personProfile: true }
     })
 
     if (!userAccount) {
-        // This shouldn't happen if trigger works, but let's create it
-        const newAccount = await prisma.userAccount.create({
-            data: {
-                supabaseUid: user.id,
-                email: user.email!
-            }
+        // Try to find by email first (in case supabaseUid changed)
+        userAccount = await prisma.userAccount.findUnique({
+            where: { email: user.email! },
+            include: { personProfile: true }
         })
-        return { needsOnboarding: true, userAccount: newAccount }
+
+        if (userAccount) {
+            // Update the supabaseUid if found by email
+            userAccount = await prisma.userAccount.update({
+                where: { id: userAccount.id },
+                data: { supabaseUid: user.id },
+                include: { personProfile: true }
+            })
+        } else {
+            // Create new account only if not found by email either
+            try {
+                userAccount = await prisma.userAccount.create({
+                    data: {
+                        supabaseUid: user.id,
+                        email: user.email!
+                    },
+                    include: { personProfile: true }
+                })
+            } catch (error: any) {
+                // If unique constraint fails, try one more time to find by email
+                if (error.code === 'P2002') {
+                    userAccount = await prisma.userAccount.findUnique({
+                        where: { email: user.email! },
+                        include: { personProfile: true }
+                    })
+                    if (userAccount) {
+                        // Update supabaseUid
+                        userAccount = await prisma.userAccount.update({
+                            where: { id: userAccount.id },
+                            data: { supabaseUid: user.id },
+                            include: { personProfile: true }
+                        })
+                    }
+                }
+                if (!userAccount) {
+                    throw error
+                }
+            }
+        }
     }
 
     return { 
