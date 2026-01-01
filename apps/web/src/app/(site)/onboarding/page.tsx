@@ -10,6 +10,10 @@ export default async function OnboardingPage() {
         redirect('/')
     }
 
+    if (!userAccount) {
+        redirect('/auth/login')
+    }
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-rn-surface px-rn-4">
             <Card className="w-full max-w-md">
@@ -20,7 +24,7 @@ export default async function OnboardingPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <OnboardingForm email={userAccount?.email || ''} />
+                    <OnboardingForm email={userAccount.email} />
                 </CardContent>
             </Card>
         </div>

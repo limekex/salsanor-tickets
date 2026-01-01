@@ -12,10 +12,37 @@ export async function login(prevState: any, formData: FormData) {
         password: formData.get('password') as string,
     }
 
-    const { error } = await supabase.auth.signInWithPassword(data)
+    const { data: authData, error } = await supabase.auth.signInWithPassword(data)
 
     if (error) {
         return { error: error.message }
+    }
+
+    // Check if user needs onboarding
+    if (authData.user) {
+        const { prisma } = await import('@/lib/db')
+        const userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: authData.user.id },
+            include: { personProfile: true }
+        })
+
+        // If no account exists, create it
+        if (!userAccount) {
+            await prisma.userAccount.create({
+                data: {
+                    supabaseUid: authData.user.id,
+                    email: authData.user.email!
+                }
+            })
+            revalidatePath('/', 'layout')
+            redirect('/onboarding')
+        }
+
+        // If account exists but no profile, redirect to onboarding
+        if (!userAccount.personProfile) {
+            revalidatePath('/', 'layout')
+            redirect('/onboarding')
+        }
     }
 
     revalidatePath('/', 'layout')
