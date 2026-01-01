@@ -178,11 +178,13 @@ export function OnboardingForm({ email, existingProfile, isUpdate = false }: Onb
                         checked={gdprConsent}
                         onCheckedChange={(checked: boolean) => setGdprConsent(checked)}
                         disabled={loading}
-                        className="mt-1"
+                        className="mt-1 flex-shrink-0"
                     />
-                    <Label htmlFor="gdprConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
-                        I accept the <a href="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</a> and consent to the processing of my personal data in accordance with GDPR *
-                    </Label>
+                    <div className="flex-1">
+                        <Label htmlFor="gdprConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
+                            I accept the <a href="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</a> and consent to the processing of my personal data in accordance with GDPR *
+                        </Label>
+                    </div>
                 </div>
 
                 <div className="flex items-start space-x-2">
@@ -191,11 +193,13 @@ export function OnboardingForm({ email, existingProfile, isUpdate = false }: Onb
                         checked={touConsent}
                         onCheckedChange={(checked: boolean) => setTouConsent(checked)}
                         disabled={loading}
-                        className="mt-1"
+                        className="mt-1 flex-shrink-0"
                     />
-                    <Label htmlFor="touConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
-                        I accept the <a href="/terms" target="_blank" className="text-primary hover:underline">Terms of Use</a> *
-                    </Label>
+                    <div className="flex-1">
+                        <Label htmlFor="touConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
+                            I accept the <a href="/terms" target="_blank" className="text-primary hover:underline">Terms of Use</a> *
+                        </Label>
+                    </div>
                 </div>
 
                 <div className="flex items-start space-x-2">
@@ -203,12 +207,14 @@ export function OnboardingForm({ email, existingProfile, isUpdate = false }: Onb
                         id="reginorMarketingConsent"
                         name="reginorMarketingConsent"
                         disabled={loading}
-                        className="mt-1"
+                        className="mt-1 flex-shrink-0"
                         defaultChecked={existingProfile?.reginorMarketingConsent || false}
                     />
-                    <Label htmlFor="reginorMarketingConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
-                        I want to receive marketing emails and updates from RegiNor about new features and dance events
-                    </Label>
+                    <div className="flex-1">
+                        <Label htmlFor="reginorMarketingConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
+                            I want to receive marketing emails and updates from RegiNor about new features and dance events
+                        </Label>
+                    </div>
                 </div>
 
                 <div className="flex items-start space-x-2">
@@ -216,12 +222,14 @@ export function OnboardingForm({ email, existingProfile, isUpdate = false }: Onb
                         id="organizerMarketingConsent"
                         name="organizerMarketingConsent"
                         disabled={loading}
-                        className="mt-1"
+                        className="mt-1 flex-shrink-0"
                         defaultChecked={existingProfile?.organizerMarketingConsent || false}
                     />
-                    <Label htmlFor="organizerMarketingConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
-                        I want to receive marketing emails from event organizers I register with or make purchases from
-                    </Label>
+                    <div className="flex-1">
+                        <Label htmlFor="organizerMarketingConsent" className="text-sm font-normal leading-relaxed cursor-pointer">
+                            I want to receive marketing emails from event organizers I register with or make purchases from
+                        </Label>
+                    </div>
                 </div>
             </div>
 
