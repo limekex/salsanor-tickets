@@ -63,7 +63,7 @@ export async function completeOnboarding(formData: FormData) {
         await prisma.personProfile.create({
             data: {
                 userId: userAccount.id,
-                email: userAccount.email,
+                email: userAccount.email || user.email || '',
                 firstName,
                 lastName,
                 phone: phone || null

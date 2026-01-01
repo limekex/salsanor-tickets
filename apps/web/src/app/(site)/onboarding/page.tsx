@@ -24,7 +24,7 @@ export default async function OnboardingPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <OnboardingForm email={userAccount.email} />
+                    <OnboardingForm email={userAccount.email || ''} />
                 </CardContent>
             </Card>
         </div>
