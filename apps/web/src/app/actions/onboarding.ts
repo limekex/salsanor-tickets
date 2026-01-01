@@ -90,6 +90,13 @@ export async function completeOnboarding(formData: FormData) {
     const firstName = formData.get('firstName') as string
     const lastName = formData.get('lastName') as string
     const phone = formData.get('phone') as string
+    const streetAddress = formData.get('streetAddress') as string
+    const postalCode = formData.get('postalCode') as string
+    const city = formData.get('city') as string
+    const country = formData.get('country') as string
+    const preferredLanguage = formData.get('preferredLanguage') as string
+    const reginorMarketingConsent = formData.get('reginorMarketingConsent') === 'on'
+    const organizerMarketingConsent = formData.get('organizerMarketingConsent') === 'on'
 
     if (!firstName || !lastName) {
         return { error: 'First name and last name are required' }
@@ -102,7 +109,16 @@ export async function completeOnboarding(formData: FormData) {
                 email: userAccount.email || user.email || '',
                 firstName,
                 lastName,
-                phone: phone || null
+                phone: phone || null,
+                streetAddress: streetAddress || null,
+                postalCode: postalCode || null,
+                city: city || null,
+                country: country || 'Norway',
+                preferredLanguage: preferredLanguage || 'no',
+                gdprConsentAt: new Date(),
+                touConsentAt: new Date(),
+                reginorMarketingConsent,
+                organizerMarketingConsent
             }
         })
 

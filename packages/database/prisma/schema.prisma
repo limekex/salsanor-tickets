@@ -131,6 +131,19 @@ model PersonProfile {
   email       String
   photoUrl    String?  // Profile photo URL for membership cards
   preferredLanguage String @default("no") // Email language preference: 'no' or 'en'
+  
+  // Physical address
+  streetAddress String?
+  postalCode    String?
+  city          String?
+  country       String @default("Norway")
+  
+  // GDPR and consent
+  gdprConsentAt         DateTime? // When user accepted GDPR/privacy policy
+  touConsentAt          DateTime? // When user accepted Terms of Use
+  reginorMarketingConsent Boolean @default(false) // RegiNor marketing emails
+  organizerMarketingConsent Boolean @default(false) // Organizer marketing emails
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   memberships Membership[]
