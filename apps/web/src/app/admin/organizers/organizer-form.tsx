@@ -83,7 +83,7 @@ export function OrganizerForm({ organizer }: OrganizerFormProps) {
             organizationNumber: organizer.organizationNumber || '',
             legalName: organizer.legalName || '',
             companyType: organizer.companyType || '',
-            vatRegistered: organizer.vatRegistered,
+            vatRegistered: organizer.vatRegistered ?? false,
             bankAccount: organizer.bankAccount || '',
         } : {
             slug: '',
