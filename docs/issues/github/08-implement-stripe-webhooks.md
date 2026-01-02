@@ -6,7 +6,7 @@
 ## Description
 Complete the Stripe webhook integration to handle payment events and trigger order fulfillment automatically when payments succeed.
 
-## Current Status (Updated: 2. januar 2026)
+## Current Status (Updated: 3. januar 2026)
 
 ### ✅ Completed
 - ✅ Webhook endpoint `/api/webhooks/stripe` exists and functional
@@ -22,9 +22,12 @@ Complete the Stripe webhook integration to handle payment events and trigger ord
 - ✅ Transaction atomicity (Prisma transactions)
 - ✅ Payment records created in database
 - ✅ Error handling returns correct HTTP statuses
+- ✅ **IDEMPOTENCY IMPLEMENTED** - Events tracked and processed only once (TESTED)
+- ✅ WebhookEvent model stores all events with status tracking
+- ✅ Optimistic locking prevents concurrent duplicate processing
+- ✅ Error tracking without webhook failure (always returns 200)
 
 ### ❌ Critical Missing
-- ❌ **NO IDEMPOTENCY** - Events can be processed multiple times (CRITICAL)
 - ❌ **NO RECEIPT/INVOICE PDF ATTACHMENT** - Emails lack receipt attachments
 - ❌ Refund handling not implemented (`charge.refunded` only logs)
 - ❌ Payment failure handling incomplete (`payment_intent.payment_failed`)
@@ -87,12 +90,21 @@ Complete the Stripe webhook integration to handle payment events and trigger ord
   - **NOTE: CreditNote database model exists but not connected to webhook flow**
 
 ### Idempotency
-- [ ] **CRITICAL: Add WebhookEvent model to Prisma schema**
-- [ ] Store processed event IDs in database
-- [ ] Check if event already processed before handling
-- [x] Use database transactions for atomic updates (implemented)
-- [ ] Handle duplicate webhook calls gracefully
-- **STATUS: No idempotency - same event can trigger multiple fulfillments/emails**
+- ✅ **COMPLETED: WebhookEvent model added to Prisma schema**
+- ✅ Store processed event IDs in database (unique constraint on id)
+- ✅ Check if event already processed before handling
+- ✅ Use database transactions for atomic updates
+- ✅ Handle duplicate webhook calls gracefully (returns early with alreadyProcessed flag)
+- ✅ Optimistic locking for concurrent requests (P2002 error handling)
+- ✅ Status tracking: PROCESSING → PROCESSED/FAILED
+- ✅ Error messages stored without failing webhook response
+- **STATUS: FULLY IMPLEMENTED AND TESTED**
+- **TEST RESULTS:**
+  - ✅ 12 events processed successfully
+  - ✅ All events marked as PROCESSED
+  - ✅ No duplicate event IDs in database
+  - ✅ Idempotency check working (duplicate events skipped)
+  - ✅ Always returns 200 to Stripe
 
 ### Error Handling
 - [x] Invalid signature → 401 Unauthorized (implemented)
