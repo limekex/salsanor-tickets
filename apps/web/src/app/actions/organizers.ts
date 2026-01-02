@@ -16,6 +16,12 @@ const organizerSchema = z.object({
     city: z.string().optional(),
     country: z.string().default('Norway'),
     timezone: z.string().default('Europe/Oslo'),
+    // Legal/Business Info
+    organizationNumber: z.string().regex(/^\d{9}$/, 'Must be 9 digits').optional().or(z.literal('')),
+    legalName: z.string().optional(),
+    companyType: z.string().optional(),
+    vatRegistered: z.boolean().default(false),
+    bankAccount: z.string().optional(),
 })
 
 type ActionError = {
@@ -99,6 +105,11 @@ export async function createOrganizer(prevState: any, formData: FormData): Promi
         city: formData.get('city') || undefined,
         country: formData.get('country') || 'Norway',
         timezone: formData.get('timezone') || 'Europe/Oslo',
+        organizationNumber: formData.get('organizationNumber') || undefined,
+        legalName: formData.get('legalName') || undefined,
+        companyType: formData.get('companyType') || undefined,
+        vatRegistered: formData.get('vatRegistered') === 'true',
+        bankAccount: formData.get('bankAccount') || undefined,
     }
 
     const result = organizerSchema.safeParse(raw)
@@ -113,10 +124,12 @@ export async function createOrganizer(prevState: any, formData: FormData): Promi
         })
 
         revalidatePath('/admin/organizers')
-        redirect(`/admin/organizers`)
+        // Return success (no redirect, let client handle dialog)
+        return
     } catch (e: any) {
         if (e.code === 'P2002') {
             return { error: { slug: ['Slug must be unique'] } }
+        }
         }
         return { error: { _form: [e.message] } }
     }
