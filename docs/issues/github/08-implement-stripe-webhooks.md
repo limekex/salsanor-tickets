@@ -6,68 +6,100 @@
 ## Description
 Complete the Stripe webhook integration to handle payment events and trigger order fulfillment automatically when payments succeed.
 
-## Current Status
-- ⚠️ Basic webhook route may exist but incomplete
-- ⚠️ No signature verification
-- ⚠️ No event processing
-- ⚠️ No fulfillment trigger
-- ✅ Stripe integration exists for checkout
-- ✅ Fulfillment service exists (basic)
+## Current Status (Updated: 2. januar 2026)
+
+### ✅ Completed
+- ✅ Webhook endpoint `/api/webhooks/stripe` exists and functional
+- ✅ Signature verification implemented (using webhook secret from DB or env)
+- ✅ Event parsing and validation working
+- ✅ `checkout.session.completed` triggers fulfillment automatically
+- ✅ `checkout.session.async_payment_succeeded` handled
+- ✅ `account.updated` syncs Stripe Connect status to organizers
+- ✅ Thin payload handling for Account v2 events
+- ✅ Email service with template system operational
+- ✅ Fulfillment service creates tickets and activates registrations
+- ✅ Order confirmation emails sent (text + HTML, no attachments yet)
+- ✅ Transaction atomicity (Prisma transactions)
+- ✅ Payment records created in database
+- ✅ Error handling returns correct HTTP statuses
+
+### ❌ Critical Missing
+- ❌ **NO IDEMPOTENCY** - Events can be processed multiple times (CRITICAL)
+- ❌ **NO RECEIPT/INVOICE PDF ATTACHMENT** - Emails lack receipt attachments
+- ❌ Refund handling not implemented (`charge.refunded` only logs)
+- ❌ Payment failure handling incomplete (`payment_intent.payment_failed`)
+- ❌ Dispute/chargeback alerts missing (`charge.dispute.created`)
+- ❌ Session expiry cleanup not implemented
+
+### 🔧 Partial Implementation
+- ⚠️ CreditNote model exists in database but not integrated with webhooks
+- ⚠️ Email service lacks attachment support (Brevo SDK supports it, not implemented)
+- ⚠️ Invoice generation exists but not triggered by orders
+- ⚠️ Subscription events logged but not processed (future feature)
 
 ## Requirements
 
 ### Webhook Endpoint
-- [ ] Create `POST /api/webhooks/stripe`
-- [ ] Verify Stripe signature using webhook secret
-- [ ] Parse and validate webhook payload
-- [ ] Handle event types:
-  - `payment_intent.succeeded`
-  - `payment_intent.payment_failed`
-  - `charge.refunded`
-  - `checkout.session.completed` (if using Checkout)
-- [ ] Implement idempotency (process each event only once)
-- [ ] Return 200 response quickly (< 5 seconds)
-- [ ] Log all webhook events for debugging
+- [x] Create `POST /api/webhooks/stripe`
+- [x] Verify Stripe signature using webhook secret
+- [x] Parse and validate webhook payload
+- [x] Handle event types:
+  - [x] `payment_intent.succeeded` (logged)
+  - [ ] `payment_intent.payment_failed` (logged only, no action)
+  - [ ] `charge.refunded` (logged only, no action)
+  - [x] `checkout.session.completed` (fully functional)
+  - [x] `checkout.session.async_payment_succeeded` (fully functional)
+  - [x] `account.updated` (Stripe Connect sync)
+- [ ] **CRITICAL: Implement idempotency** (process each event only once)
+- [x] Return 200 response quickly (< 5 seconds)
+- [x] Log all webhook events for debugging
 
 ### Payment Success Handler
-- [ ] On `payment_intent.succeeded`:
-  - Find Order by `providerCheckoutRef`
-  - Verify Order status is PENDING
-  - Update Order status to PAID
-  - Update all linked Registrations to ACTIVE
-  - Generate Ticket (call fulfillment service)
-  - Send confirmation email
-  - Log success
-  - Handle errors gracefully
+- [x] On `payment_intent.succeeded`: *(via checkout.session.completed)*
+  - [x] Find Order by `providerCheckoutRef`
+  - [x] Verify Order status is PENDING
+  - [x] Update Order status to PAID
+  - [x] Update all linked Registrations to ACTIVE (or PENDING_PAYMENT if validation required)
+  - [x] Generate Ticket (call fulfillment service)
+  - [x] Send confirmation email (text + HTML via email engine and template)
+  - [ ] **MISSING: Attach receipt/invoice PDF to confirmation email**
+  - [x] Log success
+  - [x] Handle errors gracefully
 
 ### Payment Failure Handler
 - [ ] On `payment_intent.payment_failed`:
-  - Find Order by reference
-  - Update Order status to CANCELLED
-  - Send payment failed email
-  - Log failure reason
+  - [ ] Find Order by reference
+  - [ ] Update Order status to CANCELLED
+  - [ ] Send payment failed email (use email engine and template)
+  - [ ] Log failure reason
+  - **STATUS: Event is received but no action taken (only logged)**
 
 ### Refund Handler
 - [ ] On `charge.refunded`:
-  - Find Order and Payment
-  - Update Order status to REFUNDED
-  - Update Registrations to CANCELLED
-  - Void Ticket
-  - Release capacity (allow waitlist promotion)
-  - Send refund confirmation email
+  - [ ] Find Order and Payment by charge ID
+  - [ ] Update Order status to REFUNDED
+  - [ ] Update Registrations to CANCELLED
+  - [ ] Void Ticket
+  - [ ] Release capacity (allow waitlist promotion)
+  - [ ] Generate CreditNote (model exists, integration missing)
+  - [ ] Send refund confirmation email with credit note PDF attachment
+  - **STATUS: Event is received but no action taken (only logged)**
+  - **NOTE: CreditNote database model exists but not connected to webhook flow**
 
 ### Idempotency
+- [ ] **CRITICAL: Add WebhookEvent model to Prisma schema**
 - [ ] Store processed event IDs in database
 - [ ] Check if event already processed before handling
-- [ ] Use database transactions for atomic updates
+- [x] Use database transactions for atomic updates (implemented)
 - [ ] Handle duplicate webhook calls gracefully
+- **STATUS: No idempotency - same event can trigger multiple fulfillments/emails**
 
 ### Error Handling
-- [ ] Invalid signature → 401 Unauthorized
-- [ ] Unknown event type → 200 OK (log and ignore)
-- [ ] Order not found → 404 (log error, still return 200)
-- [ ] Fulfillment fails → Log error, return 200, retry later
-- [ ] Database errors → Log, return 500 (Stripe will retry)
+- [x] Invalid signature → 401 Unauthorized (implemented)
+- [x] Unknown event type → 200 OK (log and ignore) (implemented)
+- [x] Order not found → 404 (log error, still return 200) (implemented)
+- [x] Fulfillment fails → Log error, return 500 (needs improvement - should return 200)
+- [x] Database errors → Log, return 500 (Stripe will retry)
 
 ### Monitoring & Logging
 - [ ] Log all webhook events to database or log service
@@ -304,14 +336,16 @@ stripe trigger charge.refunded
 - [ ] Daily summary email of webhook activity
 
 ## Success Criteria
-- [ ] Webhooks are verified with Stripe signature
-- [ ] Payment success triggers automatic fulfillment
-- [ ] Duplicate webhooks are handled idempotently
-- [ ] All events are logged
-- [ ] Errors are handled gracefully
-- [ ] Response time < 3 seconds
-- [ ] Stripe receives 200 status promptly
-- [ ] Failed events can be retried manually
+- [x] Webhooks are verified with Stripe signature
+- [x] Payment success triggers automatic fulfillment
+- [ ] **CRITICAL: Duplicate webhooks are handled idempotently**
+- [x] All events are logged
+- [x] Errors are handled gracefully
+- [x] Response time < 3 seconds
+- [x] Stripe receives 200 status promptly
+- [ ] Failed events can be retried manually (no dashboard yet)
+- [ ] **MISSING: Receipt/invoice PDF attached to confirmation emails**
+- [ ] **MISSING: Credit note PDF attached to refund emails**
 
 ## Security Checklist
 - [ ] Verify webhook signature on every request
@@ -321,11 +355,49 @@ stripe trigger charge.refunded
 - [ ] Log all verification failures
 - [ ] Don't expose internal errors to Stripe
 
-## Dependencies
-- Stripe SDK configured
-- Fulfillment service ready
-- Email service configured
-- Ticket generation implemented
+## Priority Action Items (Ranked)
+
+### 🔴 CRITICAL - Must Fix Immediately
+1. **Implement Idempotency System**
+   - Add `WebhookEvent` model to Prisma schema
+   - Store event ID before processing
+   - Check for duplicate events
+   - **Risk:** Same event can trigger multiple fulfillments, duplicate emails, duplicate tickets
+
+2. **Add PDF Receipt/Invoice Attachments**
+   - Generate PDF from order data
+   - Extend email service to support attachments (Brevo SendSmtpEmail has `attachment` property)
+   - Attach to order confirmation emails
+   - **Gap:** Customers receive confirmation but no receipt document
+
+### 🟠 HIGH Priority - Needed for Production
+3. **Implement Refund Handler**
+   - Connect `charge.refunded` event to existing CreditNote model
+   - Generate credit note PDF
+   - Update order/registration statuses
+   - Send refund email with credit note attachment
+   - Release inventory/waitlist
+
+4. **Implement Payment Failure Handler**
+   - Update order status to CANCELLED on `payment_intent.payment_failed`
+   - Send failure notification email to customer
+   - Log failure reasons for analytics
+
+### 🟡 MEDIUM Priority - Operational Safety
+5. **Dispute/Chargeback Alerts**
+   - Email admin on `charge.dispute.created`
+   - Flag orders for review
+   - Track dispute outcomes
+
+6. **Session Expiry Cleanup**
+   - Handle `checkout.session.expired`
+   - Mark orders as EXPIRED
+   - Release reserved inventory
+
+### Technical Debt
+- Fulfillment error should return 200 (not 500) to prevent retries
+- Add webhook event dashboard for monitoring
+- Manual retry mechanism for failed webhooks
 
 ## Related Issues
 - #[ticket-fulfillment] - Order fulfillment

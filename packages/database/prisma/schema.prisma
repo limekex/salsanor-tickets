@@ -770,3 +770,15 @@ model EmailLog {
   @@index([createdAt])
 }
 
+// Webhook event tracking for idempotency
+model WebhookEvent {
+  id          String   @id // Stripe event ID
+  type        String   // Event type (e.g., "checkout.session.completed")
+  processedAt DateTime @default(now())
+  payload     Json     // Full Stripe event payload for debugging
+  status      String   @default("PROCESSED") // PROCESSED, FAILED, SKIPPED
+  errorMessage String? @db.Text // If processing failed
+  
+  @@index([type])
+  @@index([processedAt])
+}

@@ -37,6 +37,51 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
+    // ============================================
+    // IDEMPOTENCY CHECK
+    // ============================================
+    // Check if this event has already been processed
+    const existingEvent = await prisma.webhookEvent.findUnique({
+        where: { id: event.id }
+    })
+
+    if (existingEvent) {
+        console.log(`Webhook: Event ${event.id} already processed at ${existingEvent.processedAt}`)
+        console.log(`Webhook: Status: ${existingEvent.status}`)
+        return NextResponse.json({ 
+            received: true, 
+            alreadyProcessed: true,
+            processedAt: existingEvent.processedAt 
+        })
+    }
+
+    // Mark event as being processed (optimistic locking)
+    try {
+        await prisma.webhookEvent.create({
+            data: {
+                id: event.id,
+                type: event.type,
+                payload: event as any,
+                status: 'PROCESSING'
+            }
+        })
+    } catch (err: any) {
+        // If this fails, another instance might be processing it
+        if (err.code === 'P2002') { // Unique constraint violation
+            console.log(`Webhook: Event ${event.id} is being processed by another instance`)
+            return NextResponse.json({ 
+                received: true, 
+                alreadyProcessing: true 
+            })
+        }
+        throw err
+    }
+
+    // ============================================
+    // PROCESS EVENT WITH ERROR HANDLING
+    // ============================================
+    let processingError: string | null = null
+
     // Helper function to detect and handle thin payloads (Account v2 events)
     async function getFullObject<T>(eventObject: any, objectType: string, objectId: string): Promise<T> {
         // Check if this is a thin payload (missing expected properties)
@@ -64,8 +109,12 @@ export async function POST(req: Request) {
         return eventObject as T
     }
 
-    // Handle different event types
-    switch (event.type) {
+    // ============================================
+    // HANDLE EVENT PROCESSING
+    // ============================================
+    try {
+        // Handle different event types
+        switch (event.type) {
         case 'checkout.session.completed': {
             const session = event.data.object as Stripe.Checkout.Session
             const orderId = session.metadata?.orderId
@@ -372,6 +421,27 @@ export async function POST(req: Request) {
 
         default:
             console.log(`Webhook: Unhandled event type ${event.type}`)
+        }
+    } catch (error: any) {
+        // Capture error but don't throw - we want to return 200 to Stripe
+        processingError = error.message || String(error)
+        console.error(`Webhook: Error processing event ${event.id}:`, error)
+    }
+
+    // ============================================
+    // MARK EVENT AS SUCCESSFULLY PROCESSED OR FAILED
+    // ============================================
+    try {
+        await prisma.webhookEvent.update({
+            where: { id: event.id },
+            data: { 
+                status: processingError ? 'FAILED' : 'PROCESSED',
+                processedAt: new Date(),
+                errorMessage: processingError
+            }
+        })
+    } catch (err) {
+        console.error(`Webhook: Failed to update event ${event.id} status:`, err)
     }
 
     return NextResponse.json({ received: true })
