@@ -49,7 +49,7 @@ export default async function OrgStripeSettingsPage({ params }: PageProps) {
     const isOnboardingComplete = organizer.stripeOnboardingComplete
 
     return (
-        <div className="space-y-6">
+        <main className="container mx-auto py-rn-7 px-rn-4 max-w-4xl space-y-6">
             <div>
                 <h1 className="text-2xl font-bold">Stripe Connect</h1>
                 <p className="text-muted-foreground">
@@ -255,6 +255,6 @@ export default async function OrgStripeSettingsPage({ params }: PageProps) {
                     </Alert>
                 </>
             )}
-        </div>
+        </main>
     )
 }

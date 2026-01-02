@@ -30,7 +30,7 @@ export default async function VerifyMembershipPage({ params }: Props) {
 
     if (!membership) {
         return (
-            <div className="container mx-auto py-10">
+            <main className="container mx-auto py-rn-7 px-rn-4">
                 <div className="max-w-2xl mx-auto">
                     <Card className="border-red-200 dark:border-red-800">
                         <CardHeader className="text-center">
@@ -48,7 +48,7 @@ export default async function VerifyMembershipPage({ params }: Props) {
                         </CardHeader>
                     </Card>
                 </div>
-            </div>
+            </main>
         )
     }
 
@@ -57,7 +57,7 @@ export default async function VerifyMembershipPage({ params }: Props) {
     const isExpired = new Date(membership.validTo) < new Date()
 
     return (
-        <div className="container mx-auto py-10">
+        <main className="container mx-auto py-rn-7 px-rn-4">
             <div className="max-w-2xl mx-auto space-y-6">
                 <Card className={isActive ? 'border-green-200 dark:border-green-800' : 'border-yellow-200 dark:border-yellow-800'}>
                     <CardHeader className="text-center">
@@ -168,6 +168,6 @@ export default async function VerifyMembershipPage({ params }: Props) {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </main>
     )
 }

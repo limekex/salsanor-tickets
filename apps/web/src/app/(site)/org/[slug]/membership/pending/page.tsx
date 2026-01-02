@@ -48,7 +48,7 @@ export default async function MembershipPendingPage({ params, searchParams }: Pr
     const requiresPayment = order.status === 'PENDING'
 
     return (
-        <div className="container mx-auto py-10">
+        <main className="container mx-auto py-rn-7 px-rn-4">
             <div className="max-w-2xl mx-auto space-y-6">
                 <Card>
                     <CardHeader className="text-center">
@@ -144,6 +144,6 @@ export default async function MembershipPendingPage({ params, searchParams }: Pr
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </main>
     )
 }

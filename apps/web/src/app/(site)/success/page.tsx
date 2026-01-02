@@ -5,7 +5,7 @@ import { CheckCircle2 } from 'lucide-react'
 
 export default function SuccessPage({ searchParams }: { searchParams: { orderId: string } }) {
     return (
-        <div className="container max-w-md mx-auto py-rn-20 px-rn-4 text-center space-y-rn-6">
+        <main className="container max-w-md mx-auto py-rn-20 px-rn-4 text-center space-y-rn-6">
             <div className="flex justify-center text-rn-success">
                 <CheckCircle2 className="h-16 w-16" />
             </div>
@@ -16,6 +16,6 @@ export default function SuccessPage({ searchParams }: { searchParams: { orderId:
             <Button asChild size="lg">
                 <Link href="/profile">Go to My Profile</Link>
             </Button>
-        </div>
+        </main>
     )
 }

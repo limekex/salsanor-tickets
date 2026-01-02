@@ -39,7 +39,7 @@ export default async function OrganizerPage({ params }: { params: Params }) {
     }
 
     return (
-        <div className="container mx-auto py-rn-10 space-y-rn-10 max-w-5xl">
+        <main className="container mx-auto py-rn-7 px-rn-4 space-y-rn-7 max-w-5xl">
             {/* Organizer Header */}
             <div className="space-y-rn-4">
                 <div className="flex items-start gap-rn-6">
@@ -176,6 +176,6 @@ export default async function OrganizerPage({ params }: { params: Params }) {
                     <Link href="/courses">View All Courses</Link>
                 </Button>
             </div>
-        </div>
+        </main>
     )
 }

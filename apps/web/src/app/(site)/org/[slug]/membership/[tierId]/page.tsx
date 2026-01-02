@@ -21,7 +21,7 @@ export default async function MembershipCheckoutPage({ params }: { params: Param
   }
 
   return (
-    <div className="container mx-auto py-10 max-w-2xl">
+    <main className="container mx-auto py-rn-7 px-rn-4 max-w-2xl">
       <Link 
         href={`/org/${slug}/membership`} 
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
@@ -35,6 +35,6 @@ export default async function MembershipCheckoutPage({ params }: { params: Param
         organizerName={data.organizer.name}
         tier={tier}
       />
-    </div>
+    </main>
   )
 }
