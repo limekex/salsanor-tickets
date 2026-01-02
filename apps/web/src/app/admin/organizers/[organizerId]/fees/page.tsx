@@ -7,7 +7,7 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { OrganizerFeesForm } from './fees-form'
 
-type Params = Promise<{ id: string }>
+type Params = Promise<{ organizerId: string }>
 
 export default async function OrganizerFeesPage({ params }: { params: Params }) {
   const supabase = await createClient()
@@ -28,7 +28,7 @@ export default async function OrganizerFeesPage({ params }: { params: Params }) 
     redirect('/')
   }
 
-  const { id } = await params
+  const { organizerId: id } = await params
 
   const organizer = await prisma.organizer.findUnique({
     where: { id },
