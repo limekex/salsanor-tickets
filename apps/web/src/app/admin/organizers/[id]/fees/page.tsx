@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { checkAdminAccess } from '@/lib/rbac'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft } from 'lucide-react'
@@ -18,8 +17,14 @@ export default async function OrganizerFeesPage({ params }: { params: Params }) 
     redirect('/auth/login')
   }
 
-  const hasAccess = await checkAdminAccess(user.id)
-  if (!hasAccess) {
+  // Check admin access
+  const userAccount = await prisma.userAccount.findUnique({
+    where: { supabaseUid: user.id },
+    include: { roles: true }
+  })
+
+  const isAdmin = userAccount?.roles.some(r => r.role === 'ADMIN')
+  if (!isAdmin) {
     redirect('/')
   }
 
@@ -70,7 +75,7 @@ export default async function OrganizerFeesPage({ params }: { params: Params }) 
             <CardHeader>
               <CardTitle className="text-yellow-600">⚠️ No Stripe Connect Account</CardTitle>
               <CardDescription>
-                This organizer hasn't connected their Stripe account yet. Platform fees will only apply once they connect.
+                This organizer hasn&apos;t connected their Stripe account yet. Platform fees will only apply once they connect.
               </CardDescription>
             </CardHeader>
           </Card>

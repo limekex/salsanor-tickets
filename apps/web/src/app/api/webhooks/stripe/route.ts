@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import Stripe from 'stripe'
 import { fulfillOrder } from '@/lib/fulfillment/service'
-import { getStripeClient } from '@/lib/payments/stripe'
 
 export async function POST(req: Request) {
     const body = await req.text()

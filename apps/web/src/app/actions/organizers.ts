@@ -130,7 +130,6 @@ export async function createOrganizer(prevState: any, formData: FormData): Promi
         if (e.code === 'P2002') {
             return { error: { slug: ['Slug must be unique'] } }
         }
-        }
         return { error: { _form: [e.message] } }
     }
 }
