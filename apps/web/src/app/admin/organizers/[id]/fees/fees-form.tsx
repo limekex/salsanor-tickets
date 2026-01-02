@@ -80,7 +80,7 @@ export function OrganizerFeesForm({
         <Switch
           id="useCustomFees"
           checked={useCustomFees}
-          onCheckedChange={(checked) => {
+          onCheckedChange={(checked: boolean) => {
             setUseCustomFees(checked)
             if (!checked) {
               setFeePercent(globalFeePercent.toString())
