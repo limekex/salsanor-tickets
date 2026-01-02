@@ -2,76 +2,132 @@
 import Stripe from 'stripe'
 import { prisma } from '@/lib/db'
 
+interface StripeClientOptions {
+    useConnectAccount?: string // Stripe Connect account ID
+}
+
 // Helper to get active keys
-async function getStripeClient() {
-    // 1. Try DB config first for dynamic settings
+async function getStripeClient(options?: StripeClientOptions) {
+    // Get dynamic configuration from database
     const config = await prisma.paymentConfig.findUnique({
         where: { provider: 'STRIPE' }
     })
 
-    if (config?.enabled) {
-        const key = config.isTest ? config.secretKey : config.secretKey
-        // Fallback to ENV if DB key missing? 
-        // For security, specs often say put keys in ENV. 
-        // But user asked for DYNAMIC settings.
-        // If key is present in DB, use it. Else use ENV.
-
-        const validKey = key || process.env.STRIPE_SECRET_KEY
-
-        if (validKey) {
-            return new Stripe(validKey, {
-                apiVersion: '2025-11-17.clover' as any,
-                typescript: true,
-            })
-        }
-    } else {
-        // If DB config not found or disabled, fallback to ENV for MVP if configured
-        if (process.env.STRIPE_SECRET_KEY) {
-            return new Stripe(process.env.STRIPE_SECRET_KEY, {
-                apiVersion: '2025-11-17.clover' as any,
-                typescript: true,
-            })
-        }
+    if (!config?.enabled) {
+        throw new Error('Stripe payment provider is not enabled')
     }
 
-    // Return null or throw?
-    return null
+    // Platform secret key: prefer database, fallback to environment variable
+    const stripeKey = config.secretKey || process.env.STRIPE_SECRET_KEY
+
+    if (!stripeKey) {
+        throw new Error('STRIPE_SECRET_KEY must be set in environment variables or Admin Settings')
+    }
+
+    const stripeConfig: Stripe.StripeConfig = {
+        apiVersion: '2025-11-17.clover' as any,
+        typescript: true,
+    }
+
+    // If using Stripe Connect, add connect account header
+    if (options?.useConnectAccount && config.useStripeConnect) {
+        stripeConfig.stripeAccount = options.useConnectAccount
+    }
+
+    return {
+        client: new Stripe(stripeKey, stripeConfig),
+        config
+    }
 }
 
 export async function createStripeCheckout(orderId: string, successUrl: string, cancelUrl: string) {
-    const stripe = await getStripeClient()
-    if (!stripe) {
-        console.error('Stripe client init failed. Check DB config or ENV.')
-        throw new Error('Payment provider not configured. Please contact admin.')
-    }
-
     const order = await prisma.order.findUnique({
         where: { id: orderId },
-        include: { registrations: { include: { track: true } } }
+        include: { 
+            registrations: { 
+                include: { 
+                    track: { 
+                        include: { 
+                            period: { 
+                                include: { 
+                                    organizer: true 
+                                } 
+                            } 
+                        } 
+                    } 
+                } 
+            },
+            memberships: {
+                include: {
+                    tier: {
+                        include: {
+                            organizer: true
+                        }
+                    }
+                }
+            }
+        }
     })
 
     if (!order) throw new Error('Order not found')
     if (order.status === 'PAID') throw new Error('Order already paid')
 
-    // Construct line items
-    // Using simple total item for MVP to avoid complex mismatch handling with discounts?
-    // Stripe supports Discounts, but our engine already calculated final prices.
-    // Easiest is to send the FINAL line items as "Custom Amounts" or just products.
-    // OR create "Ad-hoc" valid line items.
+    // Get organizer from registrations or memberships
+    let organizer = null
+    
+    if (order.registrations.length > 0) {
+        // Course/period order
+        const organizers = new Set(
+            order.registrations
+                .map(r => r.track?.period?.organizer)
+                .filter((org): org is NonNullable<typeof org> => org !== null)
+        )
+        
+        if (organizers.size === 0) throw new Error('No organizer found for order')
+        if (organizers.size > 1) {
+            throw new Error('Orders with multiple organizers are not supported. Please checkout separately.')
+        }
+        
+        organizer = Array.from(organizers)[0]
+    } else if (order.memberships.length > 0) {
+        // Membership order
+        const organizers = new Set(
+            order.memberships
+                .map(m => m.tier?.organizer)
+                .filter((org): org is NonNullable<typeof org> => org !== null)
+        )
+        
+        if (organizers.size === 0) throw new Error('No organizer found for membership order')
+        if (organizers.size > 1) {
+            throw new Error('Membership orders with multiple organizers are not supported. Please checkout separately.')
+        }
+        
+        organizer = Array.from(organizers)[0]
+    } else {
+        throw new Error('Order has no registrations or memberships')
+    }
 
-    // We cached the details in pricingSnapshot. But let's verify.
-    // Better practice: Send 1 line item "Course Registration" with the TOTAL amount.
-    // Why? Because discount logic is complex to map 1:1 to Stripe Coupons on the fly.
-    // Display details in the "Description".
+    // Get Stripe client (with Connect account if configured)
+    const stripeData = await getStripeClient({
+        useConnectAccount: organizer.stripeConnectAccountId || undefined
+    })
 
-    const session = await stripe.checkout.sessions.create({
+    if (!stripeData) {
+        console.error('Stripe client init failed. Check DB config or ENV.')
+        throw new Error('Payment provider not configured. Please contact admin.')
+    }
+
+    const { client: stripe, config } = stripeData
+
+    // Build session options
+    const sessionOptions: Stripe.Checkout.SessionCreateParams = {
         payment_method_types: ['card'],
         line_items: [
             {
                 price_data: {
                     currency: 'nok',
                     product_data: {
-                        name: 'SalsaNor Course Registration',
+                        name: 'RegiNor Course Registration',
                         description: `Order ${orderId.slice(0, 8)}`,
                     },
                     unit_amount: order.totalCents,
@@ -83,9 +139,41 @@ export async function createStripeCheckout(orderId: string, successUrl: string, 
         success_url: successUrl,
         cancel_url: cancelUrl,
         metadata: {
-            orderId: order.id
+            orderId: order.id,
+            organizerId: organizer.id,
         }
-    })
+    }
+
+    // If using Stripe Connect, add application fee
+    if (config?.useStripeConnect && organizer.stripeConnectAccountId) {
+        // Use organizer-specific fees if set, otherwise fall back to global config
+        const platformFeePercent = organizer.platformFeePercent !== null && organizer.platformFeePercent !== undefined
+            ? Number(organizer.platformFeePercent)
+            : (config.platformFeePercent ? Number(config.platformFeePercent) : 0)
+        
+        const platformFeeFixed = organizer.platformFeeFixed !== null && organizer.platformFeeFixed !== undefined
+            ? organizer.platformFeeFixed
+            : (config.platformFeeFixed || 0)
+        
+        const percentFee = Math.round((order.totalCents * platformFeePercent) / 100)
+        const totalPlatformFee = percentFee + platformFeeFixed
+
+        console.log(`Platform Fee Calculation for ${organizer.slug}:`, {
+            useOrgSpecific: organizer.platformFeePercent !== null,
+            percentFee: platformFeePercent,
+            fixedFee: platformFeeFixed,
+            orderTotal: order.totalCents,
+            calculatedFee: totalPlatformFee
+        })
+
+        if (totalPlatformFee > 0) {
+            sessionOptions.payment_intent_data = {
+                application_fee_amount: totalPlatformFee,
+            }
+        }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionOptions)
 
     // Update order with checkout ref
     await prisma.order.update({
@@ -97,3 +185,4 @@ export async function createStripeCheckout(orderId: string, successUrl: string, 
 
     return session.url
 }
+

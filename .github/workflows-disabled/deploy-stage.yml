@@ -1,0 +1,105 @@
+name: Deploy to Stage
+
+on:
+  push:
+    branches:
+      - vscode-dev
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --include=optional
+
+      - name: Install lightningcss Linux binding
+        working-directory: ./apps/web
+        run: |
+          npm install --save-optional lightningcss-linux-x64-gnu
+          npm install --save-optional @tailwindcss/oxide-linux-x64-gnu
+
+      - name: Generate Prisma Client
+        working-directory: ./packages/database
+        run: npx prisma generate
+
+      - name: Build Next.js app
+        working-directory: ./apps/web
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGE_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGE_SUPABASE_PUBLISHABLE_KEY }}
+          DATABASE_URL: ${{ secrets.STAGE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.STAGE_DIRECT_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.STAGE_STRIPE_SECRET_KEY }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STAGE_STRIPE_PUBLISHABLE_KEY }}
+          BREVO_API_KEY: ${{ secrets.STAGE_BREVO_API_KEY }}
+          BREVO_SENDER_EMAIL: ${{ secrets.BREVO_SENDER_EMAIL }}
+          NEXT_PUBLIC_APP_URL: https://stage.reginor.events
+          AUTH_SECRET: ${{ secrets.STAGE_AUTH_SECRET }}
+      
+      - name: Deploy build to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGE_SSH_HOST }}
+          username: ${{ secrets.STAGE_SSH_USERNAME }}
+          key: ${{ secrets.STAGE_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.STAGE_SSH_PORT }}
+          source: "apps/web/.next"
+          target: "~/stage.reginor.events/"
+          strip_components: 0
+
+      - name: Setup and restart server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGE_SSH_HOST }}
+          username: ${{ secrets.STAGE_SSH_USERNAME }}
+          key: ${{ secrets.STAGE_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.STAGE_SSH_PORT }}
+          script: |
+            cd ~/stage.reginor.events
+            
+            # Pull latest code (for server-side files)
+            git fetch origin vscode-dev
+            git reset --hard origin/vscode-dev
+            
+            # Setup Node
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use 20
+            
+            # Install dependencies
+            npm install
+            cd apps/web && npm install && cd ../..
+            
+            # Install PM2 globally if not present
+            command -v pm2 >/dev/null 2>&1 || npm install -g pm2
+            
+            # Generate Prisma Client
+            cd packages/database
+            npx prisma generate
+            
+            # Skip migrations (run manually if needed)
+            # npx prisma migrate deploy
+            
+            # Restart PM2
+            cd ~/stage.reginor.events/apps/web
+            pm2 restart reginor-stage || pm2 start npm --name "reginor-stage" -- start
+            
+            echo "Stage deployment completed!"
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f -k https://stage.reginor.events || curl -f http://stage.reginor.events || exit 1

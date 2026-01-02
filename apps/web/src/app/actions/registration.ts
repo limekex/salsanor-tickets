@@ -3,6 +3,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
+import { requireAdmin } from '@/utils/auth-admin'
+import { calculateOrderTotal } from '@/lib/pricing/engine'
+import { createAuditLog } from '@/lib/audit'
 
 export async function createRegistration(prevState: any, formData: FormData) {
     const supabase = await createClient()
@@ -41,33 +44,41 @@ export async function createRegistration(prevState: any, formData: FormData) {
     let personId = userAccount.personProfile?.id
 
     if (!personId) {
-        // Create profile using email/metadata
-        // Ideally we ask for name in the wizard, but let's grab from metadata or placeholder
-        const newProfile = await prisma.personProfile.create({
-            data: {
-                userId: userAccount.id,
-                email: user.email!,
-                firstName: user.user_metadata?.full_name?.split(' ')[0] || 'Unknown',
-                lastName: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || 'User',
-            }
-        })
-        personId = newProfile.id
+        // User needs to complete onboarding first
+        return { error: 'Please complete your profile before registering for courses.', redirectToOnboarding: true }
     }
 
     // 4. Create Order & Registration (Transaction)
     try {
         await prisma.$transaction(async (tx) => {
-            // Get Track Price
-            const track = await tx.courseTrack.findUniqueOrThrow({ where: { id: trackId } })
+            // Get Track Price and Period with Organizer
+            const track = await tx.courseTrack.findUniqueOrThrow({ 
+                where: { id: trackId },
+                include: {
+                    period: {
+                        include: {
+                            organizer: true
+                        }
+                    }
+                }
+            })
 
             // Determine price
-            let finalPrice = track.priceSingleCents
+            let basePrice = track.priceSingleCents
             if (partnerEmail && track.pricePairCents) {
-                // Should we charge full pair price to this person? 
-                // Or split it? 
-                // Simplest MVP: Purchaser pays full pair price.
-                finalPrice = track.pricePairCents
+                basePrice = track.pricePairCents
             }
+
+            // Calculate with MVA
+            const mvaRate = track.period.organizer.mvaReportingRequired 
+                ? Number(track.period.organizer.mvaRate) 
+                : 0
+                
+            const pricing = calculateOrderTotal({
+                subtotalCents: basePrice,
+                discountCents: 0,
+                mvaRate
+            })
 
             // Create Order
             const order = await tx.order.create({
@@ -75,16 +86,30 @@ export async function createRegistration(prevState: any, formData: FormData) {
                     periodId,
                     purchaserPersonId: personId!,
                     status: 'DRAFT',
-                    subtotalCents: finalPrice,
-                    discountCents: 0,
-                    totalCents: finalPrice,
+                    subtotalCents: pricing.subtotalBeforeDiscountCents,
+                    discountCents: pricing.discountCents,
+                    subtotalAfterDiscountCents: pricing.subtotalAfterDiscountCents,
+                    mvaRate: pricing.mvaRate,
+                    mvaCents: pricing.mvaCents,
+                    totalCents: pricing.totalCents,
                     pricingSnapshot: {
                         trackPrice: track.priceSingleCents,
                         pairPrice: track.pricePairCents,
                         chosenRole: role,
-                        hasPartner: !!partnerEmail
+                        hasPartner: !!partnerEmail,
+                        mvaRate: pricing.mvaRate,
+                        mvaCents: pricing.mvaCents
                     },
                 }
+            })
+            
+            // Audit log for compliance
+            await createAuditLog({
+                userId: userAccount?.id,
+                entityType: 'Order',
+                entityId: order.id,
+                action: 'CREATE',
+                changes: { status: 'DRAFT', totalCents: order.totalCents }
             })
 
             // Create Registration
@@ -118,4 +143,47 @@ export async function createRegistration(prevState: any, formData: FormData) {
     }
 
     redirect('/profile') // or /orders/[id]
+}
+
+export async function getAllRegistrations() {
+    await requireAdmin()
+    
+    return await prisma.registration.findMany({
+        include: {
+            person: {
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true
+                }
+            },
+            track: {
+                select: {
+                    id: true,
+                    title: true,
+                    weekday: true,
+                    timeStart: true,
+                    timeEnd: true
+                }
+            },
+            period: {
+                select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    organizer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            slug: true
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: {
+            createdAt: 'desc'
+        }
+    })
 }

@@ -1,20 +1,37 @@
-import { getPublicCoursePeriods } from '@/app/actions/courses'
+import { getPublicCoursePeriods, getAvailableCourseLevels } from '@/app/actions/courses'
 import { getPublicOrganizers } from '@/app/actions/organizers'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
+import { CourseFilters } from './course-filters'
 
-type SearchParams = Promise<{ org?: string }>
+type SearchParams = Promise<{ 
+    org?: string
+    level?: string
+    weekday?: string
+    timeAfter?: string
+    timeBefore?: string
+}>
 
 export default async function CoursesPage({ searchParams }: { searchParams: SearchParams }) {
-    const { org } = await searchParams
-    const periods = await getPublicCoursePeriods(org)
+    const params = await searchParams
+    const { org, level, weekday, timeAfter, timeBefore } = params
+    
+    const filters = {
+        organizerId: org && org !== 'all' ? org : undefined,
+        levelLabel: level && level !== 'all' ? level : undefined,
+        weekday: weekday ? parseInt(weekday) : undefined,
+        timeAfter,
+        timeBefore,
+    }
+    
+    const periods = await getPublicCoursePeriods(filters)
     const organizers = await getPublicOrganizers()
+    const availableLevels = await getAvailableCourseLevels()
 
     // Get user's existing registrations
     const supabase = await createClient()
@@ -45,32 +62,24 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
     }
 
     return (
-        <div className="container mx-auto py-10 space-y-10 max-w-5xl">
-            <div className="text-center space-y-4">
-                <h1 className="text-4xl font-bold tracking-tight">Upcoming Courses</h1>
-                <p className="text-lg text-muted-foreground">Find your next salsa class and join the fun!</p>
+        <main className="container mx-auto py-rn-7 px-rn-4 space-y-rn-7 max-w-5xl">
+            <div className="text-center space-y-rn-4">
+                <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Upcoming Courses</h1>
+                <p className="rn-h3 text-rn-text-muted">Find your next salsa class and join the fun!</p>
             </div>
 
-            {/* Organizer Filter */}
-            {organizers.length > 1 && (
-                <form action="/courses" method="get" className="flex justify-center">
-                    <div className="w-full max-w-xs">
-                        <Select name="org" defaultValue={org || 'all'}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Filter by organizer" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Organizers</SelectItem>
-                                {organizers.map((organizer) => (
-                                    <SelectItem key={organizer.id} value={organizer.id}>
-                                        {organizer.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </form>
-            )}
+            {/* Filters */}
+            <CourseFilters 
+                availableLevels={availableLevels}
+                organizers={organizers}
+                currentFilters={{
+                    org: org || 'all',
+                    level: level || 'all',
+                    weekday: weekday || 'all',
+                    timeAfter: timeAfter || 'all',
+                    timeBefore: timeBefore || 'all',
+                }}
+            />
 
             {periods.length === 0 && (
                 <div className="text-center py-20 bg-muted/20 rounded-lg">
@@ -79,16 +88,16 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
             )}
 
             {periods.map((period) => (
-                <div key={period.id} className="space-y-6">
-                    <div className="border-b pb-2">
-                        <div className="flex items-center justify-between">
+                <div key={period.id} className="space-y-rn-6">
+                    <div className="border-b border-rn-border pb-rn-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-rn-2">
                             <div>
-                                <h2 className="text-2xl font-semibold">{period.name}</h2>
-                                <p className="text-muted-foreground">
+                                <h2 className="rn-h2">{period.name}</h2>
+                                <p className="rn-meta text-rn-text-muted">
                                     {format(period.startDate, 'MMMM d')} - {format(period.endDate, 'MMMM d, yyyy')} • {period.city}
                                 </p>
                             </div>
-                            <Link href={`/org/${period.organizer.slug}`} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2">
+                            <Link href={`/org/${period.organizer.slug}`} className="rn-caption text-rn-text-muted hover:text-rn-text flex items-center gap-rn-2">
                                 {period.organizer.logoUrl && (
                                     <img src={period.organizer.logoUrl} alt={period.organizer.name} className="h-8 w-8 object-contain" />
                                 )}
@@ -157,6 +166,6 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                     </div>
                 </div>
             ))}
-        </div>
+        </main>
     )
 }

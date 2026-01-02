@@ -3,13 +3,21 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+    // If we receive a code parameter on the root, redirect to /auth/confirm
+    const url = new URL(request.url)
+    if (url.pathname === '/' && url.searchParams.has('code')) {
+        const redirectUrl = new URL('/auth/confirm', request.url)
+        redirectUrl.search = url.search // Keep all search params
+        return NextResponse.redirect(redirectUrl)
+    }
+
     let supabaseResponse = NextResponse.next({
         request,
     })
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
         {
             cookies: {
                 getAll() {

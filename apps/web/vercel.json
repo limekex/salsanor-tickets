@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install && npm install lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu && cd ../../packages/database && npx prisma generate",
+  "framework": "nextjs"
+}

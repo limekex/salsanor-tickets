@@ -40,7 +40,55 @@ export async function promoteToOffered(registrationId: string, hoursValid = 48) 
         }
     })
 
-    console.log(`[MOCK EMAIL] Sent offer to registration ${registrationId}, expires ${expiresAt.toISOString()}`)
+    // Send waitlist offer email
+    try {
+        const { emailService } = await import('@/lib/email/email-service')
+        const fullRegistration = await prisma.registration.findUnique({
+            where: { id: registrationId },
+            include: {
+                person: true,
+                track: {
+                    include: {
+                        period: {
+                            include: {
+                                organizer: true
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        
+        if (fullRegistration?.person?.email && fullRegistration.track?.period) {
+            const expiryDate = expiresAt.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+            
+            await emailService.sendTransactional({
+                organizerId: fullRegistration.track.period.organizerId,
+                templateSlug: 'waitlist-offer',
+                recipientEmail: fullRegistration.person.email,
+                recipientName: `${fullRegistration.person.firstName} ${fullRegistration.person.lastName}`.trim() || undefined,
+                variables: {
+                    recipientName: fullRegistration.person.firstName || 'Participant',
+                    organizationName: fullRegistration.track.period.organizer.name,
+                    eventName: fullRegistration.track.period.name,
+                    trackName: fullRegistration.track.title,
+                    expiryDate: expiryDate,
+                    hoursValid: hoursValid.toString(),
+                },
+                language: 'en',
+            })
+        }
+    } catch (emailError) {
+        // Log but don't fail the offer if email fails
+        console.error('Failed to send waitlist offer email:', emailError)
+    }
 
     revalidatePath('/admin/registrations')
     // Also revalidate the track page if we knew the ID, but global path is hard.
@@ -170,6 +218,7 @@ export async function acceptWaitlistOffer(registrationId: string) {
                 purchaserPersonId: registration.personId,
                 status: 'DRAFT',
                 subtotalCents: pricing.subtotalCents,
+                subtotalAfterDiscountCents: pricing.subtotalCents - pricing.discountTotalCents,
                 discountCents: pricing.discountTotalCents,
                 totalCents: pricing.finalTotalCents,
                 pricingSnapshot: JSON.stringify(pricing),

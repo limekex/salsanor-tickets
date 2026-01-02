@@ -1,6 +1,68 @@
 
 import { DiscountRule } from '@salsanor/database'
-import { DiscountRuleFormData, membershipConfigSchema, multiCourseConfigSchema } from '@/lib/schemas/discount'
+import { DiscountRuleFormData, membershipTierConfigSchema, multiCourseConfigSchema } from '@/lib/schemas/discount'
+
+/**
+ * Norwegian Compliance: MVA/VAT Calculation
+ * 
+ * Calculates MVA (merverdiavgift/VAT) on order totals.
+ * Common rates in Norway:
+ * - 0%: Educational services (some courses may qualify)
+ * - 12%: Transportation, food
+ * - 15%: Food services
+ * - 25%: Standard rate for most goods and services
+ * 
+ * Dance courses are typically either 0% (educational) or 25% (recreational)
+ */
+export interface MvaCalculation {
+    subtotalCents: number              // Amount before MVA
+    mvaRate: number                    // MVA percentage (0, 12, 15, or 25)
+    mvaCents: number                   // Calculated MVA amount
+    totalCents: number                 // subtotalCents + mvaCents
+}
+
+export function calculateMva(params: {
+    subtotalCents: number
+    mvaRate: number
+}): MvaCalculation {
+    const mvaCents = Math.round(params.subtotalCents * (params.mvaRate / 100))
+    const totalCents = params.subtotalCents + mvaCents
+    
+    return {
+        subtotalCents: params.subtotalCents,
+        mvaRate: params.mvaRate,
+        mvaCents,
+        totalCents
+    }
+}
+
+/**
+ * Full order calculation including discounts and MVA
+ */
+export interface OrderCalculation extends MvaCalculation {
+    subtotalBeforeDiscountCents: number
+    discountCents: number
+    subtotalAfterDiscountCents: number
+}
+
+export function calculateOrderTotal(params: {
+    subtotalCents: number
+    discountCents: number
+    mvaRate: number
+}): OrderCalculation {
+    const subtotalAfterDiscount = params.subtotalCents - params.discountCents
+    const mva = calculateMva({
+        subtotalCents: subtotalAfterDiscount,
+        mvaRate: params.mvaRate
+    })
+    
+    return {
+        subtotalBeforeDiscountCents: params.subtotalCents,
+        discountCents: params.discountCents,
+        subtotalAfterDiscountCents: subtotalAfterDiscount,
+        ...mva
+    }
+}
 
 // In-memory types for calculation
 export interface PricingTrack {
@@ -44,6 +106,7 @@ export interface PricingResult {
 
 interface UserContext {
     isMember: boolean
+    membershipTierId?: string // The specific tier ID for the active membership
 }
 
 export function calculatePricing(
@@ -76,15 +139,18 @@ export function calculatePricing(
     const activeRules = rules.filter(r => r.enabled).sort((a, b) => a.priority - b.priority)
 
     for (const rule of activeRules) {
-        if (rule.ruleType === 'MEMBERSHIP_PERCENT') {
-            if (context.isMember) {
+        if (rule.ruleType === 'MEMBERSHIP_TIER_PERCENT') {
+            if (context.isMember && context.membershipTierId) {
                 const config = rule.config as any // Validated by schema elsewhere
+                const tierIds = config.tierIds || [] // Empty means all tiers
                 const percent = config.discountPercent || 0
 
-                // Apply to all line items that have not been fully discounted? 
-                // Or just calculate global discount? 
-                // Usually Membership applies to the ticket price.
+                // Check if this rule applies to the user's tier
+                const appliesToTier = tierIds.length === 0 || tierIds.includes(context.membershipTierId)
+                
+                if (!appliesToTier) continue
 
+                // Apply to all line items that have not been fully discounted
                 let ruleTotalDiscount = 0
 
                 lineItems = lineItems.map(line => {

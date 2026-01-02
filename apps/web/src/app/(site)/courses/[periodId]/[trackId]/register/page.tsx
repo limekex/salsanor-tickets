@@ -19,8 +19,8 @@ export default async function RegisterPage({ params }: PageProps) {
     }
 
     return (
-        <div className="container mx-auto py-10">
+        <main className="container mx-auto py-rn-7 px-rn-4">
             <RegistrationWizard track={track} periodId={periodId} />
-        </div>
+        </main>
     )
 }

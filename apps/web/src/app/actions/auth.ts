@@ -12,10 +12,37 @@ export async function login(prevState: any, formData: FormData) {
         password: formData.get('password') as string,
     }
 
-    const { error } = await supabase.auth.signInWithPassword(data)
+    const { data: authData, error } = await supabase.auth.signInWithPassword(data)
 
     if (error) {
         return { error: error.message }
+    }
+
+    // Check if user needs onboarding
+    if (authData.user) {
+        const { prisma } = await import('@/lib/db')
+        const userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: authData.user.id },
+            include: { personProfile: true }
+        })
+
+        // If no account exists, create it
+        if (!userAccount) {
+            await prisma.userAccount.create({
+                data: {
+                    supabaseUid: authData.user.id,
+                    email: authData.user.email!
+                }
+            })
+            revalidatePath('/', 'layout')
+            redirect('/onboarding')
+        }
+
+        // If account exists but no profile, redirect to onboarding
+        if (!userAccount.personProfile) {
+            revalidatePath('/', 'layout')
+            redirect('/onboarding')
+        }
     }
 
     revalidatePath('/', 'layout')
@@ -30,27 +57,38 @@ export async function signup(prevState: any, formData: FormData) {
         password: formData.get('password') as string,
     }
 
-    const { error } = await supabase.auth.signUp(data)
+    const { data: authData, error } = await supabase.auth.signUp(data)
 
     if (error) {
         return { error: error.message }
     }
 
-    revalidatePath('/', 'layout')
+    // If user was created and session exists, ensure UserAccount exists
+    if (authData.user && authData.session) {
+        const { prisma } = await import('@/lib/db')
+        
+        // Wait a moment for trigger to fire
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Check if UserAccount was created, if not create it manually
+        let userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: authData.user.id }
+        })
 
-    // If email confirmation is enabled, it might not log them in immediately, 
-    // but for this dev setup it likely sends a magic link or just works if confirm is off.
-    // Standard Supabase allows login after signup if confirm is off.
-    // We'll redirect to a check-email page or root if implicitly logged in.
+        if (!userAccount) {
+            // Trigger didn't fire, create manually
+            userAccount = await prisma.userAccount.create({
+                data: {
+                    supabaseUid: authData.user.id,
+                    email: authData.user.email!
+                }
+            })
+        }
 
-    // Let's assume for now we redirect to a success message or root.
-    // Ideally, if 'session' exists, we are good.
-
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-        redirect('/')
+        revalidatePath('/', 'layout')
+        redirect('/onboarding')
     } else {
-        // Check email flow
+        // Email confirmation required
         return { message: 'Check your email to confirm your account.' }
     }
 }

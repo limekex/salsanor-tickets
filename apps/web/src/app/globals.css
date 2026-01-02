@@ -1,9 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../styles/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Keep existing colors for compatibility */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -44,6 +46,44 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* ===== RegiNor Design System Integration ===== */
+  
+  /* RegiNor Colors */
+  --color-rn-bg: var(--rn-bg);
+  --color-rn-surface: var(--rn-surface);
+  --color-rn-surface-2: var(--rn-surface-2);
+  --color-rn-border: var(--rn-border);
+  --color-rn-text: var(--rn-text);
+  --color-rn-text-muted: var(--rn-text-muted);
+  --color-rn-text-subtle: var(--rn-text-subtle);
+  --color-rn-primary: var(--rn-primary);
+  --color-rn-primary-strong: var(--rn-primary-strong);
+  --color-rn-focus: var(--rn-focus);
+  --color-rn-success: var(--rn-success);
+  --color-rn-warning: var(--rn-warning);
+  --color-rn-danger: var(--rn-danger);
+  --color-rn-info: var(--rn-info);
+  --color-rn-overlay: var(--rn-overlay);
+
+  /* RegiNor Spacing */
+  --spacing-rn-1: var(--rn-s-1);
+  --spacing-rn-2: var(--rn-s-2);
+  --spacing-rn-3: var(--rn-s-3);
+  --spacing-rn-4: var(--rn-s-4);
+  --spacing-rn-5: var(--rn-s-5);
+  --spacing-rn-6: var(--rn-s-6);
+  --spacing-rn-7: var(--rn-s-7);
+  --spacing-rn-8: var(--rn-s-8);
+
+  /* RegiNor Radius */
+  --radius-rn-1: var(--rn-r-1);
+  --radius-rn-2: var(--rn-r-2);
+  --radius-rn-3: var(--rn-r-3);
+
+  /* RegiNor Shadows */
+  --shadow-rn-1: var(--rn-shadow-1);
+  --shadow-rn-2: var(--rn-shadow-2);
 }
 
 :root {

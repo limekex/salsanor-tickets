@@ -41,8 +41,8 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-muted/40">
-            <Tabs defaultValue="login" className="w-[400px]">
+        <div className="flex items-center justify-center min-h-screen bg-rn-surface-2 px-rn-4">
+            <Tabs defaultValue="login" className="w-full max-w-[400px]">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="login">Login</TabsTrigger>
                     <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -57,16 +57,16 @@ export default function LoginPage() {
                             </CardDescription>
                         </CardHeader>
                         <form action={handleLogin}>
-                            <CardContent className="space-y-2">
-                                <div className="space-y-1">
+                            <CardContent className="space-y-rn-2">
+                                <div className="space-y-rn-1">
                                     <Label htmlFor="email">Email</Label>
                                     <Input id="email" name="email" type="email" placeholder="m@example.com" required />
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-rn-1">
                                     <Label htmlFor="password">Password</Label>
                                     <Input id="password" name="password" type="password" required />
                                 </div>
-                                {error && <p className="text-sm text-red-500">{error}</p>}
+                                {error && <p className="rn-caption text-rn-danger">{error}</p>}
                             </CardContent>
                             <CardFooter>
                                 <Button className="w-full" disabled={isPending}>
@@ -86,17 +86,17 @@ export default function LoginPage() {
                             </CardDescription>
                         </CardHeader>
                         <form action={handleSignup}>
-                            <CardContent className="space-y-2">
-                                <div className="space-y-1">
+                            <CardContent className="space-y-rn-2">
+                                <div className="space-y-rn-1">
                                     <Label htmlFor="signup-email">Email</Label>
                                     <Input id="signup-email" name="email" type="email" required />
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-rn-1">
                                     <Label htmlFor="signup-password">Password</Label>
                                     <Input id="signup-password" name="password" type="password" required />
                                 </div>
-                                {error && <p className="text-sm text-red-500">{error}</p>}
-                                {message && <p className="text-sm text-green-600">{message}</p>}
+                                {error && <p className="rn-caption text-rn-danger">{error}</p>}
+                                {message && <p className="rn-caption text-rn-success">{message}</p>}
                             </CardContent>
                             <CardFooter>
                                 <Button className="w-full" disabled={isPending}>

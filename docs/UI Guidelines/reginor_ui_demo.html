@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RegiNor.event UI Demo</title>
+  <style>
+    :root{
+      --rn-bg:#F8FAFC; --rn-surface:#FFFFFF; --rn-surface-2:#F1F5F9; --rn-border:#E2E8F0;
+      --rn-text:#0F172A; --rn-text-muted:#64748B; --rn-text-subtle:#94A3B8;
+      --rn-primary:#16A6B6; --rn-primary-strong:#0E7C88; --rn-focus:#16A6B6;
+      --rn-success:#16A34A; --rn-warning:#F59E0B; --rn-danger:#DC2626; --rn-info:#2563EB;
+      --rn-s-1:4px; --rn-s-2:8px; --rn-s-3:12px; --rn-s-4:16px; --rn-s-5:24px; --rn-s-6:32px;
+      --rn-r-1:8px; --rn-r-2:12px; --rn-r-3:16px;
+      --rn-shadow-1:0 1px 2px rgba(15, 23, 42, 0.06);
+      --rn-max:1280px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--rn-bg); color:var(--rn-text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      font-size:15px; line-height:1.45; font-variant-numeric: tabular-nums;
+    }
+    .topbar{position:sticky; top:0; background:rgba(248,250,252,0.92); border-bottom:1px solid var(--rn-border); z-index:10}
+    .topbar-inner{max-width:var(--rn-max); margin:0 auto; padding:12px 24px; display:flex; justify-content:space-between; gap:16px; align-items:center}
+    .brand{line-height:1.1}
+    .brand b{font-weight:750}
+    .muted{color:var(--rn-text-muted)}
+    .container{max-width:var(--rn-max); margin:0 auto; padding:24px}
+    .h1{font-size:28px; font-weight:650; margin:0}
+    .h3{font-size:18px; font-weight:650; margin:0}
+    .btn{
+      border:1px solid var(--rn-border); background:var(--rn-surface); padding:10px 12px;
+      border-radius:var(--rn-r-1); font-weight:650; cursor:pointer; box-shadow:var(--rn-shadow-1);
+    }
+    .btn.primary{background:var(--rn-primary); border-color:transparent; color:#fff; box-shadow:none}
+    .btn.primary:hover{background:var(--rn-primary-strong)}
+    .btn.ghost{background:transparent; border-color:transparent; box-shadow:none; color:var(--rn-text-muted)}
+    .btn.ghost:hover{background:var(--rn-surface-2); color:var(--rn-text)}
+    .nav{display:flex; gap:8px; flex-wrap:wrap}
+    .card{background:var(--rn-surface); border:1px solid var(--rn-border); border-radius:var(--rn-r-2); box-shadow:var(--rn-shadow-1)}
+    .pad{padding:24px}
+    .grid{display:grid; gap:24px}
+    .cols-2{grid-template-columns:1.1fr 0.9fr}
+    @media (max-width: 900px){ .cols-2{grid-template-columns:1fr} .container{padding:16px} .topbar-inner{padding:12px 16px}}
+    .kpis{display:grid; grid-template-columns:repeat(3, 1fr); gap:16px}
+    @media (max-width: 900px){ .kpis{grid-template-columns:1fr} }
+    .kpi{padding:16px}
+    .label{font-size:12px; font-weight:750; letter-spacing:0.06em; text-transform:uppercase; color:var(--rn-text-muted)}
+    .num{font-size:22px; font-weight:800}
+    .pill{display:inline-flex; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:800; border:1px solid var(--rn-border); background:var(--rn-surface-2)}
+    .pill.ok{color:var(--rn-success); border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.10)}
+    .pill.warn{color:#9a5b00; border-color:rgba(245,158,11,.35); background:rgba(245,158,11,.12)}
+    .table{width:100%; border-collapse:separate; border-spacing:0}
+    th,td{padding:12px; border-bottom:1px solid var(--rn-border); text-align:left; font-size:14px}
+    th{background:var(--rn-surface-2); font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--rn-text-muted)}
+    tr:last-child td{border-bottom:none}
+    .row-actions{display:flex; justify-content:flex-end}
+    .input{width:100%; padding:10px 12px; border-radius:var(--rn-r-1); border:1px solid var(--rn-border); background:var(--rn-surface)}
+    .hr{height:1px; background:var(--rn-border); margin:16px 0}
+    .two{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+    @media (max-width: 900px){ .two{grid-template-columns:1fr} }
+    .note{padding:10px 12px; border:1px solid var(--rn-border); border-radius:var(--rn-r-2); background:var(--rn-surface); color:var(--rn-text-muted); font-size:13px}
+    section.view{display:none}
+    section.view.active{display:block}
+    .banner{border-radius:var(--rn-r-3); padding:24px; color:#fff; margin-bottom:16px}
+    .banner.ok{background:var(--rn-success)}
+    .banner.warn{background:var(--rn-warning); color:#1f2937}
+    .banner.bad{background:var(--rn-danger)}
+    .big{font-size:18px; font-weight:900; text-transform:uppercase; letter-spacing:.06em}
+    .name{font-size:22px; font-weight:900; margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <b>RegiNor.event</b><div class="muted" style="font-size:12px">from signup to showtime • Powered by SalsaNor</div>
+      </div>
+      <div class="nav">
+        <button class="btn ghost" data-view="admin">Admin</button>
+        <button class="btn ghost" data-view="checkout">Checkout</button>
+        <button class="btn ghost" data-view="checkin">Check-in</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="container">
+    <section class="view active" id="admin">
+      <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-end; margin-bottom:24px">
+        <div>
+          <div class="h1">Admin dashboard</div>
+          <div class="muted">Operational overview for periods, registrations and revenue.</div>
+        </div>
+        <button class="btn primary">New Course Period</button>
+      </div>
+
+      <div class="kpis">
+        <div class="card kpi"><div class="label">Active periods</div><div class="num">3</div><div class="muted">Across cities</div></div>
+        <div class="card kpi"><div class="label">Registrations</div><div class="num">186</div><div class="muted">Last 7 days</div></div>
+        <div class="card kpi"><div class="label">Revenue</div><div class="num">214 000 NOK</div><div class="muted">Paid orders</div></div>
+      </div>
+
+      <div style="height:24px"></div>
+
+      <div class="grid cols-2">
+        <div class="card">
+          <div style="padding:16px; border-bottom:1px solid var(--rn-border); display:flex; justify-content:space-between; align-items:center">
+            <div>
+              <div class="h3">Current Course Periods</div>
+              <div class="muted" style="font-size:13px">Quick jump to tracks & rosters</div>
+            </div>
+            <button class="btn">Exports</button>
+          </div>
+          <div style="max-height:340px; overflow:auto">
+            <table class="table">
+              <thead><tr><th>Code</th><th>Tracks</th><th>Occupancy</th><th style="text-align:right">Action</th></tr></thead>
+              <tbody>
+                <tr><td><b>TB-2026-P1</b><div class="muted" style="font-size:12px">6–8 weeks</div></td><td>6</td><td><span class="pill ok">78% full</span></td><td><div class="row-actions"><button class="btn">Open</button></div></td></tr>
+                <tr><td><b>OS-2026-P1</b><div class="muted" style="font-size:12px">6–8 weeks</div></td><td>5</td><td><span class="pill warn">54% full</span></td><td><div class="row-actions"><button class="btn">Open</button></div></td></tr>
+                <tr><td><b>TB-2026-P2</b><div class="muted" style="font-size:12px">6–8 weeks</div></td><td>7</td><td><span class="pill warn">31% full</span></td><td><div class="row-actions"><button class="btn">Open</button></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card pad">
+          <div class="h3">Event registration flow</div>
+          <div class="muted" style="font-size:13px; margin-top:6px;">Select tracks → quote price → checkout → ticket → scan</div>
+          <div class="hr"></div>
+          <div class="note">Performance note: SSR-first. Lazy-load the scanner module only on check-in routes.</div>
+          <div style="height:12px"></div>
+          <div class="note">Memberships: validate status to apply member pricing and access control at check-in.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="checkout">
+      <div style="margin-bottom:24px">
+        <div class="h1">Checkout</div>
+        <div class="muted">Registrations, memberships, payments and check-in – all in one flow.</div>
+      </div>
+
+      <div class="grid cols-2">
+        <div class="card pad">
+          <div class="h3">Your details</div>
+          <div class="muted" style="font-size:13px; margin-top:6px">Used for registrations and ticket delivery.</div>
+          <div class="hr"></div>
+
+          <div class="two">
+            <div><div class="label">First name</div><input class="input" value="Ingrid"></div>
+            <div><div class="label">Last name</div><input class="input" value="Nordby"></div>
+          </div>
+          <div style="height:16px"></div>
+          <div class="two">
+            <div><div class="label">Email</div><input class="input" value="ingrid@example.com"></div>
+            <div><div class="label">Phone</div><input class="input" value="+47 900 00 000"></div>
+          </div>
+
+          <div class="hr"></div>
+          <div class="label">Membership</div>
+          <div class="note"><b>Membership detected</b> • Member price applied</div>
+
+          <div style="height:16px"></div>
+          <div class="label">Promo code (optional)</div>
+          <input class="input" placeholder="Enter code">
+
+          <div style="height:16px"></div>
+          <label class="note" style="display:flex; gap:10px; align-items:flex-start;">
+            <input type="checkbox" checked style="margin-top:3px">
+            <span>I agree to the terms and confirm my details are correct.</span>
+          </label>
+
+          <div style="height:24px"></div>
+          <button class="btn primary" style="width:100%; height:44px;">Pay securely</button>
+        </div>
+
+        <div class="card pad">
+          <div class="h3">Summary</div>
+          <div class="muted" style="font-size:13px; margin-top:6px">Why this price? Always visible.</div>
+          <div class="hr"></div>
+
+          <div class="note" style="display:flex; justify-content:space-between"><span>Rueda L2 • Tue</span><b>1000 NOK</b></div>
+          <div style="height:8px"></div>
+          <div class="note" style="display:flex; justify-content:space-between"><span>Son Intro • Thu</span><b>1000 NOK</b></div>
+
+          <div class="hr"></div>
+
+          <div class="note" style="display:flex; justify-content:space-between"><span>Subtotal</span><b>2000 NOK</b></div>
+          <div style="height:8px"></div>
+          <div class="note" style="display:flex; justify-content:space-between"><span>Discounts</span><b>-300 NOK</b></div>
+          <div style="height:8px"></div>
+          <div class="note" style="display:flex; justify-content:space-between"><span>Total</span><b>1700 NOK</b></div>
+
+          <div class="hr"></div>
+
+          <div class="h3" style="font-size:16px">Why this price?</div>
+          <div style="height:8px"></div>
+          <div class="note">• Member discount applied (valid membership)</div>
+          <div style="height:8px"></div>
+          <div class="note">• Multi-course discount applied (2 courses in same period)</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="checkin">
+      <div style="margin-bottom:24px">
+        <div class="h1">Check-in scan result</div>
+        <div class="muted">Instant feedback and one primary action.</div>
+      </div>
+
+      <div class="card pad" style="max-width:520px; margin:0 auto">
+        <div class="banner ok" id="banner">
+          <div class="big" id="state">Allowed</div>
+          <div class="name" id="who">Ingrid Nordby</div>
+          <div style="margin-top:8px; opacity:.95">Ticket active • Paid • Member verified</div>
+        </div>
+
+        <div class="note" style="display:flex; justify-content:space-between"><span>Course Period</span><b>TB-2026-P1</b></div>
+        <div style="height:8px"></div>
+        <div class="note" style="display:flex; justify-content:space-between"><span>Courses</span><b>Rueda L2, Son Intro</b></div>
+
+        <div style="height:24px"></div>
+        <button class="btn primary" style="width:100%; height:44px;">Mark check-in</button>
+        <div style="height:8px"></div>
+        <button class="btn" style="width:100%; height:44px;">Scan next</button>
+
+        <div style="height:24px"></div>
+        <div class="note">
+          Demo states:
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn" data-state="ok">Allowed</button>
+            <button class="btn" data-state="warn">Warning</button>
+            <button class="btn" data-state="bad">Not allowed</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const views = ["admin","checkout","checkin"];
+    document.querySelectorAll("[data-view]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const v = btn.getAttribute("data-view");
+        views.forEach(id=>document.getElementById(id).classList.remove("active"));
+        document.getElementById(v).classList.add("active");
+      });
+    });
+
+    const banner = document.getElementById("banner");
+    const state = document.getElementById("state");
+    const who = document.getElementById("who");
+
+    function setState(s){
+      banner.classList.remove("ok","warn","bad");
+      banner.classList.add(s);
+      if(s==="ok"){ state.textContent="Allowed"; who.textContent="Ingrid Nordby"; }
+      if(s==="warn"){ state.textContent="Allowed (warning)"; who.textContent="Ingrid Nordby"; }
+      if(s==="bad"){ state.textContent="Not allowed"; who.textContent="Unknown / Unpaid"; }
+    }
+    document.querySelectorAll("[data-state]").forEach(btn=>{
+      btn.addEventListener("click", ()=>setState(btn.getAttribute("data-state")));
+    });
+  </script>
+</body>
+</html>

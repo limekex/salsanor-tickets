@@ -1,2 +1,2 @@
-export const DOMAIN_NAME = "SalsaNor Tickets Domain";
+export const DOMAIN_NAME = "RegiNor Events Domain";
 // Placeholder for domain logic

@@ -26,6 +26,12 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env.stage
+.env.prod
+
+# sensitive documentation with actual secrets (NEVER commit)
+docs/SECRETS.md
+docs/.secrets/
 
 # vercel
 .vercel
@@ -376,3 +382,15 @@ buck-out/
 .fakebuckversion
 
 # End of https://www.toptal.com/developers/gitignore/api/nextjs,node,react,reactnative
+# Deployment env files (contain secrets)
+packages/database/.env.prod
+packages/database/.env.stage
+apps/web/.env.stage
+apps/web/.env.prod
+SSH_SETUP.md
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+id_ed25519*

@@ -1,0 +1,8 @@
+Email,FirstName,LastName,Phone,MemberNumber,ValidFrom,ValidTo,TierSlug,AutoRenew
+ole.nordmann@example.com,Ole,Nordmann,+47 900 00 001,M001,2025-01-01,2026-01-01,normal,true
+kari.hansen@example.com,Kari,Hansen,+47 900 00 002,M002,2025-01-15,2026-01-15,supporting,yes
+per.olsen@example.com,Per,Olsen,+47 900 00 003,M003,2024-12-01,2025-12-01,normal,false
+lise.berg@example.com,Lise,Berg,+47 900 00 004,M004,2025-02-01,2026-02-01,family,1
+martin.vik@example.com,Martin,Vik,,M005,2025-01-10,2026-01-10,normal,true
+anna.sand@example.com,Anna,Sand,+47 900 00 006,,2025-03-01,2026-03-01,supporting,no
+erik.dal@example.com,Erik,Dal,+47 900 00 007,M007,2024-11-01,2025-11-01,normal,false

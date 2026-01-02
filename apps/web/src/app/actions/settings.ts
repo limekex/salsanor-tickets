@@ -17,26 +17,33 @@ export async function updatePaymentConfig(
         isTest: boolean,
         publishableKey?: string,
         secretKey?: string,
-        webhookSecret?: string
+        webhookSecret?: string,
+        useStripeConnect?: boolean,
+        platformAccountId?: string,
+        platformFeePercent?: number,
+        platformFeeFixed?: number
     }
 ) {
     await requireAdmin()
+
+    // Trim string values
+    const trimmedData = {
+        ...data,
+        publishableKey: data.publishableKey?.trim() || null,
+        secretKey: data.secretKey?.trim() || null,
+        webhookSecret: data.webhookSecret?.trim() || null,
+        platformAccountId: data.platformAccountId?.trim() || null,
+    }
 
     // Simple upsert
     await prisma.paymentConfig.upsert({
         where: { provider },
         create: {
             provider,
-            ...data,
-            publishableKey: data.publishableKey?.trim(),
-            secretKey: data.secretKey?.trim(),
-            webhookSecret: data.webhookSecret?.trim()
+            ...trimmedData,
         },
         update: {
-            ...data,
-            publishableKey: data.publishableKey?.trim(),
-            secretKey: data.secretKey?.trim(),
-            webhookSecret: data.webhookSecret?.trim()
+            ...trimmedData,
         }
     })
 
