@@ -45,13 +45,18 @@ export async function POST(req: Request) {
         
         if (isThinPayload) {
             console.log(`Webhook: Detected thin payload for ${objectType} ${objectId}, fetching full data from Stripe API`)
-            const stripeData = await getStripeClient({})
-            if (!stripeData) {
-                throw new Error('Failed to initialize Stripe client for thin payload retrieval')
+            
+            // Get API key from config
+            const config = await prisma.paymentConfig.findUnique({ where: { provider: 'STRIPE' } })
+            const apiKey = config?.secretKey || process.env.STRIPE_SECRET_KEY
+            if (!apiKey) {
+                throw new Error('Failed to get Stripe API key for thin payload retrieval')
             }
             
+            const stripe = new Stripe(apiKey, { apiVersion: '2025-11-17.clover' as any })
+            
             // Fetch full object from Stripe
-            const fullObject = await stripeData.client.accounts.retrieve(objectId) as T
+            const fullObject = await stripe.accounts.retrieve(objectId) as T
             console.log(`Webhook: Successfully retrieved full ${objectType} data`)
             return fullObject
         }

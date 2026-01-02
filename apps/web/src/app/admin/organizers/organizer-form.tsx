@@ -48,7 +48,7 @@ const organizerSchema = z.object({
     organizationNumber: z.string().regex(/^\d{9}$/, 'Must be 9 digits').optional().or(z.literal('')),
     legalName: z.string().optional(),
     companyType: z.string().optional(),
-    vatRegistered: z.boolean().default(false),
+    vatRegistered: z.boolean(),
     bankAccount: z.string().optional(),
 })
 
