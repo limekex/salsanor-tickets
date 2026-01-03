@@ -60,6 +60,7 @@ export function PeriodForm({ period }: PeriodFormProps) {
 
     async function onSubmit(data: CoursePeriodFormValues) {
         const formData = new FormData()
+        formData.append('organizerId', data.organizerId)
         formData.append('code', data.code)
         formData.append('name', data.name)
         formData.append('city', data.city)
@@ -77,8 +78,15 @@ export function PeriodForm({ period }: PeriodFormProps) {
                 : await createCoursePeriod(null, formData)
 
             if (result?.error) {
-                // Handle server errors
-                console.error(result.error)
+                // Show validation errors in form
+                const errors = result.error as Record<string, string[]>
+                Object.entries(errors).forEach(([field, messages]) => {
+                    if (field === '_form') {
+                        form.setError('root', { message: messages[0] })
+                    } else {
+                        form.setError(field as any, { message: messages[0] })
+                    }
+                })
             }
         })
     }
