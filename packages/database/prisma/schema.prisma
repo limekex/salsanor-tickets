@@ -213,8 +213,10 @@ model Organizer {
   memberships   Membership[]
   membershipTiers MembershipTier[]
   userRoles     UserAccountRole[]
+  orders        Order[]
   invoices      Invoice[]
   creditNotes   CreditNote[]
+  auditLogs     AuditLog[]
   emailSettings EmailSettings?
   emailTemplates EmailTemplate[]
   emailLogs     EmailLog[]
@@ -353,6 +355,7 @@ model WaitlistEntry {
 
 model Order {
   id          String   @id @default(uuid())
+  organizerId String   // For RLS tenant isolation
   periodId    String?  // Nullable for non-period orders (events, memberships)
   purchaserPersonId String
   orderNumber String?  @unique // Human-readable order number
@@ -378,6 +381,7 @@ model Order {
   providerCheckoutRef String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  organizer   Organizer @relation(fields: [organizerId], references: [id])
   period      CoursePeriod? @relation(fields: [periodId], references: [id])
   purchaser   PersonProfile @relation(fields: [purchaserPersonId], references: [id])
   registrations Registration[]
@@ -385,6 +389,7 @@ model Order {
   memberships Membership[]
   payments    Payment[]
   invoice     Invoice?
+  @@index([organizerId, status])
   @@index([periodId, status])
 }
 
@@ -678,6 +683,7 @@ model CreditNote {
 model AuditLog {
   id          String   @id @default(uuid())
   userId      String?
+  organizerId String?  // For RLS tenant isolation
   entityType  String   // "Order", "Invoice", "Payment", etc.
   entityId    String
   action      String   // "CREATE", "UPDATE", "DELETE", "SEND", "PAID"
@@ -687,8 +693,10 @@ model AuditLog {
   timestamp   DateTime @default(now())
   
   user        UserAccount? @relation(fields: [userId], references: [id])
+  organizer   Organizer? @relation(fields: [organizerId], references: [id])
   invoice     Invoice? @relation(fields: [entityId], references: [id])
   
+  @@index([organizerId, timestamp])
   @@index([entityType, entityId])
   @@index([timestamp])
   @@index([userId])

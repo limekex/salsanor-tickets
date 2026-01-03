@@ -52,6 +52,15 @@ async function main() {
     }
 
     // 2. Create Organizers
+    // Delete existing test organizers if they exist
+    await prisma.organizer.deleteMany({
+        where: {
+            slug: {
+                in: ['salsanor-oslo', 'bergen-salsa-club']
+            }
+        }
+    })
+
     const salsanorOslo = await prisma.organizer.create({
         data: {
             slug: 'salsanor-oslo',
@@ -194,11 +203,14 @@ async function main() {
 
     const order1 = await prisma.order.create({
         data: {
+            organizerId: salsanorOslo.id,
             periodId: period.id,
             purchaserPersonId: user1.personProfile!.id,
             status: 'PAID',
             subtotalCents: 150000,
             discountCents: 0,
+            subtotalAfterDiscountCents: 150000,
+            mvaCents: 0,
             totalCents: 150000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 150000, finalTotalCents: 150000 }),
             registrations: {
@@ -232,11 +244,14 @@ async function main() {
 
     const order2 = await prisma.order.create({
         data: {
+            organizerId: salsanorOslo.id,
             periodId: period.id,
             purchaserPersonId: user2.personProfile!.id,
             status: 'PAID',
             subtotalCents: 300000,
             discountCents: 20000, // Multi-course discount
+            subtotalAfterDiscountCents: 280000,
+            mvaCents: 0,
             totalCents: 280000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 300000, discountTotalCents: 20000, finalTotalCents: 280000 }),
             registrations: {
@@ -278,11 +293,14 @@ async function main() {
 
     await prisma.order.create({
         data: {
+            organizerId: salsanorOslo.id,
             periodId: period.id,
             purchaserPersonId: user3.personProfile!.id,
             status: 'PAID',
             subtotalCents: 200000,
             discountCents: 0,
+            subtotalAfterDiscountCents: 200000,
+            mvaCents: 0,
             totalCents: 200000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 200000, finalTotalCents: 200000 }),
             registrations: {
@@ -314,11 +332,14 @@ async function main() {
 
     await prisma.order.create({
         data: {
+            organizerId: salsanorOslo.id,
             periodId: period.id,
             purchaserPersonId: user4.personProfile!.id,
             status: 'PAID',
             subtotalCents: 200000,
             discountCents: 0,
+            subtotalAfterDiscountCents: 200000,
+            mvaCents: 0,
             totalCents: 200000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 200000, finalTotalCents: 200000 }),
             registrations: {
@@ -382,11 +403,14 @@ async function main() {
 
     await prisma.order.create({
         data: {
+            organizerId: salsanorOslo.id,
             periodId: period.id,
             purchaserPersonId: user6.personProfile!.id,
             status: 'DRAFT',
             subtotalCents: 150000,
             discountCents: 0,
+            subtotalAfterDiscountCents: 150000,
+            mvaCents: 0,
             totalCents: 150000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 150000, finalTotalCents: 150000 }),
             registrations: {
