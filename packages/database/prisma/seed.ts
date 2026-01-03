@@ -17,14 +17,14 @@ async function main() {
     if (existingPeriod) {
         console.log('Deleting existing test period...')
         // Delete in correct order to handle foreign keys
-        // 1. Delete registrations (references tracks and orders)
-        await prisma.registration.deleteMany({ where: { periodId: existingPeriod.id } })
-        // 2. Delete waitlist entries
+        // 1. Delete waitlist entries first (references registrations)
         await prisma.waitlistEntry.deleteMany({
             where: {
                 registration: { periodId: existingPeriod.id }
             }
         })
+        // 2. Delete registrations (references tracks and orders)
+        await prisma.registration.deleteMany({ where: { periodId: existingPeriod.id } })
         // 3. Delete payments (references orders)
         await prisma.payment.deleteMany({
             where: {
@@ -433,7 +433,168 @@ async function main() {
     console.log('  - Eve: 1 WAITLIST (Bachata VIP - full)')
     console.log('  - Frank: 1 DRAFT (Kizomba - unpaid)')
 
-    console.log('✅ Seed complete!')
+    // 6. Create Test User Roles for RLS Testing
+    console.log('Creating test user roles...')
+
+    // Create admin user (global access)
+    const adminUser = await prisma.userAccount.create({
+        data: {
+            supabaseUid: 'test-admin',
+            email: 'admin@salsanor.no',
+            personProfile: {
+                create: {
+                    firstName: 'Super',
+                    lastName: 'Admin',
+                    email: 'admin@salsanor.no',
+                    phone: '+47 900 00 000'
+                }
+            }
+        },
+        include: { personProfile: true }
+    })
+
+    await prisma.userAccountRole.create({
+        data: {
+            userId: adminUser.id,
+            role: 'ADMIN'
+            // No organizerId for global ADMIN role
+        }
+    })
+
+    // Create org admin for SalsaNor Oslo
+    const orgAdminUser = await prisma.userAccount.create({
+        data: {
+            supabaseUid: 'test-org-admin',
+            email: 'orgadmin@salsanor.no',
+            personProfile: {
+                create: {
+                    firstName: 'Org',
+                    lastName: 'Admin',
+                    email: 'orgadmin@salsanor.no',
+                    phone: '+47 900 00 001'
+                }
+            }
+        },
+        include: { personProfile: true }
+    })
+
+    await prisma.userAccountRole.create({
+        data: {
+            userId: orgAdminUser.id,
+            role: 'ORG_ADMIN',
+            organizerId: salsanorOslo.id
+        }
+    })
+
+    // Create finance manager for SalsaNor Oslo
+    const financeUser = await prisma.userAccount.create({
+        data: {
+            supabaseUid: 'test-finance',
+            email: 'finance@salsanor.no',
+            personProfile: {
+                create: {
+                    firstName: 'Finance',
+                    lastName: 'Manager',
+                    email: 'finance@salsanor.no',
+                    phone: '+47 900 00 002'
+                }
+            }
+        },
+        include: { personProfile: true }
+    })
+
+    await prisma.userAccountRole.create({
+        data: {
+            userId: financeUser.id,
+            role: 'ORG_FINANCE',
+            organizerId: salsanorOslo.id
+        }
+    })
+
+    // Create check-in staff for SalsaNor Oslo
+    const checkinUser = await prisma.userAccount.create({
+        data: {
+            supabaseUid: 'test-checkin',
+            email: 'checkin@salsanor.no',
+            personProfile: {
+                create: {
+                    firstName: 'Checkin',
+                    lastName: 'Staff',
+                    email: 'checkin@salsanor.no',
+                    phone: '+47 900 00 003'
+                }
+            }
+        },
+        include: { personProfile: true }
+    })
+
+    await prisma.userAccountRole.create({
+        data: {
+            userId: checkinUser.id,
+            role: 'ORG_CHECKIN',
+            organizerId: salsanorOslo.id
+        }
+    })
+
+    // Create instructor for SalsaNor Oslo
+    const instructorUser = await prisma.userAccount.create({
+        data: {
+            supabaseUid: 'test-instructor',
+            email: 'instructor@salsanor.no',
+            personProfile: {
+                create: {
+                    firstName: 'Dance',
+                    lastName: 'Instructor',
+                    email: 'instructor@salsanor.no',
+                    phone: '+47 900 00 004'
+                }
+            }
+        },
+        include: { personProfile: true }
+    })
+
+    await prisma.userAccountRole.create({
+        data: {
+            userId: instructorUser.id,
+            role: 'INSTRUCTOR',
+            organizerId: salsanorOslo.id
+        }
+    })
+
+    // Create org admin for Bergen Salsa Club (different organization)
+    const bergenAdminUser = await prisma.userAccount.create({
+        data: {
+            supabaseUid: 'test-bergen-admin',
+            email: 'admin@bergensalsa.no',
+            personProfile: {
+                create: {
+                    firstName: 'Bergen',
+                    lastName: 'Admin',
+                    email: 'admin@bergensalsa.no',
+                    phone: '+47 900 00 005'
+                }
+            }
+        },
+        include: { personProfile: true }
+    })
+
+    await prisma.userAccountRole.create({
+        data: {
+            userId: bergenAdminUser.id,
+            role: 'ORG_ADMIN',
+            organizerId: bergenSalsa.id
+        }
+    })
+
+    console.log('✅ Created 6 staff users with various roles:')
+    console.log('  - Super Admin: ADMIN (global access)')
+    console.log('  - Org Admin: ORG_ADMIN (SalsaNor Oslo)')
+    console.log('  - Finance Manager: ORG_FINANCE (SalsaNor Oslo)')
+    console.log('  - Checkin Staff: ORG_CHECKIN (SalsaNor Oslo)')
+    console.log('  - Instructor: INSTRUCTOR (SalsaNor Oslo)')
+    console.log('  - Bergen Admin: ORG_ADMIN (Bergen Salsa Club)')
+
+    console.log('\n✅ Seed complete!')
 }
 
 main()
