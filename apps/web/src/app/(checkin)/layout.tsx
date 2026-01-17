@@ -40,7 +40,7 @@ export default async function CheckinLayout({
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     OR: [
                         { role: 'ADMIN' },
@@ -52,7 +52,7 @@ export default async function CheckinLayout({
         }
     })
 
-    if (!userAccount || userAccount.roles.length === 0) {
+    if (!userAccount || userAccount.UserAccountRole.length === 0) {
         throw new Error('Unauthorized: Checkin access required')
     }
 

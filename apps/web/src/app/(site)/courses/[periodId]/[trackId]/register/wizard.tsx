@@ -29,7 +29,7 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
     const currentOrganizerName = track.CoursePeriod?.Organizer?.name
     const cartOrganizerId = getCartOrganizerId()
     const cartOrganizerName = getCartOrganizerName()
-    const isDifferentOrganizer = cartOrganizerId && cartOrganizerId !== currentOrganizerId
+    const isDifferentOrganizer = !!(cartOrganizerId && cartOrganizerId !== currentOrganizerId)
 
     const price = hasPartner && track.pricePairCents
         ? track.pricePairCents / 100

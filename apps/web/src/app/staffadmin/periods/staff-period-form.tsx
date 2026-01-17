@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { coursePeriodSchema, type CoursePeriodFormValues } from '@/lib/schemas/period'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import {
     Form,
     FormControl,
@@ -17,7 +17,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { createStaffCoursePeriod, updateStaffCoursePeriod } from '@/app/actions/staffadmin-periods'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { CoursePeriod, Category, Tag } from '@salsanor/database'

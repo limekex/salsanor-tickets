@@ -180,9 +180,9 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
                                                 variant="secondary"
                                                 className="text-xs"
                                                 style={{ 
-                                                    backgroundColor: t.color + '20',
-                                                    borderColor: t.color,
-                                                    color: t.color
+                                                    backgroundColor: (t.color ?? '#888888') + '20',
+                                                    borderColor: t.color ?? undefined,
+                                                    color: t.color ?? undefined
                                                 }}
                                             >
                                                 {t.name}
