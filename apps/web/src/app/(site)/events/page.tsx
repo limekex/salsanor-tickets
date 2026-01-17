@@ -195,7 +195,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
                                     <p className="text-lg font-bold">
                                         {event.basePriceCents === 0 ? 'Free' : `${(event.basePriceCents / 100).toFixed(0)} kr`}
                                     </p>
-                                    {event.memberPriceCents > 0 && event.memberPriceCents < event.basePriceCents && (
+                                    {event.memberPriceCents && event.memberPriceCents > 0 && event.memberPriceCents < event.basePriceCents && (
                                         <p className="text-sm text-muted-foreground">
                                             Members: {(event.memberPriceCents / 100).toFixed(0)} kr
                                         </p>

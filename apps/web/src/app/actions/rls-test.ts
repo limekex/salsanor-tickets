@@ -29,8 +29,7 @@ interface RLSTestResult {
  * Get user's organization context from auth
  */
 async function getUserContext() {
-  const cookieStore = await cookies()
-  const supabase = await createClient(cookieStore)
+  const supabase = await createClient()
   
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -70,7 +69,7 @@ async function getUserContext() {
     organizerId,
     isAdmin,
     userId: userAccount.id,
-    orgName: orgRole?.organizer?.name || 'No organization'
+    orgName: orgRole?.Organizer?.name || 'No organization'
   }
 }
 

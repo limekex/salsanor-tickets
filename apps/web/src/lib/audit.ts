@@ -54,7 +54,7 @@ export async function getAuditHistory(entityType: string, entityId: string) {
             entityId
         },
         include: {
-            user: {
+            UserAccount: {
                 select: {
                     id: true,
                     email: true
@@ -100,7 +100,7 @@ export async function getAllAuditLogs(params?: {
     return await prisma.auditLog.findMany({
         where,
         include: {
-            user: {
+            UserAccount: {
                 select: {
                     id: true,
                     email: true

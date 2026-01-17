@@ -44,7 +44,7 @@ export default async function TrackDetailPage({ params }: { params: Params }) {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-rn-4">
                 <div>
                     <h2 className="rn-h2">{track.title}</h2>
-                    <p className="rn-meta text-rn-text-muted">{track.period.name} • {track.weekday} {track.timeStart}</p>
+                    <p className="rn-meta text-rn-text-muted">{track.CoursePeriod.name} • {track.weekday} {track.timeStart}</p>
                 </div>
                 <div className="flex gap-rn-2">
                     <Button variant="outline" disabled>Edit Track</Button>

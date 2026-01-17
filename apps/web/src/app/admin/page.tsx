@@ -8,7 +8,7 @@ import { Building2, Settings, Calendar, Users } from 'lucide-react'
 
 export default async function AdminDashboard() {
     const userAccount = await requireAdmin()
-    const isGlobalAdmin = userAccount?.roles?.some(r => r.role === 'ADMIN') ?? false
+    const isGlobalAdmin = userAccount?.UserAccountRole?.some(r => r.role === 'ADMIN') ?? false
     const selectedOrgId = await getAdminSelectedOrg()
 
     // If no org selected, show global admin dashboard
@@ -154,7 +154,7 @@ export default async function AdminDashboard() {
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{selectedOrg?._count.periods || 0}</div>
+                        <div className="text-2xl font-bold">{selectedOrg?._count.CoursePeriod || 0}</div>
                         <p className="text-xs text-muted-foreground">Total periods created</p>
                         <Button asChild className="mt-4 w-full" variant="outline">
                             <Link href="/admin/periods">Manage Periods</Link>

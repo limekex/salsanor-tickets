@@ -81,10 +81,10 @@ export async function createEvent(formData: FormData) {
                 ...result.data,
                 imageUrl: result.data.imageUrl || null,
                 memberPriceCents: result.data.memberPriceCents || null,
-                categories: result.data.categoryIds && result.data.categoryIds.length > 0 
+                Category: result.data.categoryIds && result.data.categoryIds.length > 0 
                     ? { connect: result.data.categoryIds.map(id => ({ id })) }
                     : undefined,
-                tags: result.data.tagIds && result.data.tagIds.length > 0
+                Tag: result.data.tagIds && result.data.tagIds.length > 0
                     ? { connect: result.data.tagIds.map(id => ({ id })) }
                     : undefined,
             }
@@ -177,10 +177,10 @@ export async function updateEvent(id: string, formData: FormData) {
                 featured: result.data.featured,
                 metaTitle: result.data.metaTitle,
                 metaDescription: result.data.metaDescription,
-                categories: {
+                Category: {
                     set: result.data.categoryIds ? result.data.categoryIds.map(id => ({ id })) : []
                 },
-                tags: {
+                Tag: {
                     set: result.data.tagIds ? result.data.tagIds.map(id => ({ id })) : []
                 },
             }
@@ -265,7 +265,7 @@ export async function registerForEvent(eventId: string) {
         include: { 
             PersonProfile: {
                 include: {
-                    memberships: {
+                    Membership: {
                         where: {
                             validTo: { gt: new Date() }
                         },
@@ -290,12 +290,7 @@ export async function registerForEvent(eventId: string) {
     const event = await prisma.event.findUnique({
         where: { id: eventId },
         include: {
-            organizer: true,
-            _count: {
-                select: {
-                    registrations: { where: { status: { in: ['PENDING_PAYMENT', 'ACTIVE'] } } }
-                }
-            }
+            Organizer: true,
         }
     })
 
@@ -307,8 +302,16 @@ export async function registerForEvent(eventId: string) {
         return { success: false, error: 'This event is not available for registration' }
     }
 
+    // Count active registrations
+    const activeRegistrationCount = await prisma.eventRegistration.count({
+        where: { 
+            eventId, 
+            status: { in: ['PENDING_PAYMENT', 'ACTIVE'] } 
+        }
+    })
+
     // Check capacity
-    if (event._count.registrations >= event.capacityTotal) {
+    if (activeRegistrationCount >= event.capacityTotal) {
         return { success: false, error: 'This event is full' }
     }
 
@@ -405,25 +408,25 @@ export async function getOrgEvents(organizerId: string) {
         where: { organizerId },
         orderBy: { startDateTime: 'desc' },
         include: {
-            organizer: {
+            Organizer: {
                 select: {
                     slug: true
                 }
             },
             _count: {
                 select: {
-                    registrations: true,
-                    sessions: true
+                    EventRegistration: true,
+                    EventSession: true
                 }
             },
-            categories: {
+            Category: {
                 select: {
                     id: true,
                     name: true,
                     icon: true
                 }
             },
-            tags: {
+            Tag: {
                 select: {
                     id: true,
                     name: true,

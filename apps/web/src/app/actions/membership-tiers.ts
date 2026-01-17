@@ -20,7 +20,7 @@ const membershipTierSchema = z.object({
 
 export async function createMembershipTier(data: z.infer<typeof membershipTierSchema>) {
   const user = await requireOrganizerAccess()
-  const organizerId = user.userAccount.roles[0]?.organizerId
+  const organizerId = user.userAccount.UserAccountRole[0]?.organizerId
   
   if (!organizerId) {
     throw new Error('No organization access')
@@ -58,7 +58,7 @@ export async function createMembershipTier(data: z.infer<typeof membershipTierSc
 
 export async function updateMembershipTier(tierId: string, data: z.infer<typeof membershipTierSchema>) {
   const user = await requireOrganizerAccess()
-  const organizerId = user.userAccount.roles[0]?.organizerId
+  const organizerId = user.userAccount.UserAccountRole[0]?.organizerId
   
   if (!organizerId) {
     throw new Error('No organization access')
@@ -126,7 +126,7 @@ export async function updateMembershipTier(tierId: string, data: z.infer<typeof 
 
 export async function deleteMembershipTier(tierId: string) {
   const user = await requireOrganizerAccess()
-  const organizerId = user.userAccount.roles[0]?.organizerId
+  const organizerId = user.userAccount.UserAccountRole[0]?.organizerId
   
   if (!organizerId) {
     throw new Error('No organization access')
@@ -153,7 +153,7 @@ export async function deleteMembershipTier(tierId: string) {
 
 export async function listMembershipTiers() {
   const user = await requireOrganizerAccess()
-  const organizerId = user.userAccount.roles[0]?.organizerId
+  const organizerId = user.userAccount.UserAccountRole[0]?.organizerId
   
   if (!organizerId) {
     throw new Error('No organization access')
@@ -163,13 +163,13 @@ export async function listMembershipTiers() {
     where: { organizerId },
     orderBy: [{ priority: 'asc' }, { name: 'asc' }],
     include: {
-      organizer: {
+      Organizer: {
         select: {
           vatRegistered: true,
         },
       },
       _count: {
-        select: { memberships: true },
+        select: { Membership: true },
       },
     },
   })
@@ -189,8 +189,8 @@ export async function listMembershipTiers() {
     mvaEnabled: tier.mvaEnabled,
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
-    memberCount: tier._count.memberships,
-    organizerVatRegistered: tier.organizer.vatRegistered,
+    memberCount: tier._count.Membership,
+    organizerVatRegistered: tier.Organizer.vatRegistered,
   }))
 }
 

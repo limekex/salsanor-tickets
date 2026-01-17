@@ -59,10 +59,11 @@ const organizerSchema = z.object({
 type OrganizerFormValues = z.infer<typeof organizerSchema>
 
 interface OrganizerFormProps {
-    organizer?: Omit<Organizer, 'mvaRate' | 'stripeFeePercentage' | 'fiscalYearStart'> & {
+    organizer?: Omit<Organizer, 'mvaRate' | 'stripeFeePercentage' | 'fiscalYearStart' | 'platformFeePercent'> & {
         mvaRate: number
         stripeFeePercentage: number
         fiscalYearStart: string | null
+        platformFeePercent: number | null
     }
 }
 
@@ -598,7 +599,7 @@ export function OrganizerForm({ organizer }: OrganizerFormProps) {
                                                 <FormItem>
                                                     <FormLabel>MVA Rate (%)</FormLabel>
                                                     <Select 
-                                                        onValueChange={(value) => field.onChange(Number(value))} 
+                                                        onValueChange={(value: string) => field.onChange(Number(value))} 
                                                         defaultValue={field.value?.toString()}
                                                     >
                                                         <FormControl>

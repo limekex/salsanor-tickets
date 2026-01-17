@@ -65,8 +65,8 @@ export default async function UserDetailPage({
     }
 
     const organizers = await getOrganizersForUserManagement()
-    const fullName = user.personProfile 
-        ? `${user.personProfile.firstName} ${user.personProfile.lastName}`
+    const fullName = user.PersonProfile 
+        ? `${user.PersonProfile.firstName} ${user.PersonProfile.lastName}`
         : 'No profile'
 
     return (
@@ -84,11 +84,11 @@ export default async function UserDetailPage({
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    {user.personProfile && (
+                    {user.PersonProfile && (
                         <EditUserDialog user={{
                             id: user.id,
                             email: user.email,
-                            personProfile: user.personProfile
+                            personProfile: user.PersonProfile
                         }} />
                     )}
                     <AddUserRoleDialog 
@@ -97,8 +97,8 @@ export default async function UserDetailPage({
                         preselectedUser={{
                             id: user.id,
                             email: user.email,
-                            personProfile: user.personProfile,
-                            roles: user.roles
+                            personProfile: user.PersonProfile,
+                            roles: user.UserAccountRole
                         }}
                     />
                 </div>
@@ -120,12 +120,12 @@ export default async function UserDetailPage({
                             </div>
                         </div>
 
-                        {user.personProfile?.phone && (
+                        {user.PersonProfile?.phone && (
                             <div className="flex items-center gap-3">
                                 <Phone className="h-4 w-4 text-muted-foreground" />
                                 <div>
                                     <p className="text-sm font-medium">Phone</p>
-                                    <p className="text-sm text-muted-foreground">{user.personProfile.phone}</p>
+                                    <p className="text-sm text-muted-foreground">{user.PersonProfile.phone}</p>
                                 </div>
                             </div>
                         )}
@@ -152,7 +152,7 @@ export default async function UserDetailPage({
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {user.roles.length === 0 ? (
+                    {user.UserAccountRole.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p className="font-medium">No roles assigned</p>
@@ -160,7 +160,7 @@ export default async function UserDetailPage({
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {user.roles.map((role) => {
+                            {user.UserAccountRole.map((role) => {
                                 const roleInfo = ROLE_LABELS[role.role] || { 
                                     label: role.role, 
                                     color: 'bg-gray-100 text-gray-800',
@@ -180,9 +180,9 @@ export default async function UserDetailPage({
                                                 >
                                                     {roleInfo.label}
                                                 </Badge>
-                                                {role.organizer && (
+                                                {role.Organizer && (
                                                     <Badge variant="outline">
-                                                        {role.organizer.name}
+                                                        {role.Organizer.name}
                                                     </Badge>
                                                 )}
                                             </div>

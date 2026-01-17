@@ -12,7 +12,7 @@ export default async function StaffAdminTagsPage() {
     const userAccount = await requireOrgAdmin()
 
     // Get organizerId from user's first ORG_ADMIN role
-    const orgAdminRole = userAccount.roles.find(r => r.role === 'ORG_ADMIN')
+    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
     if (!orgAdminRole?.organizerId) {
         return <div>No organization found</div>
     }
@@ -85,17 +85,17 @@ export default async function StaffAdminTagsPage() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
-                                                {tag._count.periods > 0 && (
+                                                {tag._count.CoursePeriod > 0 && (
                                                     <Badge variant="secondary">
-                                                        {tag._count.periods} period{tag._count.periods !== 1 ? 's' : ''}
+                                                        {tag._count.CoursePeriod} period{tag._count.CoursePeriod !== 1 ? 's' : ''}
                                                     </Badge>
                                                 )}
-                                                {tag._count.events > 0 && (
+                                                {tag._count.Event > 0 && (
                                                     <Badge variant="secondary">
-                                                        {tag._count.events} event{tag._count.events !== 1 ? 's' : ''}
+                                                        {tag._count.Event} event{tag._count.Event !== 1 ? 's' : ''}
                                                     </Badge>
                                                 )}
-                                                {tag._count.periods === 0 && tag._count.events === 0 && (
+                                                {tag._count.CoursePeriod === 0 && tag._count.Event === 0 && (
                                                     <span className="text-muted-foreground text-sm">Unused</span>
                                                 )}
                                             </div>
@@ -110,7 +110,7 @@ export default async function StaffAdminTagsPage() {
                                                 <DeleteTagButton 
                                                     tagId={tag.id}
                                                     tagName={tag.name}
-                                                    hasUsage={tag._count.periods > 0 || tag._count.events > 0}
+                                                    hasUsage={tag._count.CoursePeriod > 0 || tag._count.Event > 0}
                                                 />
                                             </div>
                                         </TableCell>

@@ -30,12 +30,12 @@ export async function createTag(formData: FormData) {
     }
 
     try {
-        await prisma.tag.create({
+        const tag = await prisma.tag.create({
             data: result.data
         })
 
         revalidatePath('/staffadmin/tags')
-        return { success: true }
+        return { success: true, tag }
     } catch (e: any) {
         if (e.code === 'P2002') {
             return { error: { slug: ['Slug must be unique for your organization'] } }
@@ -125,8 +125,8 @@ export async function getOrgTags(organizerId: string) {
         include: {
             _count: {
                 select: {
-                    periods: true,
-                    events: true
+                    CoursePeriod: true,
+                    Event: true
                 }
             }
         }

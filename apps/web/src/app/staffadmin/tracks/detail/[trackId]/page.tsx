@@ -69,16 +69,16 @@ export default async function StaffAdminTrackDetailPage({
     const track = await prisma.courseTrack.findUnique({
         where: { id: trackId },
         include: {
-            period: {
+            CoursePeriod: {
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             },
-            registrations: {
+            Registration: {
                 include: {
-                    person: true,
-                    waitlist: true,
-                    order: {
+                    PersonProfile: true,
+                    WaitlistEntry: true,
+                    Order: {
                         select: {
                             id: true,
                             totalCents: true,
@@ -99,9 +99,9 @@ export default async function StaffAdminTrackDetailPage({
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
-                    organizerId: track.period.organizerId,
+                    organizerId: track.CoursePeriod.organizerId,
                     role: {
                         in: ['ORG_ADMIN', 'ORG_FINANCE']
                     }
@@ -110,12 +110,12 @@ export default async function StaffAdminTrackDetailPage({
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         throw new Error('Unauthorized: You do not have access to this track')
     }
 
-    const activeCount = track.registrations.filter(r => r.status === 'ACTIVE').length
-    const waitlistCount = track.registrations.filter(r => r.status === 'WAITLIST').length
+    const activeCount = track.Registration.filter(r => r.status === 'ACTIVE').length
+    const waitlistCount = track.Registration.filter(r => r.status === 'WAITLIST').length
     const capacityPercent = Math.round((activeCount / track.capacityTotal) * 100)
     const availableSpots = track.capacityTotal - activeCount
 
@@ -130,7 +130,7 @@ export default async function StaffAdminTrackDetailPage({
                         )}
                     </div>
                     <p className="rn-meta text-rn-text-muted mt-1">
-                        {track.period.name} • {WEEKDAY_LABELS[track.weekday]} {track.timeStart} - {track.timeEnd}
+                        {track.CoursePeriod.name} • {WEEKDAY_LABELS[track.weekday]} {track.timeStart} - {track.timeEnd}
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -194,7 +194,7 @@ export default async function StaffAdminTrackDetailPage({
             {/* Registrations Table */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Registrations ({track.registrations.length})</CardTitle>
+                    <CardTitle>Registrations ({track.Registration.length})</CardTitle>
                     <CardDescription>
                         All registrations for this track including active, waitlist, and cancelled
                     </CardDescription>
@@ -213,13 +213,13 @@ export default async function StaffAdminTrackDetailPage({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {track.registrations.map((reg) => (
+                            {track.Registration.map((reg) => (
                                 <TableRow key={reg.id}>
                                     <TableCell className="font-medium">
                                         <div>
-                                            {reg.person.firstName} {reg.person.lastName}
+                                            {reg.PersonProfile.firstName} {reg.PersonProfile.lastName}
                                         </div>
-                                        <div className="text-xs text-muted-foreground">{reg.person.email}</div>
+                                        <div className="text-xs text-muted-foreground">{reg.PersonProfile.email}</div>
                                     </TableCell>
                                     <TableCell>
                                         {getRoleBadge(reg.chosenRole)}
@@ -233,14 +233,14 @@ export default async function StaffAdminTrackDetailPage({
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        {reg.order && (
+                                        {reg.Order && (
                                             <div>
                                                 <div className="text-sm font-medium">
-                                                    {(reg.order.totalCents / 100).toFixed(0)} kr
+                                                    {(reg.Order.totalCents / 100).toFixed(0)} kr
                                                 </div>
-                                                {reg.order.orderNumber && (
+                                                {reg.Order.orderNumber && (
                                                     <div className="text-xs text-muted-foreground">
-                                                        #{reg.order.orderNumber}
+                                                        #{reg.Order.orderNumber}
                                                     </div>
                                                 )}
                                             </div>
@@ -250,17 +250,17 @@ export default async function StaffAdminTrackDetailPage({
                                         {format(reg.createdAt, 'MMM d, yyyy')}
                                     </TableCell>
                                     <TableCell>
-                                        {reg.waitlist && (
+                                        {reg.WaitlistEntry && (
                                             <div className="text-sm">
-                                                {reg.waitlist.status === 'OFFERED' && (
+                                                {reg.WaitlistEntry.status === 'OFFERED' && (
                                                     <span className="text-orange-600 font-semibold">
-                                                        Expires {formatDistanceToNow(reg.waitlist.offeredUntil!, { addSuffix: true })}
+                                                        Expires {formatDistanceToNow(reg.WaitlistEntry.offeredUntil!, { addSuffix: true })}
                                                     </span>
                                                 )}
-                                                {reg.waitlist.status === 'EXPIRED' && (
+                                                {reg.WaitlistEntry.status === 'EXPIRED' && (
                                                     <span className="text-red-500">Offer Expired</span>
                                                 )}
-                                                {reg.waitlist.status === 'ON_WAITLIST' && (
+                                                {reg.WaitlistEntry.status === 'ON_WAITLIST' && (
                                                     <span className="text-muted-foreground">Waiting</span>
                                                 )}
                                             </div>
@@ -268,21 +268,21 @@ export default async function StaffAdminTrackDetailPage({
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            {reg.status === 'WAITLIST' && reg.waitlist?.status === 'ON_WAITLIST' && availableSpots > 0 && (
+                                            {reg.status === 'WAITLIST' && reg.WaitlistEntry?.status === 'ON_WAITLIST' && availableSpots > 0 && (
                                                 <PromoteFromWaitlistButton registrationId={reg.id} />
                                             )}
                                             {reg.status !== 'CANCELLED' && reg.status !== 'WAITLIST' && (
                                                 <CancelRegistrationButton
                                                     registrationId={reg.id}
-                                                    participantName={`${reg.person.firstName} ${reg.person.lastName}`}
-                                                    courseName={`${track.period.name} - ${track.title}`}
+                                                    participantName={`${reg.PersonProfile.firstName} ${reg.PersonProfile.lastName}`}
+                                                    courseName={`${track.CoursePeriod.name} - ${track.title}`}
                                                 />
                                             )}
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {track.registrations.length === 0 && (
+                            {track.Registration.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                         No registrations yet for this track.

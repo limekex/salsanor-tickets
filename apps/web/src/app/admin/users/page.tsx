@@ -63,8 +63,8 @@ export default async function UsersPage() {
             ) : (
                 <div className="grid gap-rn-4">
                     {users.map((user) => {
-                        const fullName = user.personProfile 
-                            ? `${user.personProfile.firstName} ${user.personProfile.lastName}`
+                        const fullName = user.PersonProfile 
+                            ? `${user.PersonProfile.firstName} ${user.PersonProfile.lastName}`
                             : 'No profile'
 
                         return (
@@ -75,10 +75,10 @@ export default async function UsersPage() {
                                             <CardTitle className="text-xl">{fullName}</CardTitle>
                                             <CardDescription className="flex items-center gap-2">
                                                 <span>{user.email}</span>
-                                                {user.personProfile?.phone && (
+                                                {user.PersonProfile?.phone && (
                                                     <>
                                                         <span>•</span>
-                                                        <span>{user.personProfile.phone}</span>
+                                                        <span>{user.PersonProfile.phone}</span>
                                                     </>
                                                 )}
                                             </CardDescription>
@@ -93,11 +93,11 @@ export default async function UsersPage() {
                                 <CardContent>
                                     <div className="space-y-2">
                                         <p className="text-sm font-medium">Roles:</p>
-                                        {user.roles.length === 0 ? (
+                                        {user.UserAccountRole.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">No roles assigned</p>
                                         ) : (
                                             <div className="flex flex-wrap gap-2">
-                                                {user.roles.map((role) => {
+                                                {user.UserAccountRole.map((role) => {
                                                     const roleInfo = ROLE_LABELS[role.role] || { 
                                                         label: role.role, 
                                                         color: 'bg-gray-100 text-gray-800' 
@@ -110,9 +110,9 @@ export default async function UsersPage() {
                                                             className={roleInfo.color}
                                                         >
                                                             {roleInfo.label}
-                                                            {role.organizer && (
+                                                            {role.Organizer && (
                                                                 <span className="ml-1 opacity-75">
-                                                                    @ {role.organizer.name}
+                                                                    @ {role.Organizer.name}
                                                                 </span>
                                                             )}
                                                         </Badge>

@@ -65,7 +65,7 @@ export default async function MembershipPendingPage({ params, searchParams }: Pr
                     <CardContent className="space-y-6">
                         <Alert>
                             <AlertDescription>
-                                Your membership application for <strong>{membership.organizer.name}</strong> requires 
+                                Your membership application for <strong>{membership.Organizer.name}</strong> requires 
                                 manual approval from an organization administrator. You will receive an email notification 
                                 once your membership has been reviewed and approved.
                             </AlertDescription>
@@ -85,11 +85,11 @@ export default async function MembershipPendingPage({ params, searchParams }: Pr
                             <div className="grid grid-cols-2 gap-2 text-sm">
                                 <div>
                                     <span className="text-muted-foreground">Organization:</span>
-                                    <p className="font-medium">{membership.organizer.name}</p>
+                                    <p className="font-medium">{membership.Organizer.name}</p>
                                 </div>
                                 <div>
                                     <span className="text-muted-foreground">Membership Tier:</span>
-                                    <p className="font-medium">{membership.tier.name}</p>
+                                    <p className="font-medium">{membership.MembershipTier.name}</p>
                                 </div>
                                 <div>
                                     <span className="text-muted-foreground">Status:</span>

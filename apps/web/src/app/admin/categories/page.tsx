@@ -74,17 +74,17 @@ export default async function AdminCategoriesPage() {
                                         <TableCell>{category.sortOrder}</TableCell>
                                         <TableCell>
                                             <div className="flex gap-2">
-                                                {category._count.periods > 0 && (
+                                                {category._count.CoursePeriod > 0 && (
                                                     <Badge variant="secondary">
-                                                        {category._count.periods} period{category._count.periods !== 1 ? 's' : ''}
+                                                        {category._count.CoursePeriod} period{category._count.CoursePeriod !== 1 ? 's' : ''}
                                                     </Badge>
                                                 )}
-                                                {category._count.events > 0 && (
+                                                {category._count.Event > 0 && (
                                                     <Badge variant="secondary">
-                                                        {category._count.events} event{category._count.events !== 1 ? 's' : ''}
+                                                        {category._count.Event} event{category._count.Event !== 1 ? 's' : ''}
                                                     </Badge>
                                                 )}
-                                                {category._count.periods === 0 && category._count.events === 0 && (
+                                                {category._count.CoursePeriod === 0 && category._count.Event === 0 && (
                                                     <span className="text-muted-foreground text-sm">Unused</span>
                                                 )}
                                             </div>
@@ -99,7 +99,7 @@ export default async function AdminCategoriesPage() {
                                                 <DeleteCategoryButton 
                                                     categoryId={category.id}
                                                     categoryName={category.name}
-                                                    hasUsage={category._count.periods > 0 || category._count.events > 0}
+                                                    hasUsage={category._count.CoursePeriod > 0 || category._count.Event > 0}
                                                 />
                                             </div>
                                         </TableCell>

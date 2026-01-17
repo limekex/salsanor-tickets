@@ -33,7 +33,7 @@ export default async function OrganizersPage() {
                                 <span className="text-muted-foreground">Slug:</span> <code className="ml-1">{org.slug}</code>
                             </div>
                             <div className="text-sm">
-                                <span className="text-muted-foreground">Periods:</span> {org._count.periods}
+                                <span className="text-muted-foreground">Periods:</span> {org._count.CoursePeriod}
                             </div>
                             {org.contactEmail && (
                                 <div className="text-sm">

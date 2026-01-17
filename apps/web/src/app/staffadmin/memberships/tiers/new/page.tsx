@@ -7,7 +7,7 @@ import { prisma } from '@/lib/db'
 
 export default async function NewTierPage() {
   const user = await requireOrganizerAccess()
-  const organizerId = user.userAccount.roles[0]?.organizerId
+  const organizerId = user.userAccount.UserAccountRole[0]?.organizerId
 
   let organizerVatRegistered = false
   if (organizerId) {

@@ -27,12 +27,12 @@ export default async function StaffAdminPeriodsPage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
@@ -52,12 +52,12 @@ export default async function StaffAdminPeriodsPage() {
             }
         },
         include: {
-            organizer: true,
-            tracks: {
+            Organizer: true,
+            CourseTrack: {
                 include: {
                     _count: {
                         select: {
-                            registrations: true
+                            Registration: true
                         }
                     }
                 }

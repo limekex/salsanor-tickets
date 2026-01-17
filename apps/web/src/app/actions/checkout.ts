@@ -150,7 +150,7 @@ export async function createOrderFromCart(items: { trackId: string, role: string
             where: {
                 purchaserPersonId: personId!,
                 status: 'DRAFT',
-                registrations: {
+                Registration: {
                     none: {}
                 }
             }

@@ -92,7 +92,7 @@ export function StaffPeriodForm({ period, organizerIds, organizers, categories, 
                 Object.entries(result.error).forEach(([field, messages]) => {
                     if (field === '_form') {
                         // General form error
-                        alert(messages.join(', '))
+                        alert(messages?.join(', ') || 'Form error')
                     } else if (Array.isArray(messages)) {
                         // Field-specific error
                         form.setError(field as any, {
@@ -304,7 +304,7 @@ export function StaffPeriodForm({ period, organizerIds, organizers, categories, 
                                             />
                                             <span 
                                                 className="inline-block w-4 h-4 rounded" 
-                                                style={{ backgroundColor: tag.color }}
+                                                style={{ backgroundColor: tag.color || undefined }}
                                             />
                                             <span>{tag.name}</span>
                                         </label>
