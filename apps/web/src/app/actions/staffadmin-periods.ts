@@ -56,10 +56,10 @@ export async function createStaffCoursePeriod(prevState: any, formData: FormData
                 endDate: typeof result.data.endDate === 'string' ? new Date(result.data.endDate) : result.data.endDate,
                 salesOpenAt: typeof result.data.salesOpenAt === 'string' ? new Date(result.data.salesOpenAt) : result.data.salesOpenAt,
                 salesCloseAt: typeof result.data.salesCloseAt === 'string' ? new Date(result.data.salesCloseAt) : result.data.salesCloseAt,
-                categories: {
+                Category: {
                     connect: categoryIds.map(id => ({ id }))
                 },
-                tags: {
+                Tag: {
                     connect: tagIds.map(id => ({ id }))
                 }
             }
@@ -118,10 +118,10 @@ export async function updateStaffCoursePeriod(periodId: string, prevState: any, 
                 endDate: result.data.endDate,
                 salesOpenAt: result.data.salesOpenAt,
                 salesCloseAt: result.data.salesCloseAt,
-                categories: {
+                Category: {
                     set: categoryIds.map(id => ({ id }))
                 },
-                tags: {
+                Tag: {
                     set: tagIds.map(id => ({ id }))
                 }
             }
@@ -137,7 +137,9 @@ export async function updateStaffCoursePeriod(periodId: string, prevState: any, 
 
 export async function getStaffCoursePeriods() {
     const userAccount = await requireOrgAdmin()
-    const orgIds = userAccount.UserAccountRole.map(r => r.organizerId)
+    const orgIds = userAccount.UserAccountRole
+        .map(r => r.organizerId)
+        .filter((id): id is string => id !== null)
     
     return await prisma.coursePeriod.findMany({
         where: {

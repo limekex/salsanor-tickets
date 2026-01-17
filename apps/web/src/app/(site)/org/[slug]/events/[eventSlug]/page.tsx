@@ -130,8 +130,8 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                             key={idx}
                             variant="outline"
                             style={{ 
-                                borderColor: tag.color,
-                                color: tag.color
+                                borderColor: tag.color ?? undefined,
+                                color: tag.color ?? undefined
                             }}
                         >
                             {tag.name}
@@ -170,9 +170,9 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                                         {format(new Date(event.startDateTime), 'HH:mm')}
                                         {event.endDateTime && ` - ${format(new Date(event.endDateTime), 'HH:mm')}`}
                                     </div>
-                                    {event.eventType === 'RECURRING' && event._count.sessions > 0 && (
+                                    {event.eventType === 'RECURRING' && event._count.EventSession > 0 && (
                                         <div className="text-sm text-rn-text-muted mt-1">
-                                            Recurring event ({event._count.sessions} sessions)
+                                            Recurring event ({event._count.EventSession} sessions)
                                         </div>
                                     )}
                                 </div>
@@ -204,7 +204,7 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                                 </div>
                             </div>
 
-                            {(event.basePriceCents > 0 || event.memberPriceCents > 0) && (
+                            {(event.basePriceCents > 0 || (event.memberPriceCents && event.memberPriceCents > 0)) && (
                                 <div className="flex items-start gap-3">
                                     <DollarSign className="h-5 w-5 text-rn-text-muted mt-0.5" />
                                     <div>
@@ -214,7 +214,7 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                                                 Regular: {(event.basePriceCents / 100).toFixed(0)} NOK
                                             </div>
                                         )}
-                                        {event.memberPriceCents > 0 && (
+                                        {event.memberPriceCents && event.memberPriceCents > 0 && (
                                             <div className="text-sm text-rn-text-muted">
                                                 Members: {(event.memberPriceCents / 100).toFixed(0)} NOK
                                             </div>

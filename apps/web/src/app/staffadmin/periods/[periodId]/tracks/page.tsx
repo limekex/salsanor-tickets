@@ -33,12 +33,12 @@ export default async function StaffAdminTracksPage({
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
@@ -54,12 +54,12 @@ export default async function StaffAdminTracksPage({
     const period = await prisma.coursePeriod.findUnique({
         where: { id: periodId },
         include: {
-            organizer: true,
-            tracks: {
+            Organizer: true,
+            CourseTrack: {
                 include: {
                     _count: {
                         select: {
-                            registrations: true
+                            Registration: true
                         }
                     }
                 },
@@ -107,7 +107,7 @@ export default async function StaffAdminTracksPage({
                 </Button>
                 <div className="flex-1">
                     <h2 className="text-3xl font-bold tracking-tight">{period.name} - Tracks</h2>
-                    <p className="text-muted-foreground">{period.organizer.name} • {period.code}</p>
+                    <p className="text-muted-foreground">{period.Organizer.name} • {period.code}</p>
                 </div>
                 <Button asChild>
                     <Link href={`/staffadmin/tracks/new?periodId=${periodId}`}>
@@ -149,7 +149,7 @@ export default async function StaffAdminTracksPage({
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                        <CardTitle>Course Tracks ({period.tracks.length})</CardTitle>
+                        <CardTitle>Course Tracks ({period.CourseTrack.length})</CardTitle>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -187,8 +187,8 @@ export default async function StaffAdminTracksPage({
                                                 : track.capacityTotal}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={track._count.registrations >= track.capacityTotal ? 'destructive' : 'secondary'}>
-                                                {track._count.registrations}
+                                            <Badge variant={track._count.Registration >= track.capacityTotal ? 'destructive' : 'secondary'}>
+                                                {track._count.Registration}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">

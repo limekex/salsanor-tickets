@@ -19,22 +19,22 @@ export async function generateInvoice(orderId: string) {
     const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: {
-            period: {
+            CoursePeriod: {
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             },
-            purchaser: {
+            PersonProfile: {
                 include: {
-                    user: true
+                    UserAccount: true
                 }
             },
-            registrations: {
+            Registration: {
                 include: {
-                    track: true
+                    CourseTrack: true
                 }
             },
-            payments: true
+            Payment: true
         }
     })
 
@@ -46,7 +46,7 @@ export async function generateInvoice(orderId: string) {
         throw new Error('Can only generate invoice for paid orders')
     }
 
-    if (!order.period) {
+    if (!order.CoursePeriod) {
         throw new Error('Order has no associated period')
     }
 
@@ -61,7 +61,7 @@ export async function generateInvoice(orderId: string) {
 
     // Get next invoice number for this organizer (atomic increment)
     const organizer = await prisma.organizer.update({
-        where: { id: order.period.organizer.id },
+        where: { id: order.CoursePeriod.Organizer.id },
         data: {
             nextInvoiceNumber: {
                 increment: 1
@@ -83,10 +83,10 @@ export async function generateInvoice(orderId: string) {
     const invoice = await prisma.invoice.create({
         data: {
             invoiceNumber,
-            organizerId: order.period.organizer.id,
+            organizerId: order.CoursePeriod.Organizer.id,
             orderId: order.id,
-            customerName: `${order.purchaser.firstName} ${order.purchaser.lastName}`,
-            customerEmail: order.purchaser.email,
+            customerName: `${order.PersonProfile.firstName} ${order.PersonProfile.lastName}`,
+            customerEmail: order.PersonProfile.email,
             customerOrgNr,
             subtotalCents: order.subtotalAfterDiscountCents,
             mvaRate: order.mvaRate,
@@ -95,7 +95,7 @@ export async function generateInvoice(orderId: string) {
             invoiceDate: new Date(),
             dueDate,
             status: 'SENT', // Automatically sent for paid orders
-            paidAt: order.payments[0]?.createdAt || new Date(),
+            paidAt: order.Payment[0]?.createdAt || new Date(),
             paidAmount: order.totalCents,
             sentAt: new Date()
         }
@@ -124,14 +124,14 @@ export async function getAllInvoices() {
     
     return await prisma.invoice.findMany({
         include: {
-            organizer: {
+            Organizer: {
                 select: {
                     id: true,
                     name: true,
                     slug: true
                 }
             },
-            order: {
+            Order: {
                 select: {
                     id: true,
                     status: true
@@ -153,9 +153,9 @@ export async function getOrganizerInvoices(organizerId: string) {
             organizerId
         },
         include: {
-            order: {
+            Order: {
                 include: {
-                    purchaser: true
+                    PersonProfile: true
                 }
             }
         },
@@ -172,13 +172,13 @@ export async function getInvoice(invoiceId: string) {
     return await prisma.invoice.findUnique({
         where: { id: invoiceId },
         include: {
-            organizer: true,
-            order: {
+            Organizer: true,
+            Order: {
                 include: {
-                    purchaser: true,
-                    registrations: {
+                    PersonProfile: true,
+                    Registration: {
                         include: {
-                            track: true
+                            CourseTrack: true
                         }
                     }
                 }
@@ -223,7 +223,7 @@ export async function createCreditNote(params: {
 }) {
     const invoice = await prisma.invoice.findUnique({
         where: { id: params.invoiceId },
-        include: { organizer: true }
+        include: { Organizer: true }
     })
 
     if (!invoice) {
@@ -235,7 +235,7 @@ export async function createCreditNote(params: {
         where: { organizerId: invoice.organizerId }
     })
 
-    const creditNumber = `${invoice.organizer.invoicePrefix}-CR-${String(creditCount + 1).padStart(4, '0')}`
+    const creditNumber = `${invoice.Organizer.invoicePrefix}-CR-${String(creditCount + 1).padStart(4, '0')}`
 
     // Calculate MVA on credit amount
     const mvaCents = Math.round(params.amountCents * (Number(invoice.mvaRate) / 100))
@@ -247,7 +247,8 @@ export async function createCreditNote(params: {
             organizerId: invoice.organizerId,
             invoiceId: invoice.id,
             reason: params.reason,
-            amountCents: params.amountCents,
+            originalAmountCents: invoice.totalCents,
+            refundAmountCents: params.amountCents,
             mvaCents,
             totalCents
         }

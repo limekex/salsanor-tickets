@@ -53,7 +53,7 @@ export default async function AllTracksPage() {
                         </TableHeader>
                         <TableBody>
                             {tracks.map((track) => {
-                                const enrolledCount = track._count?.registrations || 0
+                                const enrolledCount = track._count?.Registration || 0
                                 const capacityPercent = Math.round((enrolledCount / track.capacityTotal) * 100)
                                 
                                 return (
@@ -66,11 +66,11 @@ export default async function AllTracksPage() {
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{track.period.organizer.name}</TableCell>
+                                        <TableCell>{track.CoursePeriod.Organizer.name}</TableCell>
                                         <TableCell>
                                             <div className="text-sm">
-                                                <div>{track.period.name}</div>
-                                                <div className="text-muted-foreground">{track.period.code}</div>
+                                                <div>{track.CoursePeriod.name}</div>
+                                                <div className="text-muted-foreground">{track.CoursePeriod.code}</div>
                                             </div>
                                         </TableCell>
                                         <TableCell>

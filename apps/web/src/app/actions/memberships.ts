@@ -224,16 +224,16 @@ export async function listMemberships(organizerId: string, filters?: {
     if (filters?.search) {
       where.OR = [
         { memberNumber: { contains: filters.search, mode: 'insensitive' } },
-        { person: { firstName: { contains: filters.search, mode: 'insensitive' } } },
-        { person: { lastName: { contains: filters.search, mode: 'insensitive' } } },
-        { person: { email: { contains: filters.search, mode: 'insensitive' } } },
+        { PersonProfile: { firstName: { contains: filters.search, mode: 'insensitive' } } },
+        { PersonProfile: { lastName: { contains: filters.search, mode: 'insensitive' } } },
+        { PersonProfile: { email: { contains: filters.search, mode: 'insensitive' } } },
       ]
     }
 
     const memberships = await prisma.membership.findMany({
       where,
       include: {
-        person: {
+        PersonProfile: {
           select: {
             id: true,
             firstName: true,
@@ -263,7 +263,7 @@ export async function lookupMembership(email: string, organizerId: string, phone
     let person = await prisma.personProfile.findFirst({
       where: { email: email.toLowerCase() },
       include: {
-        memberships: {
+        Membership: {
           where: {
             organizerId,
             status: 'ACTIVE',
@@ -279,7 +279,7 @@ export async function lookupMembership(email: string, organizerId: string, phone
       person = await prisma.personProfile.findFirst({
         where: { phone },
         include: {
-          memberships: {
+          Membership: {
             where: {
               organizerId,
               status: 'ACTIVE',
@@ -291,7 +291,7 @@ export async function lookupMembership(email: string, organizerId: string, phone
       })
     }
 
-    const activeMembership = person?.memberships?.[0]
+    const activeMembership = person?.Membership?.[0]
 
     if (activeMembership) {
       return {
@@ -365,7 +365,7 @@ export async function updateMembershipProduct(data: {
   description: string | null
 }) {
   const user = await requireOrganizerAccess()
-  const organizerId = user.userAccount.roles[0]?.organizerId
+  const organizerId = user.userAccount.UserAccountRole[0]?.organizerId
   
   if (!organizerId) {
     throw new Error('No organization access')
@@ -412,14 +412,14 @@ export async function createMembershipOrder(data: {
   // Get tier and validate
   const tier = await prisma.membershipTier.findUnique({
     where: { id: data.tierId },
-    include: { organizer: true }
+    include: { Organizer: true }
   })
 
   if (!tier || !tier.enabled) {
     return { error: 'Membership tier not available' }
   }
 
-  if (!tier.organizer.membershipEnabled || !tier.organizer.membershipSalesOpen) {
+  if (!tier.Organizer.membershipEnabled || !tier.Organizer.membershipSalesOpen) {
     return { error: 'Membership sales are currently closed' }
   }
 
@@ -454,7 +454,7 @@ export async function createMembershipOrder(data: {
     await prisma.userAccount.update({
       where: { id: userAccount.id },
       data: { 
-        personProfile: {
+        PersonProfile: {
           connect: { id: person.id }
         }
       }
@@ -496,9 +496,9 @@ export async function createMembershipOrder(data: {
   let totalCents = priceCentsIncludingMva
 
   // Only calculate MVA if: tier has it enabled, org is VAT registered, and org has a rate set
-  if (tier.mvaEnabled && tier.organizer.vatRegistered && Number(tier.organizer.mvaRate) > 0) {
+  if (tier.mvaEnabled && tier.Organizer.vatRegistered && Number(tier.Organizer.mvaRate) > 0) {
     // MVA should be calculated - add it to the base price
-    mvaRate = Number(tier.organizer.mvaRate)
+    mvaRate = Number(tier.Organizer.mvaRate)
     subtotalCents = priceCentsIncludingMva
     mvaCents = Math.round(subtotalCents * (mvaRate / 100))
     totalCents = subtotalCents + mvaCents

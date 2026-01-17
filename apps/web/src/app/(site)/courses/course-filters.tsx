@@ -244,7 +244,7 @@ export function CourseFilters({ organizers, availableLevels, categories, tags, c
                                             <div className="flex items-center gap-2">
                                                 <span 
                                                     className="inline-block w-3 h-3 rounded" 
-                                                    style={{ backgroundColor: tag.color }}
+                                                    style={{ backgroundColor: tag.color ?? undefined }}
                                                 />
                                                 {tag.name}
                                             </div>

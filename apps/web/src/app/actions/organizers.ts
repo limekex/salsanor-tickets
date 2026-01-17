@@ -151,8 +151,8 @@ export async function getAllOrganizers() {
     // Serialize Decimal fields
     return organizers.map(org => ({
         ...org,
-        platformFeePercent: org.platformFeePercent ? org.platformFeePercent.toNumber() : null,
-        platformFeeFixed: org.platformFeeFixed ? org.platformFeeFixed.toNumber() : null
+        platformFeePercent: org.platformFeePercent ? Number(org.platformFeePercent) : null,
+        platformFeeFixed: org.platformFeeFixed ?? null
     }))
 }
 
@@ -168,14 +168,14 @@ export async function getOrganizer(id: string) {
     // Serialize Decimal fields for client components
     return {
         ...organizer,
-        mvaRate: organizer.mvaRate ? organizer.mvaRate.toNumber() : null,
-        stripeFeePercentage: organizer.stripeFeePercentage ? organizer.stripeFeePercentage.toNumber() : null,
-        platformFeePercent: organizer.platformFeePercent ? organizer.platformFeePercent.toNumber() : null,
-        platformFeeFixed: organizer.platformFeeFixed ? organizer.platformFeeFixed.toNumber() : null,
+        mvaRate: organizer.mvaRate ? Number(organizer.mvaRate) : null,
+        stripeFeePercentage: organizer.stripeFeePercentage ? Number(organizer.stripeFeePercentage) : null,
+        platformFeePercent: organizer.platformFeePercent ? Number(organizer.platformFeePercent) : null,
+        platformFeeFixed: organizer.platformFeeFixed ?? null,
     }
 }
 
-export async function createOrganizer(prevState: any, formData: FormData): Promise<{ error?: ActionError } | undefined> {
+export async function createOrganizer(prevState: any, formData: FormData): Promise<{ error?: ActionError; success?: boolean } | undefined> {
     await requireAdmin()
 
     const raw = {
@@ -254,7 +254,7 @@ export async function createOrganizer(prevState: any, formData: FormData): Promi
     }
 }
 
-export async function updateOrganizer(organizerId: string, prevState: any, formData: FormData): Promise<{ error?: ActionError } | undefined> {
+export async function updateOrganizer(organizerId: string, prevState: any, formData: FormData): Promise<{ error?: ActionError; success?: boolean } | undefined> {
     await requireAdmin()
 
     const raw = {

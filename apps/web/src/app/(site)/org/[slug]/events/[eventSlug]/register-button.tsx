@@ -44,7 +44,7 @@ export function RegisterButton({ event, isMember, disabled, className }: Registe
 
     const cartOrganizerId = getCartOrganizerId()
     const cartOrganizerName = getCartOrganizerName()
-    const isDifferentOrganizer = cartOrganizerId && cartOrganizerId !== event.organizerId
+    const isDifferentOrganizer = !!(cartOrganizerId && cartOrganizerId !== event.organizerId)
     
     // Check if event is already in cart
     const existingCartItem = items.find(i => i.type === 'event' && i.eventId === event.id)

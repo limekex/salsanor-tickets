@@ -190,7 +190,7 @@ export async function POST(req: Request) {
                                 addressInfo = {
                                     street,
                                     postalCode: postalCodeMatch?.[1],
-                                    city: postalCodeMatch?.[2] || cityPart || org.city,
+                                    city: postalCodeMatch?.[2] || cityPart || org.city || undefined,
                                     country: org.country
                                 }
                             }
@@ -256,8 +256,8 @@ export async function POST(req: Request) {
                                 const seller = buildSellerInfo(event.Organizer)
                                 const unitPrice = eventReg.unitPriceCents || pricePerTicket
 
-                                // Ensure startsAt is a Date object (could be string from DB)
-                                const eventDate = event.startsAt ? new Date(event.startsAt) : new Date()
+                                // Ensure startDateTime is a Date object (could be string from DB)
+                                const eventDate = event.startDateTime ? new Date(event.startDateTime) : new Date()
 
                                 // Add each unique ticket
                                 for (const ticket of eventTickets) {
@@ -266,7 +266,7 @@ export async function POST(req: Request) {
                                         ticketNumber: ticketNumber++,
                                         eventTitle: event.title,
                                         eventDate,
-                                        eventVenue: event.venue || undefined,
+                                        eventVenue: event.locationName || undefined,
                                         seller,
                                         unitPriceCents: unitPrice
                                     })
@@ -455,8 +455,8 @@ export async function POST(req: Request) {
                                 const pdfBuffer = await generateCourseTicketPDF({
                                     periodName: period.name,
                                     trackNames: trackNames,
-                                    startDate: period.startsAt || new Date(),
-                                    endDate: period.endsAt || new Date(),
+                                    startDate: period.startDate || new Date(),
+                                    endDate: period.endDate || new Date(),
                                     qrToken: courseTicket.qrTokenHash,
                                     seller,
                                     buyer: buyerInfo,

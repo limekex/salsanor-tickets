@@ -20,12 +20,12 @@ export default async function EditStaffPeriodPage({
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
@@ -42,8 +42,8 @@ export default async function EditStaffPeriodPage({
     const period = await prisma.coursePeriod.findUnique({
         where: { id: periodId },
         include: {
-            categories: true,
-            tags: true
+            Category: true,
+            Tag: true
         }
     })
 

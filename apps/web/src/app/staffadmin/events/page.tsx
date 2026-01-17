@@ -13,7 +13,7 @@ import { DeleteEventButton } from './delete-event-button'
 export default async function StaffAdminEventsPage() {
     const userAccount = await requireOrgAdmin()
 
-    const orgAdminRole = userAccount.roles.find(r => r.role === 'ORG_ADMIN')
+    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
     if (!orgAdminRole?.organizerId) {
         return <div>No organization found</div>
     }
@@ -67,7 +67,7 @@ export default async function StaffAdminEventsPage() {
                             </TableHeader>
                             <TableBody>
                                 {events.map((event) => {
-                                    const registrationCount = event._count.registrations
+                                    const registrationCount = event._count.EventRegistration
                                     const capacityPercent = Math.round((registrationCount / event.capacityTotal) * 100)
 
                                     return (
@@ -80,26 +80,26 @@ export default async function StaffAdminEventsPage() {
                                                             <Badge variant="default" className="text-xs">Featured</Badge>
                                                         )}
                                                     </div>
-                                                    {event.categories.length > 0 && (
+                                                    {event.Category.length > 0 && (
                                                         <div className="flex gap-1 flex-wrap">
-                                                            {event.categories.map(cat => (
+                                                            {event.Category.map(cat => (
                                                                 <Badge key={cat.id} variant="outline" className="text-xs">
                                                                     {cat.icon} {cat.name}
                                                                 </Badge>
                                                             ))}
                                                         </div>
                                                     )}
-                                                    {event.tags.length > 0 && (
+                                                    {event.Tag.length > 0 && (
                                                         <div className="flex gap-1 flex-wrap">
-                                                            {event.tags.map(tag => (
+                                                            {event.Tag.map(tag => (
                                                                 <Badge 
                                                                     key={tag.id} 
                                                                     variant="secondary" 
                                                                     className="text-xs"
                                                                     style={{ 
-                                                                        backgroundColor: tag.color + '20',
-                                                                        color: tag.color,
-                                                                        borderColor: tag.color
+                                                                        backgroundColor: tag.color ? tag.color + '20' : undefined,
+                                                                        color: tag.color || undefined,
+                                                                        borderColor: tag.color || undefined
                                                                     }}
                                                                 >
                                                                     {tag.name}

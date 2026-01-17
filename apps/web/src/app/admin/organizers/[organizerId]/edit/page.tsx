@@ -7,10 +7,11 @@ import { useEffect, useState } from 'react'
 import type { Organizer } from '@salsanor/database'
 
 type Params = Promise<{ organizerId: string }>
-type SerializedOrganizer = Omit<Organizer, 'mvaRate' | 'stripeFeePercentage' | 'fiscalYearStart'> & {
+type SerializedOrganizer = Omit<Organizer, 'mvaRate' | 'stripeFeePercentage' | 'fiscalYearStart' | 'platformFeePercent'> & {
     mvaRate: number
     stripeFeePercentage: number
     fiscalYearStart: string | null
+    platformFeePercent: number | null
 }
 
 export default function EditOrganizerPage({ params }: { params: Params }) {
@@ -29,6 +30,7 @@ export default function EditOrganizerPage({ params }: { params: Params }) {
                     ...org,
                     mvaRate: Number(org.mvaRate),
                     stripeFeePercentage: Number(org.stripeFeePercentage),
+                    platformFeePercent: org.platformFeePercent !== null ? Number(org.platformFeePercent) : null,
                     fiscalYearStart: org.fiscalYearStart?.toISOString() ?? null,
                 }
                 setOrganizer(serializedOrganizer)

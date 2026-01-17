@@ -54,12 +54,12 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
     )
   }
 
-  const organizer = userAccount.roles[0].organizer
+  const organizer = userAccount.UserAccountRole[0].Organizer
 
   // Fetch enabled tiers for import
   const tiers = await prisma.membershipTier.findMany({
     where: { 
-      organizerId: organizer.id,
+      organizerId: organizer!.id,
       enabled: true
     },
     select: {
@@ -77,7 +77,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
       status: 'PENDING_PAYMENT'
     },
     include: {
-      person: {
+      PersonProfile: {
         select: {
           id: true,
           firstName: true,
@@ -86,7 +86,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
           phone: true
         }
       },
-      tier: {
+      MembershipTier: {
         select: {
           id: true,
           name: true,
@@ -128,9 +128,9 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
   if (params.search) {
     where.OR = [
       { memberNumber: { contains: params.search, mode: 'insensitive' as const } },
-      { PersonProfile: { firstName: { contains: params.search, mode: 'insensitive' as const } } },
-      { PersonProfile: { lastName: { contains: params.search, mode: 'insensitive' as const } } },
-      { PersonProfile: { email: { contains: params.search, mode: 'insensitive' as const } } },
+      { person: { firstName: { contains: params.search, mode: 'insensitive' as const } } },
+      { person: { lastName: { contains: params.search, mode: 'insensitive' as const } } },
+      { person: { email: { contains: params.search, mode: 'insensitive' as const } } },
     ]
   }
 
@@ -297,14 +297,14 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
                     {pendingMemberships.map((membership) => (
                       <TableRow key={membership.id}>
                         <TableCell className="font-medium">
-                          {membership.person.firstName} {membership.person.lastName}
+                          {membership.PersonProfile.firstName} {membership.PersonProfile.lastName}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {membership.person.email}
+                          {membership.PersonProfile.email}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {membership.tier.name}
+                            {membership.MembershipTier.name}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">
@@ -365,14 +365,14 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
                     memberships.map((membership) => (
                       <TableRow key={membership.id}>
                         <TableCell className="font-medium">
-                          {membership.person.firstName} {membership.person.lastName}
+                          {membership.PersonProfile.firstName} {membership.PersonProfile.lastName}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {membership.person.email}
+                          {membership.PersonProfile.email}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {membership.tier.name}
+                            {membership.MembershipTier.name}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-sm">

@@ -15,19 +15,19 @@ export default async function NewStaffPeriodPage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
     })
 
     const adminOrgIds = userAccount?.UserAccountRole.map(r => r.organizerId).filter(Boolean) as string[] || []
-    const organizers = userAccount?.UserAccountRole.map(r => r.Organizer).filter(Boolean) || []
+    const organizers = userAccount?.UserAccountRole.map(r => r.Organizer).filter((o): o is NonNullable<typeof o> => o !== null) || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')

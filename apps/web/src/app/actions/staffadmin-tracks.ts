@@ -29,7 +29,7 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN',
                     organizerId: period.organizerId
@@ -38,7 +38,7 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         return { error: { _form: ['Unauthorized: You do not have access to this period'] } }
     }
 
@@ -75,7 +75,7 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
 
         await prisma.courseTrack.create({
             data: {
-                period: { connect: { id: periodId } },
+                CoursePeriod: { connect: { id: periodId } },
                 ...trackData
             }
         })
@@ -99,7 +99,7 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
     const track = await prisma.courseTrack.findUnique({
         where: { id: trackId },
         include: {
-            period: {
+            CoursePeriod: {
                 select: { organizerId: true }
             }
         }
@@ -112,16 +112,16 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN',
-                    organizerId: track.period.organizerId
+                    organizerId: track.CoursePeriod.organizerId
                 }
             }
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         return { error: { _form: ['Unauthorized: You do not have access to this track'] } }
     }
 

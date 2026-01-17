@@ -110,7 +110,7 @@ export async function getCoursePeriods() {
     return await prisma.coursePeriod.findMany({
         where: selectedOrgId ? { organizerId: selectedOrgId } : undefined,
         include: {
-            organizer: {
+            Organizer: {
                 select: {
                     id: true,
                     name: true,

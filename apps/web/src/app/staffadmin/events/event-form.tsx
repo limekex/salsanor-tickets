@@ -76,11 +76,13 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
 
         setIsCreatingTag(true)
         try {
-            const result = await createTag({
-                organizerId,
-                name: newTagName.trim(),
-                color: newTagColor
-            })
+            const tagFormData = new FormData()
+            tagFormData.append('organizerId', organizerId)
+            tagFormData.append('name', newTagName.trim())
+            tagFormData.append('slug', newTagName.trim().toLowerCase().replace(/\s+/g, '-'))
+            tagFormData.append('color', newTagColor)
+            
+            const result = await createTag(tagFormData)
 
             if (result.success && result.tag) {
                 setAvailableTags(prev => [...prev, result.tag!])
@@ -104,15 +106,39 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
 
         startTransition(async () => {
             try {
+                // Build FormData for the action
+                const eventFormData = new FormData()
+                
+                // Add all form fields
+                if (!event) {
+                    eventFormData.append('organizerId', organizerId)
+                }
+                eventFormData.append('title', formData.title)
+                eventFormData.append('slug', formData.slug)
+                if (formData.shortDescription) eventFormData.append('shortDescription', formData.shortDescription)
+                if (formData.longDescription) eventFormData.append('longDescription', formData.longDescription)
+                eventFormData.append('eventType', formData.eventType)
+                eventFormData.append('startDateTime', formData.startDateTime)
+                if (formData.endDateTime) eventFormData.append('endDateTime', formData.endDateTime)
+                eventFormData.append('timezone', formData.timezone)
+                if (formData.locationName) eventFormData.append('locationName', formData.locationName)
+                if (formData.locationAddress) eventFormData.append('locationAddress', formData.locationAddress)
+                if (formData.city) eventFormData.append('city', formData.city)
+                if (formData.salesOpenAt) eventFormData.append('salesOpenAt', formData.salesOpenAt)
+                if (formData.salesCloseAt) eventFormData.append('salesCloseAt', formData.salesCloseAt)
+                eventFormData.append('capacityTotal', String(formData.capacityTotal))
+                eventFormData.append('basePriceCents', String(formData.basePriceCents))
+                if (formData.memberPriceCents) eventFormData.append('memberPriceCents', String(formData.memberPriceCents))
+                if (formData.imageUrl) eventFormData.append('imageUrl', formData.imageUrl)
+                if (formData.recurrenceRule) eventFormData.append('recurrenceRule', formData.recurrenceRule)
+                if (formData.recurringUntil) eventFormData.append('recurringUntil', formData.recurringUntil)
+                
+                // Add array fields
+                formData.categoryIds.forEach(id => eventFormData.append('categoryIds', id))
+                formData.tagIds.forEach(id => eventFormData.append('tagIds', id))
+                
                 if (event) {
-                    const result = await updateEvent(event.id, {
-                        ...formData,
-                        startDateTime: new Date(formData.startDateTime),
-                        endDateTime: formData.endDateTime ? new Date(formData.endDateTime) : null,
-                        salesOpenAt: formData.salesOpenAt ? new Date(formData.salesOpenAt) : null,
-                        salesCloseAt: formData.salesCloseAt ? new Date(formData.salesCloseAt) : null,
-                        recurringUntil: formData.recurringUntil ? new Date(formData.recurringUntil) : null,
-                    })
+                    const result = await updateEvent(event.id, eventFormData)
                     if (result.success) {
                         toast.success('Event updated successfully')
                         router.push('/staffadmin/events')
@@ -121,15 +147,7 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
                         toast.error(result.error || 'Failed to update event')
                     }
                 } else {
-                    const result = await createEvent({
-                        ...formData,
-                        organizerId,
-                        startDateTime: new Date(formData.startDateTime),
-                        endDateTime: formData.endDateTime ? new Date(formData.endDateTime) : null,
-                        salesOpenAt: formData.salesOpenAt ? new Date(formData.salesOpenAt) : null,
-                        salesCloseAt: formData.salesCloseAt ? new Date(formData.salesCloseAt) : null,
-                        recurringUntil: formData.recurringUntil ? new Date(formData.recurringUntil) : null,
-                    })
+                    const result = await createEvent(eventFormData)
                     if (result.success) {
                         toast.success('Event created successfully')
                         router.push('/staffadmin/events')
@@ -424,7 +442,7 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
                                 />
                                 <span 
                                     className="inline-block w-4 h-4 rounded" 
-                                    style={{ backgroundColor: tag.color }}
+                                    style={{ backgroundColor: tag.color || undefined }}
                                 />
                                 <span>{tag.name}</span>
                             </label>

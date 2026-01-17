@@ -180,9 +180,9 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
                                                 variant="secondary"
                                                 className="text-xs"
                                                 style={{ 
-                                                    backgroundColor: t.color + '20',
-                                                    borderColor: t.color,
-                                                    color: t.color
+                                                    backgroundColor: (t.color ?? '#888888') + '20',
+                                                    borderColor: t.color ?? undefined,
+                                                    color: t.color ?? undefined
                                                 }}
                                             >
                                                 {t.name}
@@ -195,7 +195,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
                                     <p className="text-lg font-bold">
                                         {event.basePriceCents === 0 ? 'Free' : `${(event.basePriceCents / 100).toFixed(0)} kr`}
                                     </p>
-                                    {event.memberPriceCents > 0 && event.memberPriceCents < event.basePriceCents && (
+                                    {event.memberPriceCents && event.memberPriceCents > 0 && event.memberPriceCents < event.basePriceCents && (
                                         <p className="text-sm text-muted-foreground">
                                             Members: {(event.memberPriceCents / 100).toFixed(0)} kr
                                         </p>

@@ -122,9 +122,9 @@ export async function getFinancialOverview() {
         select: {
             discountCents: true,
             pricingSnapshot: true,
-            period: {
+            CoursePeriod: {
                 select: {
-                    organizer: {
+                    Organizer: {
                         select: {
                             name: true
                         }
@@ -143,7 +143,7 @@ export async function getFinancialOverview() {
     const totalRevenue = orders.reduce((sum, order) => sum + order.totalCents, 0)
     const totalOrders = orders.length
     const totalRegistrations = orders.reduce(
-        (sum, order) => sum + order.registrations.length,
+        (sum, order) => sum + order.Registration.length,
         0
     )
 
@@ -182,9 +182,9 @@ export async function getDiscountUsage() {
             }
         },
         include: {
-            period: {
+            CoursePeriod: {
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         },
@@ -194,12 +194,12 @@ export async function getDiscountUsage() {
     })
 
     return orders
-        .filter(order => order.period !== null)
+        .filter(order => order.CoursePeriod !== null)
         .map(order => ({
         orderId: order.id,
-        organizerName: order.period!.organizer.name,
-        periodName: order.period!.name,
-        periodCode: order.period!.code,
+        organizerName: order.CoursePeriod!.Organizer.name,
+        periodName: order.CoursePeriod!.name,
+        periodCode: order.CoursePeriod!.code,
         subtotalCents: order.subtotalCents,
         discountCents: order.discountCents,
         totalCents: order.totalCents,
@@ -217,16 +217,16 @@ export async function exportFinancialData(format: 'csv' | 'json' = 'csv') {
             status: 'PAID'
         },
         include: {
-            period: {
+            CoursePeriod: {
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             },
-            payments: true,
-            registrations: {
+            Payment: true,
+            Registration: {
                 include: {
-                    person: true,
-                    track: true
+                    PersonProfile: true,
+                    CourseTrack: true
                 }
             }
         },
@@ -236,15 +236,15 @@ export async function exportFinancialData(format: 'csv' | 'json' = 'csv') {
     })
 
     const exportData = orders
-        .filter(order => order.period !== null)
+        .filter(order => order.CoursePeriod !== null)
         .map(order => ({
         orderId: order.id,
-        organizerId: order.period!.organizer.id,
-        organizerName: order.period!.organizer.name,
-        organizerOrgNr: order.period!.organizer.organizationNumber || '',
-        periodId: order.period!.id,
-        periodName: order.period!.name,
-        periodCode: order.period!.code,
+        organizerId: order.CoursePeriod!.Organizer.id,
+        organizerName: order.CoursePeriod!.Organizer.name,
+        organizerOrgNr: order.CoursePeriod!.Organizer.organizationNumber || '',
+        periodId: order.CoursePeriod!.id,
+        periodName: order.CoursePeriod!.name,
+        periodCode: order.CoursePeriod!.code,
         subtotalCents: order.subtotalCents,
         discountCents: order.discountCents,
         subtotalAfterDiscountCents: order.subtotalAfterDiscountCents,
@@ -253,9 +253,9 @@ export async function exportFinancialData(format: 'csv' | 'json' = 'csv') {
         totalCents: order.totalCents,
         currency: order.currency,
         status: order.status,
-        registrationCount: order.registrations.length,
-        paymentProvider: order.payments[0]?.provider || null,
-        paymentStatus: order.payments[0]?.status || null,
+        registrationCount: order.Registration.length,
+        paymentProvider: order.Payment[0]?.provider || null,
+        paymentStatus: order.Payment[0]?.status || null,
         createdAt: order.createdAt.toISOString(),
         updatedAt: order.updatedAt.toISOString()
     }))

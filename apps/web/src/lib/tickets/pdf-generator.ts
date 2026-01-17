@@ -2042,7 +2042,7 @@ export async function generateMultiTicketPDF(data: MultiTicketOrderData): Promis
         y = await drawQRCode(pdfDoc, page, ticket.qrToken, y, fonts)
 
         // Footer
-        drawFooter(page, fonts, data.footerText)
+        drawFooter(page, fonts)
     }
 
     const pdfBytes = await pdfDoc.save()
