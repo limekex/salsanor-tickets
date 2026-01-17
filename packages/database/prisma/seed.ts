@@ -20,7 +20,7 @@ async function main() {
         // 1. Delete waitlist entries first (references registrations)
         await prisma.waitlistEntry.deleteMany({
             where: {
-                registration: { periodId: existingPeriod.id }
+                Registration: { periodId: existingPeriod.id }
             }
         })
         // 2. Delete registrations (references tracks and orders)
@@ -28,7 +28,7 @@ async function main() {
         // 3. Delete payments (references orders)
         await prisma.payment.deleteMany({
             where: {
-                order: { periodId: existingPeriod.id }
+                Order: { periodId: existingPeriod.id }
             }
         })
         // 4. Delete orders
@@ -189,7 +189,7 @@ async function main() {
         data: {
             supabaseUid: 'test-user-1',
             email: 'alice@test.com',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Alice',
                     lastName: 'Anderson',
@@ -198,14 +198,14 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     const order1 = await prisma.order.create({
         data: {
             organizerId: salsanorOslo.id,
             periodId: period.id,
-            purchaserPersonId: user1.personProfile!.id,
+            purchaserPersonId: user1.PersonProfile!.id,
             status: 'PAID',
             subtotalCents: 150000,
             discountCents: 0,
@@ -213,11 +213,11 @@ async function main() {
             mvaCents: 0,
             totalCents: 150000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 150000, finalTotalCents: 150000 }),
-            registrations: {
+            Registration: {
                 create: {
                     periodId: period.id,
                     trackId: salsa.id,
-                    personId: user1.personProfile!.id,
+                    personId: user1.PersonProfile!.id,
                     status: 'ACTIVE',
                     chosenRole: 'LEADER'
                 }
@@ -230,7 +230,7 @@ async function main() {
         data: {
             supabaseUid: 'test-user-2',
             email: 'bob@test.com',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Bob',
                     lastName: 'Builder',
@@ -239,14 +239,14 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     const order2 = await prisma.order.create({
         data: {
             organizerId: salsanorOslo.id,
             periodId: period.id,
-            purchaserPersonId: user2.personProfile!.id,
+            purchaserPersonId: user2.PersonProfile!.id,
             status: 'PAID',
             subtotalCents: 300000,
             discountCents: 20000, // Multi-course discount
@@ -254,19 +254,19 @@ async function main() {
             mvaCents: 0,
             totalCents: 280000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 300000, discountTotalCents: 20000, finalTotalCents: 280000 }),
-            registrations: {
+            Registration: {
                 create: [
                     {
                         periodId: period.id,
                         trackId: salsa.id,
-                        personId: user2.personProfile!.id,
+                        personId: user2.PersonProfile!.id,
                         status: 'ACTIVE',
                         chosenRole: 'FOLLOWER'
                     },
                     {
                         periodId: period.id,
                         trackId: kizomba.id,
-                        personId: user2.personProfile!.id,
+                        personId: user2.PersonProfile!.id,
                         status: 'ACTIVE',
                         chosenRole: 'FOLLOWER'
                     }
@@ -280,7 +280,7 @@ async function main() {
         data: {
             supabaseUid: 'test-user-3',
             email: 'charlie@test.com',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Charlie',
                     lastName: 'Chaplin',
@@ -288,14 +288,14 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.order.create({
         data: {
             organizerId: salsanorOslo.id,
             periodId: period.id,
-            purchaserPersonId: user3.personProfile!.id,
+            purchaserPersonId: user3.PersonProfile!.id,
             status: 'PAID',
             subtotalCents: 200000,
             discountCents: 0,
@@ -303,11 +303,11 @@ async function main() {
             mvaCents: 0,
             totalCents: 200000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 200000, finalTotalCents: 200000 }),
-            registrations: {
+            Registration: {
                 create: {
                     periodId: period.id,
                     trackId: bachataVIP.id,
-                    personId: user3.personProfile!.id,
+                    personId: user3.PersonProfile!.id,
                     status: 'ACTIVE',
                     chosenRole: 'LEADER'
                 }
@@ -319,7 +319,7 @@ async function main() {
         data: {
             supabaseUid: 'test-user-4',
             email: 'diana@test.com',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Diana',
                     lastName: 'Dancer',
@@ -327,14 +327,14 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.order.create({
         data: {
             organizerId: salsanorOslo.id,
             periodId: period.id,
-            purchaserPersonId: user4.personProfile!.id,
+            purchaserPersonId: user4.PersonProfile!.id,
             status: 'PAID',
             subtotalCents: 200000,
             discountCents: 0,
@@ -342,11 +342,11 @@ async function main() {
             mvaCents: 0,
             totalCents: 200000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 200000, finalTotalCents: 200000 }),
-            registrations: {
+            Registration: {
                 create: {
                     periodId: period.id,
                     trackId: bachataVIP.id,
-                    personId: user4.personProfile!.id,
+                    personId: user4.PersonProfile!.id,
                     status: 'ACTIVE',
                     chosenRole: 'FOLLOWER'
                 }
@@ -359,7 +359,7 @@ async function main() {
         data: {
             supabaseUid: 'test-user-5',
             email: 'eve@test.com',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Eve',
                     lastName: 'Evans',
@@ -367,17 +367,17 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     const waitlistReg = await prisma.registration.create({
         data: {
             periodId: period.id,
             trackId: bachataVIP.id,
-            personId: user5.personProfile!.id,
+            personId: user5.PersonProfile!.id,
             status: 'WAITLIST',
             chosenRole: 'LEADER',
-            waitlist: {
+            WaitlistEntry: {
                 create: {
                     status: 'ON_WAITLIST'
                 }
@@ -390,7 +390,7 @@ async function main() {
         data: {
             supabaseUid: 'test-user-6',
             email: 'frank@test.com',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Frank',
                     lastName: 'Franklin',
@@ -398,14 +398,14 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.order.create({
         data: {
             organizerId: salsanorOslo.id,
             periodId: period.id,
-            purchaserPersonId: user6.personProfile!.id,
+            purchaserPersonId: user6.PersonProfile!.id,
             status: 'DRAFT',
             subtotalCents: 150000,
             discountCents: 0,
@@ -413,11 +413,11 @@ async function main() {
             mvaCents: 0,
             totalCents: 150000,
             pricingSnapshot: JSON.stringify({ subtotalCents: 150000, finalTotalCents: 150000 }),
-            registrations: {
+            Registration: {
                 create: {
                     periodId: period.id,
                     trackId: kizomba.id,
-                    personId: user6.personProfile!.id,
+                    personId: user6.PersonProfile!.id,
                     status: 'DRAFT',
                     chosenRole: 'ANY'
                 }
@@ -437,11 +437,13 @@ async function main() {
     console.log('Creating test user roles...')
 
     // Create admin user (global access)
-    const adminUser = await prisma.userAccount.create({
-        data: {
+    const adminUser = await prisma.userAccount.upsert({
+        where: { email: 'admin@salsanor.no' },
+        update: {},
+        create: {
             supabaseUid: 'test-admin',
             email: 'admin@salsanor.no',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Super',
                     lastName: 'Admin',
@@ -450,7 +452,7 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.userAccountRole.create({
@@ -462,11 +464,13 @@ async function main() {
     })
 
     // Create org admin for SalsaNor Oslo
-    const orgAdminUser = await prisma.userAccount.create({
-        data: {
+    const orgAdminUser = await prisma.userAccount.upsert({
+        where: { email: 'orgadmin@salsanor.no' },
+        update: {},
+        create: {
             supabaseUid: 'test-org-admin',
             email: 'orgadmin@salsanor.no',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Org',
                     lastName: 'Admin',
@@ -475,7 +479,7 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.userAccountRole.create({
@@ -487,11 +491,13 @@ async function main() {
     })
 
     // Create finance manager for SalsaNor Oslo
-    const financeUser = await prisma.userAccount.create({
-        data: {
+    const financeUser = await prisma.userAccount.upsert({
+        where: { email: 'finance@salsanor.no' },
+        update: {},
+        create: {
             supabaseUid: 'test-finance',
             email: 'finance@salsanor.no',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Finance',
                     lastName: 'Manager',
@@ -500,7 +506,7 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.userAccountRole.create({
@@ -512,11 +518,13 @@ async function main() {
     })
 
     // Create check-in staff for SalsaNor Oslo
-    const checkinUser = await prisma.userAccount.create({
-        data: {
+    const checkinUser = await prisma.userAccount.upsert({
+        where: { email: 'checkin@salsanor.no' },
+        update: {},
+        create: {
             supabaseUid: 'test-checkin',
             email: 'checkin@salsanor.no',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Checkin',
                     lastName: 'Staff',
@@ -525,7 +533,7 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.userAccountRole.create({
@@ -537,11 +545,13 @@ async function main() {
     })
 
     // Create instructor for SalsaNor Oslo
-    const instructorUser = await prisma.userAccount.create({
-        data: {
+    const instructorUser = await prisma.userAccount.upsert({
+        where: { email: 'instructor@salsanor.no' },
+        update: {},
+        create: {
             supabaseUid: 'test-instructor',
             email: 'instructor@salsanor.no',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Dance',
                     lastName: 'Instructor',
@@ -550,7 +560,7 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.userAccountRole.create({
@@ -562,11 +572,13 @@ async function main() {
     })
 
     // Create org admin for Bergen Salsa Club (different organization)
-    const bergenAdminUser = await prisma.userAccount.create({
-        data: {
+    const bergenAdminUser = await prisma.userAccount.upsert({
+        where: { email: 'admin@bergensalsa.no' },
+        update: {},
+        create: {
             supabaseUid: 'test-bergen-admin',
             email: 'admin@bergensalsa.no',
-            personProfile: {
+            PersonProfile: {
                 create: {
                     firstName: 'Bergen',
                     lastName: 'Admin',
@@ -575,7 +587,7 @@ async function main() {
                 }
             }
         },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     await prisma.userAccountRole.create({
