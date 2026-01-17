@@ -44,24 +44,33 @@ export async function createStripeCheckout(orderId: string, successUrl: string, 
     const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: { 
-            registrations: { 
+            Registration: { 
                 include: { 
-                    track: { 
+                    CourseTrack: { 
                         include: { 
-                            period: { 
+                            CoursePeriod: { 
                                 include: { 
-                                    organizer: true 
+                                    Organizer: true 
                                 } 
                             } 
                         } 
                     } 
                 } 
             },
-            memberships: {
+            EventRegistration: {
                 include: {
-                    tier: {
+                    Event: {
                         include: {
-                            organizer: true
+                            Organizer: true
+                        }
+                    }
+                }
+            },
+            Membership: {
+                include: {
+                    MembershipTier: {
+                        include: {
+                            Organizer: true
                         }
                     }
                 }
@@ -75,36 +84,62 @@ export async function createStripeCheckout(orderId: string, successUrl: string, 
     // Get organizer from registrations or memberships
     let organizer = null
     
-    if (order.registrations.length > 0) {
-        // Course/period order
-        const organizers = new Set(
-            order.registrations
-                .map(r => r.track?.period?.organizer)
-                .filter((org): org is NonNullable<typeof org> => org !== null)
+    if (order.Registration.length > 0) {
+        // Course/period order - use organizer IDs to deduplicate
+        const organizerIds = new Set(
+            order.Registration
+                .map(r => r.CourseTrack?.CoursePeriod?.Organizer?.id)
+                .filter((id): id is string => id != null)
         )
         
-        if (organizers.size === 0) throw new Error('No organizer found for order')
-        if (organizers.size > 1) {
+        if (organizerIds.size === 0) throw new Error('No organizer found for order')
+        if (organizerIds.size > 1) {
             throw new Error('Orders with multiple organizers are not supported. Please checkout separately.')
         }
         
-        organizer = Array.from(organizers)[0]
-    } else if (order.memberships.length > 0) {
-        // Membership order
-        const organizers = new Set(
-            order.memberships
-                .map(m => m.tier?.organizer)
-                .filter((org): org is NonNullable<typeof org> => org !== null)
+        // Get the full organizer object
+        const organizerId = Array.from(organizerIds)[0]
+        organizer = order.Registration
+            .map(r => r.CourseTrack?.CoursePeriod?.Organizer)
+            .find(org => org?.id === organizerId)!
+    } else if (order.EventRegistration && order.EventRegistration.length > 0) {
+        // Event order - use organizer IDs to deduplicate
+        const organizerIds = new Set(
+            order.EventRegistration
+                .map(r => r.Event?.Organizer?.id)
+                .filter((id): id is string => id != null)
         )
         
-        if (organizers.size === 0) throw new Error('No organizer found for membership order')
-        if (organizers.size > 1) {
+        if (organizerIds.size === 0) throw new Error('No organizer found for event order')
+        if (organizerIds.size > 1) {
+            throw new Error('Event orders with multiple organizers are not supported. Please checkout separately.')
+        }
+        
+        // Get the full organizer object
+        const organizerId = Array.from(organizerIds)[0]
+        organizer = order.EventRegistration
+            .map(r => r.Event?.Organizer)
+            .find(org => org?.id === organizerId)!
+    } else if (order.Membership.length > 0) {
+        // Membership order - use organizer IDs to deduplicate
+        const organizerIds = new Set(
+            order.Membership
+                .map(m => m.MembershipTier?.Organizer?.id)
+                .filter((id): id is string => id != null)
+        )
+        
+        if (organizerIds.size === 0) throw new Error('No organizer found for membership order')
+        if (organizerIds.size > 1) {
             throw new Error('Membership orders with multiple organizers are not supported. Please checkout separately.')
         }
         
-        organizer = Array.from(organizers)[0]
+        // Get the full organizer object
+        const organizerId = Array.from(organizerIds)[0]
+        organizer = order.Membership
+            .map(m => m.MembershipTier?.Organizer)
+            .find(org => org?.id === organizerId)!
     } else {
-        throw new Error('Order has no registrations or memberships')
+        throw new Error('Order has no registrations, event registrations, or memberships')
     }
 
     // Get Stripe client (with Connect account if configured)
@@ -175,13 +210,29 @@ export async function createStripeCheckout(orderId: string, successUrl: string, 
 
     const session = await stripe.checkout.sessions.create(sessionOptions)
 
-    // Update order with checkout ref
+    // Update order with checkout ref and status to PENDING (awaiting payment)
     await prisma.order.update({
         where: { id: orderId },
         data: {
-            providerCheckoutRef: session.id
+            providerCheckoutRef: session.id,
+            status: 'PENDING'
         }
     })
+
+    // Also update all related registrations to PENDING_PAYMENT status
+    if (order.Registration.length > 0) {
+        await prisma.registration.updateMany({
+            where: { orderId },
+            data: { status: 'PENDING_PAYMENT' }
+        })
+    }
+
+    if (order.EventRegistration.length > 0) {
+        await prisma.eventRegistration.updateMany({
+            where: { orderId },
+            data: { status: 'PENDING_PAYMENT' }
+        })
+    }
 
     return session.url
 }

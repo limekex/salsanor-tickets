@@ -38,7 +38,7 @@ export default async function StaffAdminPeriodsPage() {
         }
     })
 
-    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
+    const adminOrgIds = userAccount?.UserAccountRole.map(r => r.organizerId).filter(Boolean) as string[] || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')
@@ -101,13 +101,13 @@ export default async function StaffAdminPeriodsPage() {
                             {periods.map((period) => {
                                 const now = new Date()
                                 const isSalesOpen = period.salesOpenAt < now && period.salesCloseAt > now
-                                const totalRegistrations = period.tracks.reduce((sum, track) => sum + track._count.registrations, 0)
+                                const totalRegistrations = period.CourseTrack.reduce((sum, track) => sum + track._count.Registration, 0)
                                 
                                 return (
                                     <TableRow key={period.id}>
                                         <TableCell className="font-medium">{period.code}</TableCell>
                                         <TableCell>{period.name}</TableCell>
-                                        <TableCell className="text-muted-foreground">{period.organizer.name}</TableCell>
+                                        <TableCell className="text-muted-foreground">{period.Organizer.name}</TableCell>
                                         <TableCell>
                                             {format(period.startDate, 'MMM d, yyyy')} -{' '}
                                             {format(period.endDate, 'MMM d, yyyy')}
@@ -121,7 +121,7 @@ export default async function StaffAdminPeriodsPage() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="text-sm">
-                                                <div>{period.tracks.length} tracks</div>
+                                                <div>{period.CourseTrack.length} tracks</div>
                                                 <div className="text-muted-foreground">{totalRegistrations} registrations</div>
                                             </div>
                                         </TableCell>

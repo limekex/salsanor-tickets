@@ -10,10 +10,10 @@ export async function getUsers(organizerId?: string) {
 
     const users = await prisma.userAccount.findMany({
         include: {
-            roles: {
+            UserAccountRole: {
                 where: organizerId ? { organizerId } : undefined,
                 include: {
-                    organizer: {
+                    Organizer: {
                         select: {
                             id: true,
                             name: true,
@@ -22,7 +22,7 @@ export async function getUsers(organizerId?: string) {
                     }
                 }
             },
-            personProfile: {
+            PersonProfile: {
                 select: {
                     firstName: true,
                     lastName: true,
@@ -35,7 +35,7 @@ export async function getUsers(organizerId?: string) {
 
     // If filtering by org, only return users who have roles in that org
     if (organizerId) {
-        return users.filter(user => user.roles.length > 0)
+        return users.filter(user => user.UserAccountRole.length > 0)
     }
 
     return users
@@ -47,9 +47,9 @@ export async function getUserById(userId: string) {
     return await prisma.userAccount.findUnique({
         where: { id: userId },
         include: {
-            roles: {
+            UserAccountRole: {
                 include: {
-                    organizer: {
+                    Organizer: {
                         select: {
                             id: true,
                             name: true,
@@ -58,7 +58,7 @@ export async function getUserById(userId: string) {
                     }
                 }
             },
-            personProfile: true
+            PersonProfile: true
         }
     })
 }
@@ -114,9 +114,9 @@ export async function searchUserByEmail(email: string) {
     return await prisma.userAccount.findUnique({
         where: { email },
         include: {
-            roles: {
+            UserAccountRole: {
                 include: {
-                    organizer: {
+                    Organizer: {
                         select: {
                             id: true,
                             name: true,
@@ -124,7 +124,7 @@ export async function searchUserByEmail(email: string) {
                     }
                 }
             },
-            personProfile: true
+            PersonProfile: true
         }
     })
 }
@@ -148,17 +148,17 @@ export async function getOrganizationUsers(organizerId: string) {
 
     const users = await prisma.userAccount.findMany({
         where: {
-            roles: {
+            UserAccountRole: {
                 some: {
                     organizerId
                 }
             }
         },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: { organizerId },
                 include: {
-                    organizer: {
+                    Organizer: {
                         select: {
                             id: true,
                             name: true,
@@ -166,7 +166,7 @@ export async function getOrganizationUsers(organizerId: string) {
                     }
                 }
             },
-            personProfile: {
+            PersonProfile: {
                 select: {
                     firstName: true,
                     lastName: true,
@@ -200,13 +200,13 @@ export async function updateUserInfo(
     // Find or create PersonProfile
     const user = await prisma.userAccount.findUnique({
         where: { id: userId },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
-    if (user?.personProfile) {
+    if (user?.PersonProfile) {
         // Update existing profile
         await prisma.personProfile.update({
-            where: { id: user.personProfile.id },
+            where: { id: user.PersonProfile.id },
             data: {
                 firstName: data.firstName,
                 lastName: data.lastName,

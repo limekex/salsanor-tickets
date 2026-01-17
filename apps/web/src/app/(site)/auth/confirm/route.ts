@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
           try {
             const userAccount = await prisma.userAccount.findUnique({
               where: { supabaseUid: user.id },
-              include: { personProfile: true }
+              include: { PersonProfile: true }
             })
 
             // If no account exists, create it and redirect to onboarding
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
             }
 
             // If account exists but no profile, redirect to onboarding
-            if (!userAccount.personProfile) {
+            if (!userAccount.PersonProfile) {
               redirectTo.pathname = '/onboarding'
               return NextResponse.redirect(redirectTo)
             }
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
           try {
             const userAccount = await prisma.userAccount.findUnique({
               where: { supabaseUid: user.id },
-              include: { personProfile: true }
+              include: { PersonProfile: true }
             })
 
             // If no account exists, create it and redirect to onboarding
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
             }
 
             // If account exists but no profile, redirect to onboarding
-            if (!userAccount.personProfile) {
+            if (!userAccount.PersonProfile) {
               redirectTo.pathname = '/onboarding'
               return NextResponse.redirect(redirectTo)
             }

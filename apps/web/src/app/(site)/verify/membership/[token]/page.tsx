@@ -22,9 +22,9 @@ export default async function VerifyMembershipPage({ params }: Props) {
     const membership = await prisma.membership.findUnique({
         where: { verificationToken: token },
         include: {
-            person: true,
-            tier: true,
-            organizer: true
+            PersonProfile: true,
+            MembershipTier: true,
+            Organizer: true
         }
     })
 
@@ -78,7 +78,7 @@ export default async function VerifyMembershipPage({ params }: Props) {
                             {isActive ? 'Valid Membership' : isExpired ? 'Expired Membership' : 'Inactive Membership'}
                         </CardTitle>
                         <CardDescription>
-                            Membership verification for {membership.organizer.name}
+                            Membership verification for {membership.Organizer.name}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -110,12 +110,12 @@ export default async function VerifyMembershipPage({ params }: Props) {
                         )}
 
                         {/* Member Photo */}
-                        {membership.person.photoUrl && (
+                        {membership.PersonProfile.photoUrl && (
                             <div className="flex justify-center">
                                 <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary">
                                     <img 
-                                        src={membership.person.photoUrl} 
-                                        alt={`${membership.person.firstName} ${membership.person.lastName}`}
+                                        src={membership.PersonProfile.photoUrl} 
+                                        alt={`${membership.PersonProfile.firstName} ${membership.PersonProfile.lastName}`}
                                         className="w-full h-full object-cover"
                                     />
                                 </div>
@@ -129,7 +129,7 @@ export default async function VerifyMembershipPage({ params }: Props) {
                                 <div>
                                     <div className="text-sm text-muted-foreground">Member Name</div>
                                     <div className="font-semibold text-lg">
-                                        {membership.person.firstName} {membership.person.lastName}
+                                        {membership.PersonProfile.firstName} {membership.PersonProfile.lastName}
                                     </div>
                                 </div>
                             </div>
@@ -138,14 +138,14 @@ export default async function VerifyMembershipPage({ params }: Props) {
                                 <Building2 className="h-5 w-5 mt-0.5 text-muted-foreground" />
                                 <div>
                                     <div className="text-sm text-muted-foreground">Organization</div>
-                                    <div className="font-semibold">{membership.organizer.name}</div>
+                                    <div className="font-semibold">{membership.Organizer.name}</div>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-3 bg-muted rounded-lg">
                                     <div className="text-sm text-muted-foreground">Membership Tier</div>
-                                    <Badge className="mt-1">{membership.tier.name}</Badge>
+                                    <Badge className="mt-1">{membership.MembershipTier.name}</Badge>
                                 </div>
                                 <div className="p-3 bg-muted rounded-lg">
                                     <div className="text-sm text-muted-foreground">Member Number</div>

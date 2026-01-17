@@ -40,7 +40,7 @@ export async function createStripeEmbeddedSession(
         const userAccount = await prisma.userAccount.findUnique({
             where: { supabaseUid: user.id },
             include: {
-                roles: {
+                UserAccountRole: {
                     where: {
                         organizerId,
                         role: { in: ['ADMIN', 'ORG_ADMIN', 'ORGANIZER'] }
@@ -49,7 +49,7 @@ export async function createStripeEmbeddedSession(
             }
         })
 
-        if (!userAccount || userAccount.roles.length === 0) {
+        if (!userAccount || userAccount.UserAccountRole.length === 0) {
             return {
                 success: false,
                 error: 'Unauthorized'

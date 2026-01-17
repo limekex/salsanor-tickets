@@ -31,7 +31,7 @@ export default async function AdminLayout({
     children: React.ReactNode
 }) {
     const userAccount = await requireAdmin()
-    const isGlobalAdmin = userAccount?.roles?.some(r => r.role === 'ADMIN') ?? false
+    const isGlobalAdmin = userAccount?.UserAccountRole?.some(r => r.role === 'ADMIN') ?? false
     
     // Get all organizers for global admins
     const organizers = isGlobalAdmin ? await prisma.organizer.findMany({

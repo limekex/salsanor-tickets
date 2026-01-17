@@ -1,12 +1,17 @@
 
 import { prisma } from '@/lib/db'
+import { randomUUID } from 'crypto'
+import { generateQRToken } from '@/lib/tickets/qr-generator'
 
-export async function fulfillOrder(orderId: string, providerRef: string) {
+export async function fulfillOrder(orderId: string, providerRef: string, stripeChargeId?: string, stripeTransactionId?: string) {
     const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: { 
-            registrations: true,
-            memberships: true
+            Registration: true,
+            EventRegistration: true,
+            Membership: true,
+            Organizer: true,
+            PersonProfile: true
         }
     })
 
@@ -22,24 +27,71 @@ export async function fulfillOrder(orderId: string, providerRef: string) {
 
     // atomic transaction
     await prisma.$transaction(async (tx) => {
-        // 1. Update Order
+        // 1. Generate order number if not exists
+        let orderNumber = order.orderNumber
+        if (!orderNumber) {
+            const organizer = order.Organizer
+            const prefix = organizer.orderPrefix || 'ORD'
+            const nextNum = organizer.nextOrderNumber
+            orderNumber = `${prefix}-${String(nextNum).padStart(5, '0')}`
+            
+            // Update organizer's next order number
+            await tx.organizer.update({
+                where: { id: organizer.id },
+                data: { nextOrderNumber: nextNum + 1 }
+            })
+        }
+        
+        // 2. Create Payment record
+        await tx.payment.create({
+            data: {
+                id: randomUUID(),
+                orderId: orderId,
+                provider: 'STRIPE',
+                providerPaymentRef: providerRef,
+                amountCents: order.totalCents,
+                status: 'SUCCEEDED',
+                rawPayload: {}, // could store webhook body if passed
+            }
+        })
+        
+        // 2. Create Invoice for the order
+        const purchaser = order.PersonProfile
+        const customerName = `${purchaser.firstName} ${purchaser.lastName}`.trim() || 'N/A'
+        const customerEmail = purchaser.email || 'no-email@provided.com'
+        
+        await tx.invoice.create({
+            data: {
+                id: randomUUID(),
+                orderId: orderId,
+                organizerId: order.organizerId,
+                invoiceNumber: `INV-${Date.now()}-${orderId.slice(0, 8).toUpperCase()}`,
+                invoiceDate: new Date(),
+                dueDate: new Date(), // Due upon receipt
+                customerName,
+                customerEmail,
+                subtotalCents: order.subtotalAfterDiscountCents,
+                mvaRate: order.mvaRate,
+                mvaCents: order.mvaCents,
+                totalCents: order.totalCents,
+                status: 'PAID', // Order is already paid at this point
+                paidAt: new Date(),
+                paidAmount: order.totalCents
+            }
+        })
+        
+        // 3. Update Order status with order number and Stripe references
         await tx.order.update({
             where: { id: orderId },
             data: {
                 status: 'PAID',
-                payments: {
-                    create: {
-                        provider: 'STRIPE',
-                        providerPaymentRef: providerRef,
-                        amountCents: order.totalCents,
-                        status: 'SUCCEEDED',
-                        rawPayload: {}, // could store webhook body if passed
-                    }
-                }
+                orderNumber,
+                stripeChargeId,
+                stripeTransactionId,
             }
         })
 
-        // 2. Handle fulfillment based on order type
+        // 4. Handle fulfillment based on order type
         if (order.orderType === 'COURSE_PERIOD') {
             // Activate course registrations
             await tx.registration.updateMany({
@@ -63,15 +115,14 @@ export async function fulfillOrder(orderId: string, providerRef: string) {
                 })
 
                 if (!existingTicket) {
-                    const qrPayload = `${order.periodId}:${order.purchaserPersonId}:${Date.now()}`
-                    // In real app, sign this jwt/hash.
-                    const hash = qrPayload // simplified
+                    const qrToken = generateQRToken('COURSE_PERIOD', order.periodId, order.purchaserPersonId)
 
                     await tx.ticket.create({
                         data: {
+                            id: randomUUID(),
                             periodId: order.periodId,
                             personId: order.purchaserPersonId,
-                            qrTokenHash: hash,
+                            qrTokenHash: qrToken,
                             status: 'ACTIVE'
                         }
                     })
@@ -82,7 +133,7 @@ export async function fulfillOrder(orderId: string, providerRef: string) {
             // Get the membership(s) to check tier settings
             const memberships = await tx.membership.findMany({
                 where: { orderId: orderId },
-                include: { tier: true }
+                include: { MembershipTier: true }
             })
 
             console.log('[Fulfillment] Processing memberships:', {
@@ -90,8 +141,8 @@ export async function fulfillOrder(orderId: string, providerRef: string) {
                 count: memberships.length,
                 memberships: memberships.map(m => ({
                     id: m.id,
-                    tierName: m.tier.name,
-                    validationRequired: m.tier.validationRequired,
+                    tierName: m.MembershipTier.name,
+                    validationRequired: m.MembershipTier.validationRequired,
                     currentStatus: m.status
                 }))
             })
@@ -99,12 +150,12 @@ export async function fulfillOrder(orderId: string, providerRef: string) {
             for (const membership of memberships) {
                 // If tier requires validation, keep status as PENDING_PAYMENT for admin review
                 // Otherwise, activate immediately
-                const newStatus = membership.tier.validationRequired ? 'PENDING_PAYMENT' : 'ACTIVE'
+                const newStatus = membership.MembershipTier.validationRequired ? 'PENDING_PAYMENT' : 'ACTIVE'
                 
                 console.log('[Fulfillment] Updating membership:', {
                     membershipId: membership.id,
-                    tierName: membership.tier.name,
-                    validationRequired: membership.tier.validationRequired,
+                    tierName: membership.MembershipTier.name,
+                    validationRequired: membership.MembershipTier.validationRequired,
                     oldStatus: membership.status,
                     newStatus
                 })
@@ -115,11 +166,31 @@ export async function fulfillOrder(orderId: string, providerRef: string) {
                 })
             }
         } else if (order.orderType === 'EVENT') {
-            // Future: Handle event registrations
+            // Activate event registrations
             await tx.eventRegistration.updateMany({
                 where: { orderId: orderId },
                 data: { status: 'ACTIVE' }
             })
+
+            // Generate unique EventTicket for EACH ticket in the order (quantity)
+            for (const eventReg of order.EventRegistration) {
+                // Generate quantity number of tickets, each with unique QR code
+                for (let i = 0; i < eventReg.quantity; i++) {
+                    const qrToken = generateQRToken('EVENT', eventReg.eventId, order.purchaserPersonId, randomUUID())
+
+                    await tx.eventTicket.create({
+                        data: {
+                            id: randomUUID(),
+                            eventId: eventReg.eventId,
+                            personId: order.purchaserPersonId,
+                            registrationId: eventReg.id,
+                            ticketNumber: i + 1,
+                            qrTokenHash: qrToken,
+                            status: 'ACTIVE'
+                        }
+                    })
+                }
+            }
         }
     })
 

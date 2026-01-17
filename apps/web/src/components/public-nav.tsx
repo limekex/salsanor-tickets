@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from './ui/button'
-import { Menu } from 'lucide-react'
+import { Menu, ShoppingCart } from 'lucide-react'
 import { useState, useTransition } from 'react'
+import { useCart } from '@/hooks/use-cart'
+import { useRouter } from 'next/navigation'
 import {
   Sheet,
   SheetContent,
@@ -12,6 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { Badge } from './ui/badge'
 
 type PublicNavProps = {
   user: { id: string; email?: string } | null
@@ -22,12 +25,25 @@ type PublicNavProps = {
 export function PublicNav({ user, hasStaffRoles, isAdmin }: PublicNavProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const { items, isLoaded } = useCart()
+  const router = useRouter()
+  
+  // Recalculate count on every render when items change
+  const cartCount = items.length
 
   const handleSignOut = async () => {
     startTransition(async () => {
       const { signout } = await import('@/app/actions/auth')
       await signout()
     })
+  }
+  
+  const handleCartClick = () => {
+    if (cartCount === 0) {
+      router.push('/courses')
+    } else {
+      router.push('/cart')
+    }
   }
 
   return (
@@ -49,6 +65,10 @@ export function PublicNav({ user, hasStaffRoles, isAdmin }: PublicNavProps) {
             <Button asChild variant="ghost" size="sm">
               <Link href="/courses">Courses</Link>
             </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/events">Events</Link>
+            </Button>
+            
             {user ? (
               <>
                 <Button asChild variant="ghost" size="sm">
@@ -72,11 +92,55 @@ export function PublicNav({ user, hasStaffRoles, isAdmin }: PublicNavProps) {
                 >
                   {isPending ? 'Signing out...' : 'Sign Out'}
                 </Button>
+                
+                {/* Cart Icon with Badge - After Sign Out */}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="relative"
+                  onClick={handleCartClick}
+                  aria-label={cartCount > 0 ? `Shopping cart with ${cartCount} item${cartCount !== 1 ? 's' : ''}` : 'Shopping cart (empty)'}
+                  title={cartCount > 0 ? `View ${cartCount} course${cartCount !== 1 ? 's' : ''} in cart` : 'Browse courses'}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  {cartCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                      aria-hidden="true"
+                    >
+                      {cartCount}
+                    </Badge>
+                  )}
+                </Button>
               </>
             ) : (
-              <Button asChild variant="default" size="sm">
-                <Link href="/auth/login">Login</Link>
-              </Button>
+              <>
+                <Button asChild variant="default" size="sm">
+                  <Link href="/auth/login">Login</Link>
+                </Button>
+                
+                {/* Cart Icon with Badge - After Login */}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="relative"
+                  onClick={handleCartClick}
+                  aria-label={cartCount > 0 ? `Shopping cart with ${cartCount} item${cartCount !== 1 ? 's' : ''}` : 'Shopping cart (empty)'}
+                  title={cartCount > 0 ? `View ${cartCount} course${cartCount !== 1 ? 's' : ''} in cart` : 'Browse courses'}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  {cartCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                      aria-hidden="true"
+                    >
+                      {cartCount}
+                    </Badge>
+                  )}
+                </Button>
+              </>
             )}
           </nav>
 
@@ -99,6 +163,36 @@ export function PublicNav({ user, hasStaffRoles, isAdmin }: PublicNavProps) {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Link href="/courses">Courses</Link>
+                </Button>
+                
+                <Button 
+                  asChild 
+                  variant="ghost" 
+                  className="w-full justify-start py-rn-3 h-auto"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Link href="/events">Events</Link>
+                </Button>
+                
+                {/* Cart Button for Mobile */}
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start py-rn-3 h-auto relative"
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    handleCartClick()
+                  }}
+                  aria-label={cartCount > 0 ? `Shopping cart with ${cartCount} item${cartCount !== 1 ? 's' : ''}` : 'Shopping cart (empty)'}
+                >
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    <span>Cart</span>
+                    {cartCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto" aria-hidden="true">
+                        {cartCount}
+                      </Badge>
+                    )}
+                  </div>
                 </Button>
                 
                 {user ? (

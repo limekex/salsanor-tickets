@@ -20,10 +20,10 @@ export default async function OrganizerFeesPage({ params }: { params: Params }) 
   // Check admin access
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
-    include: { roles: true }
+    include: { UserAccountRole: true }
   })
 
-  const isAdmin = userAccount?.roles.some(r => r.role === 'ADMIN')
+  const isAdmin = userAccount?.UserAccountRole.some(r => r.role === 'ADMIN')
   if (!isAdmin) {
     redirect('/')
   }

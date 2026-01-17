@@ -41,15 +41,15 @@ export default async function StaffAdminLayout({
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
     })
 
-    const hasOrgAdminRole = userAccount?.roles.some(r => r.role === 'ORG_ADMIN')
+    const hasOrgAdminRole = userAccount?.UserAccountRole.some(r => r.role === 'ORG_ADMIN')
     
     if (!hasOrgAdminRole) {
         throw new Error('Unauthorized: Organization admin access required')

@@ -14,9 +14,9 @@ export async function getUserRoles() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
@@ -34,14 +34,14 @@ export async function getUserRoles() {
 
     const globalRoles: string[] = []
 
-    userAccount.roles.forEach(role => {
-        if (role.organizerId && role.organizer) {
+    userAccount.UserAccountRole.forEach(role => {
+        if (role.organizerId && role.Organizer) {
             const existing = organizerRoles.get(role.organizerId)
             if (existing) {
                 existing.roles.push(role.role)
             } else {
                 organizerRoles.set(role.organizerId, {
-                    organizer: role.organizer,
+                    organizer: role.Organizer,
                     roles: [role.role]
                 })
             }

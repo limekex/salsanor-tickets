@@ -20,7 +20,7 @@ export default async function MembershipPage({ params }: { params: Params }) {
 
   if (!organizer.membershipEnabled) {
     return (
-      <main className="container mx-auto py-rn-7 px-rn-4 max-w-4xl">
+      <div className="container mx-auto py-10 max-w-4xl">
         <Link href={`/org/${slug}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to {organizer.name}
@@ -33,13 +33,13 @@ export default async function MembershipPage({ params }: { params: Params }) {
             </CardDescription>
           </CardHeader>
         </Card>
-      </main>
+      </div>
     )
   }
 
   if (!organizer.membershipSalesOpen) {
     return (
-      <main className="container mx-auto py-rn-7 px-rn-4 max-w-4xl">
+      <div className="container mx-auto py-10 max-w-4xl">
         <Link href={`/org/${slug}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to {organizer.name}
@@ -52,12 +52,12 @@ export default async function MembershipPage({ params }: { params: Params }) {
             </CardDescription>
           </CardHeader>
         </Card>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="container mx-auto py-rn-7 px-rn-4 max-w-6xl">
+    <div className="container mx-auto py-10 max-w-6xl">
       <Link href={`/org/${slug}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to {organizer.name}
@@ -144,6 +144,6 @@ export default async function MembershipPage({ params }: { params: Params }) {
           ))}
         </div>
       )}
-    </main>
+    </div>
   )
 }

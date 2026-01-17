@@ -3,6 +3,7 @@ import { TransactionalEmailsApiApiKeys } from '@getbrevo/brevo';
 import { convert } from 'html-to-text';
 import { prisma } from '@/lib/db';
 import type { EmailCategory } from '@prisma/client';
+import { randomUUID } from 'crypto';
 
 // Types
 interface SendEmailParams {
@@ -12,6 +13,10 @@ interface SendEmailParams {
   recipientName?: string;
   variables: Record<string, any>;
   language?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+  }>;
 }
 
 interface SendBulkEmailParams {
@@ -41,7 +46,7 @@ interface EmailTemplate {
 
 class EmailService {
   private async getApiInstance(): Promise<brevo.TransactionalEmailsApi> {
-    // Get active email provider from database
+    // Get email provider configuration from database
     const provider = await prisma.emailProvider.findFirst({
       where: { isActive: true },
     });
@@ -50,13 +55,16 @@ class EmailService {
       throw new Error('No active email provider configured. Please configure an email provider in Settings > Email.');
     }
 
-    if (!provider.apiKey) {
-      throw new Error('Email provider is configured but API key is missing. Please add your API key in Settings > Email.');
+    // API key: prefer environment variable, fallback to database (for backwards compatibility)
+    const apiKey = process.env.BREVO_API_KEY || provider.apiKey;
+
+    if (!apiKey) {
+      throw new Error('BREVO_API_KEY must be set in environment variables.');
     }
 
-    // Initialize Brevo API with key from database
+    // Initialize Brevo API with key from environment
     const apiInstance = new brevo.TransactionalEmailsApi();
-    apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, provider.apiKey);
+    apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, apiKey);
 
     return apiInstance;
   }
@@ -148,7 +156,7 @@ class EmailService {
 
     // Replace all variables in subject, HTML, and text
     for (const [key, value] of Object.entries(variables)) {
-      const placeholder = new RegExp(`{{${key}}}`, 'g');
+      const placeholder = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       const stringValue = String(value ?? '');
       
       html = html.replace(placeholder, stringValue);
@@ -186,6 +194,7 @@ class EmailService {
   }) {
     await prisma.emailLog.create({
       data: {
+        id: randomUUID(),
         organizerId: params.organizerId || null,
         templateId: params.templateId,
         recipientEmail: params.recipientEmail,
@@ -246,6 +255,14 @@ class EmailService {
       sendSmtpEmail.headers = {
         'X-Entity-Ref-ID': params.organizerId || 'global',
       };
+
+      // Add attachments if provided
+      if (params.attachments && params.attachments.length > 0) {
+        sendSmtpEmail.attachment = params.attachments.map(att => ({
+          name: att.filename,
+          content: att.content.toString('base64'),
+        }));
+      }
 
       const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
 

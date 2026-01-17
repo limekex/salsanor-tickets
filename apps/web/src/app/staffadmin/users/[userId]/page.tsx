@@ -69,7 +69,7 @@ export default async function StaffAdminUserDetailPage({
     const currentUserAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: currentUser.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 }
@@ -77,7 +77,7 @@ export default async function StaffAdminUserDetailPage({
         }
     })
 
-    const adminOrgIds = currentUserAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
+    const adminOrgIds = currentUserAccount?.UserAccountRole.map(r => r.organizerId).filter(Boolean) as string[] || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')
@@ -87,15 +87,19 @@ export default async function StaffAdminUserDetailPage({
     const user = await prisma.userAccount.findUnique({
         where: { id: userId },
         include: {
-            personProfile: true,
-            roles: {
+            PersonProfile: true,
+            UserAccountRole: {
                 where: {
                     organizerId: {
                         in: adminOrgIds
                     }
                 },
                 include: {
-                    organizer: true
+                    Organizer: {
+                        select: {
+                            name: true
+                        }
+                    }
                 }
             }
         }
@@ -105,11 +109,11 @@ export default async function StaffAdminUserDetailPage({
         notFound()
     }
 
-    const fullName = user.personProfile 
-        ? `${user.personProfile.firstName} ${user.personProfile.lastName}`
+    const fullName = user.PersonProfile 
+        ? `${user.PersonProfile.firstName} ${user.PersonProfile.lastName}`
         : 'No profile'
 
-    // Get first admin org for the dialog
+    // Get first admin org for the dialog (only select fields needed for Client Component)
     const firstOrg = await prisma.organizer.findFirst({
         where: { id: { in: adminOrgIds } },
         select: { id: true, name: true, slug: true }
@@ -138,7 +142,7 @@ export default async function StaffAdminUserDetailPage({
                     preselectedUser={{
                         id: user.id,
                         email: user.email,
-                        personProfile: user.personProfile,
+                        personProfile: user.PersonProfile,
                         roles: user.roles
                     }}
                 />
@@ -160,12 +164,12 @@ export default async function StaffAdminUserDetailPage({
                             </div>
                         </div>
 
-                        {user.personProfile?.phone && (
+                        {user.PersonProfile?.phone && (
                             <div className="flex items-center gap-3">
                                 <Phone className="h-4 w-4 text-muted-foreground" />
                                 <div>
                                     <p className="text-sm font-medium">Phone</p>
-                                    <p className="text-sm text-muted-foreground">{user.personProfile.phone}</p>
+                                    <p className="text-sm text-muted-foreground">{user.PersonProfile.phone}</p>
                                 </div>
                             </div>
                         )}

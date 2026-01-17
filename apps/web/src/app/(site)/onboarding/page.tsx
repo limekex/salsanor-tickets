@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export default async function OnboardingPage() {
     const { needsOnboarding, userAccount, needsConsentUpdate } = await checkOnboardingStatus()
 
-    console.log('Onboarding check:', { needsOnboarding, hasAccount: !!userAccount, hasProfile: !!userAccount?.personProfile, needsConsentUpdate })
+    console.log('Onboarding check:', { needsOnboarding, hasAccount: !!userAccount, hasProfile: !!userAccount?.PersonProfile, needsConsentUpdate })
 
     if (!needsOnboarding) {
         console.log('Redirecting to home - onboarding not needed')
@@ -18,7 +18,7 @@ export default async function OnboardingPage() {
         redirect('/auth/login')
     }
 
-    const isUpdate = !!userAccount.personProfile
+    const isUpdate = !!userAccount.PersonProfile
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-rn-surface px-rn-4">
@@ -37,7 +37,7 @@ export default async function OnboardingPage() {
                 <CardContent>
                     <OnboardingForm 
                         email={userAccount.email || ''} 
-                        existingProfile={userAccount.personProfile}
+                        existingProfile={userAccount.PersonProfile}
                         isUpdate={isUpdate}
                     />
                 </CardContent>

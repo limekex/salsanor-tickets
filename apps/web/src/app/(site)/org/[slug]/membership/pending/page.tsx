@@ -31,20 +31,20 @@ export default async function MembershipPendingPage({ params, searchParams }: Pr
     const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: {
-            memberships: {
+            Membership: {
                 include: {
-                    tier: true,
-                    organizer: true
+                    MembershipTier: true,
+                    Organizer: true
                 }
             }
         }
     })
 
-    if (!order || !order.memberships || order.memberships.length === 0) {
+    if (!order || !order.Membership || order.Membership.length === 0) {
         redirect('/')
     }
 
-    const membership = order.memberships[0]
+    const membership = order.Membership[0]
     const requiresPayment = order.status === 'PENDING'
 
     return (
@@ -59,7 +59,7 @@ export default async function MembershipPendingPage({ params, searchParams }: Pr
                         </div>
                         <CardTitle className="text-2xl">Membership Pending Approval</CardTitle>
                         <CardDescription>
-                            Your {membership.tier.name} membership application has been received
+                            Your {membership.MembershipTier.name} membership application has been received
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">

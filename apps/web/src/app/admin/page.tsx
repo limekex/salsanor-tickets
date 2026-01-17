@@ -22,7 +22,7 @@ export default async function AdminDashboard() {
                 city: true,
                 _count: {
                     select: {
-                        periods: true
+                        CoursePeriod: true
                     }
                 }
             }
@@ -90,7 +90,7 @@ export default async function AdminDashboard() {
                                         </CardHeader>
                                         <CardContent className="space-y-2">
                                             <p className="text-sm text-muted-foreground">
-                                                {org._count.periods} period{org._count.periods !== 1 ? 's' : ''}
+                                                {org._count.CoursePeriod} period{org._count.CoursePeriod !== 1 ? 's' : ''}
                                             </p>
                                             <div className="flex gap-2">
                                                 <Button asChild size="sm" className="flex-1">
@@ -114,7 +114,7 @@ export default async function AdminDashboard() {
         include: {
             _count: {
                 select: {
-                    periods: true
+                    CoursePeriod: true
                 }
             }
         }

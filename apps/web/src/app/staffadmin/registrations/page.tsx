@@ -68,7 +68,7 @@ export default async function StaffAdminRegistrationsPage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: {
                         in: ['ORG_ADMIN', 'ORG_FINANCE']
@@ -78,22 +78,22 @@ export default async function StaffAdminRegistrationsPage() {
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         throw new Error('Unauthorized: You must be an organization admin or finance manager')
     }
 
-    const organizerId = userAccount.roles[0].organizerId!
+    const organizerId = userAccount.UserAccountRole[0].organizerId!
 
     // Get all registrations for this organization
     const registrations = await prisma.registration.findMany({
         where: {
-            period: {
+            CoursePeriod: {
                 organizerId
             }
         },
         include: {
-            person: true,
-            period: {
+            PersonProfile: true,
+            CoursePeriod: {
                 select: {
                     id: true,
                     code: true,
@@ -101,7 +101,7 @@ export default async function StaffAdminRegistrationsPage() {
                     organizerId: true
                 }
             },
-            track: {
+            CourseTrack: {
                 select: {
                     id: true,
                     title: true,
@@ -110,7 +110,7 @@ export default async function StaffAdminRegistrationsPage() {
                     levelLabel: true
                 }
             },
-            order: {
+            Order: {
                 select: {
                     id: true,
                     totalCents: true,
@@ -118,7 +118,7 @@ export default async function StaffAdminRegistrationsPage() {
                     orderNumber: true
                 }
             },
-            waitlist: true
+            WaitlistEntry: true
         },
         orderBy: {
             createdAt: 'desc'
@@ -127,22 +127,22 @@ export default async function StaffAdminRegistrationsPage() {
 
     // Group by period for better overview
     const registrationsByPeriod = registrations.reduce((acc, reg) => {
-        const periodKey = reg.period.code
+        const periodKey = reg.CoursePeriod.code
         if (!acc[periodKey]) {
             acc[periodKey] = {
-                period: reg.period,
+                period: reg.CoursePeriod,
                 registrations: []
             }
         }
         acc[periodKey].registrations.push(reg)
         return acc
-    }, {} as Record<string, { period: typeof registrations[0]['period'], registrations: typeof registrations }>)
+    }, {} as Record<string, { period: typeof registrations[0]['CoursePeriod'], registrations: typeof registrations }>)
 
     const totalActive = registrations.filter(r => r.status === 'ACTIVE').length
     const totalWaitlist = registrations.filter(r => r.status === 'WAITLIST').length
     const totalRevenue = registrations
-        .filter(r => r.status === 'ACTIVE' && r.order)
-        .reduce((sum, r) => sum + (r.order?.totalCents || 0), 0)
+        .filter(r => r.status === 'ACTIVE' && r.Order)
+        .reduce((sum, r) => sum + (r.Order?.totalCents || 0), 0)
 
     return (
         <div className="space-y-6">
@@ -208,18 +208,18 @@ export default async function StaffAdminRegistrationsPage() {
                                     <TableRow key={reg.id}>
                                         <TableCell className="font-medium">
                                             <div>
-                                                {reg.person.firstName} {reg.person.lastName}
+                                                {reg.PersonProfile.firstName} {reg.PersonProfile.lastName}
                                             </div>
                                             <div className="text-xs text-muted-foreground">
-                                                {reg.person.email}
+                                                {reg.PersonProfile.email}
                                             </div>
                                         </TableCell>
                                         <TableCell>
                                             <div>
-                                                <div className="font-medium">{reg.track.title}</div>
+                                                <div className="font-medium">{reg.CourseTrack.title}</div>
                                                 <div className="text-xs text-muted-foreground">
-                                                    {WEEKDAY_LABELS[reg.track.weekday]} {reg.track.timeStart}
-                                                    {reg.track.levelLabel && ` • ${reg.track.levelLabel}`}
+                                                    {WEEKDAY_LABELS[reg.CourseTrack.weekday]} {reg.CourseTrack.timeStart}
+                                                    {reg.CourseTrack.levelLabel && ` • ${reg.CourseTrack.levelLabel}`}
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -235,14 +235,14 @@ export default async function StaffAdminRegistrationsPage() {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            {reg.order && (
+                                            {reg.Order && (
                                                 <div>
                                                     <div className="text-sm font-medium">
-                                                        {(reg.order.totalCents / 100).toFixed(0)} kr
+                                                        {(reg.Order.totalCents / 100).toFixed(0)} kr
                                                     </div>
-                                                    {reg.order.orderNumber && (
+                                                    {reg.Order.orderNumber && (
                                                         <div className="text-xs text-muted-foreground">
-                                                            #{reg.order.orderNumber}
+                                                            #{reg.Order.orderNumber}
                                                         </div>
                                                     )}
                                                 </div>
@@ -261,8 +261,8 @@ export default async function StaffAdminRegistrationsPage() {
                                                 {reg.status !== 'CANCELLED' && (
                                                     <CancelRegistrationButton
                                                         registrationId={reg.id}
-                                                        participantName={`${reg.person.firstName} ${reg.person.lastName}`}
-                                                        courseName={`${period.name} - ${reg.track.title}`}
+                                                        participantName={`${reg.PersonProfile.firstName} ${reg.PersonProfile.lastName}`}
+                                                        courseName={`${period.name} - ${reg.CourseTrack.title}`}
                                                     />
                                                 )}
                                             </div>

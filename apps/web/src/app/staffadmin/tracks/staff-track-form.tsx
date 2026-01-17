@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { courseTrackSchema, type CourseTrackFormValues } from '@/lib/schemas/track'
 import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 import {
     Form,
     FormControl,
@@ -14,6 +15,7 @@ import {
     FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
     Select,
     SelectContent,
@@ -36,6 +38,10 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
     const isEditing = !!track
+    
+    // Determine initial pricing type based on whether member prices are set
+    const hasMemberPricing = track?.memberPriceSingleCents !== null && track?.memberPriceSingleCents !== undefined && track.memberPriceSingleCents > 0
+    const [memberPriceType, setMemberPriceType] = useState<'discount' | 'fixed'>(hasMemberPricing ? 'fixed' : 'discount')
 
     const form = useForm<CourseTrackFormValues>({
         resolver: zodResolver(courseTrackSchema),
@@ -53,6 +59,8 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
             waitlistEnabled: track.waitlistEnabled,
             priceSingleCents: track.priceSingleCents,
             pricePairCents: track.pricePairCents || undefined,
+            memberPriceSingleCents: track.memberPriceSingleCents || undefined,
+            memberPricePairCents: track.memberPricePairCents || undefined,
         } : {
             periodId,
             title: '',
@@ -67,6 +75,8 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
             waitlistEnabled: true,
             priceSingleCents: 20000,
             pricePairCents: 35000,
+            memberPriceSingleCents: undefined,
+            memberPricePairCents: undefined,
         },
     })
 
@@ -85,6 +95,8 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
         if (data.waitlistEnabled) formData.append('waitlistEnabled', 'on')
         formData.append('priceSingleCents', data.priceSingleCents.toString())
         if (data.pricePairCents) formData.append('pricePairCents', data.pricePairCents.toString())
+        if (data.memberPriceSingleCents) formData.append('memberPriceSingleCents', data.memberPriceSingleCents.toString())
+        if (data.memberPricePairCents) formData.append('memberPricePairCents', data.memberPricePairCents.toString())
 
         startTransition(async () => {
             const result = isEditing 
@@ -281,6 +293,85 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
                                     </FormItem>
                                 )}
                             />
+                        </div>
+
+                        {/* Member Pricing Section */}
+                        <div className="space-y-4 border-t pt-4">
+                            <div>
+                                <Label className="mb-3 block">Member Pricing</Label>
+                                <div className="space-y-3">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="memberPriceType"
+                                            value="discount"
+                                            checked={memberPriceType === 'discount'}
+                                            onChange={() => {
+                                                setMemberPriceType('discount')
+                                                form.setValue('memberPriceSingleCents', undefined)
+                                                form.setValue('memberPricePairCents', undefined)
+                                            }}
+                                            className="h-4 w-4"
+                                        />
+                                        <span className="text-sm">Use standard membership discount from discount engine</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="memberPriceType"
+                                            value="fixed"
+                                            checked={memberPriceType === 'fixed'}
+                                            onChange={() => setMemberPriceType('fixed')}
+                                            className="h-4 w-4"
+                                        />
+                                        <span className="text-sm">Set fixed member prices</span>
+                                    </label>
+                                    
+                                    {memberPriceType === 'fixed' && (
+                                        <div className="ml-6 space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <FormField
+                                                    control={form.control}
+                                                    name="memberPriceSingleCents"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Member Single Price (Øre)</FormLabel>
+                                                            <FormControl>
+                                                                <Input 
+                                                                    type="number" 
+                                                                    {...field} 
+                                                                    value={field.value || ''} 
+                                                                    onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
+                                                                />
+                                                            </FormControl>
+                                                            <FormDescription>e.g. 15000 = 150 NOK</FormDescription>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="memberPricePairCents"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Member Pair Price (Øre) - Optional</FormLabel>
+                                                            <FormControl>
+                                                                <Input 
+                                                                    type="number" 
+                                                                    {...field} 
+                                                                    value={field.value || ''} 
+                                                                    onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-4">

@@ -7,6 +7,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AlertCircle } from 'lucide-react'
 import { useCart } from '@/hooks/use-cart'
 import { useRouter } from 'next/navigation'
 
@@ -20,8 +22,14 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
     const [role, setRole] = useState<'LEADER' | 'FOLLOWER' | null>(null)
     const [hasPartner, setHasPartner] = useState(false)
     const [partnerEmail, setPartnerEmail] = useState('')
-    const { addItem } = useCart()
+    const { addCourseItem, getCartOrganizerId, getCartOrganizerName, clearCart } = useCart()
     const router = useRouter()
+
+    const currentOrganizerId = track.CoursePeriod?.Organizer?.id
+    const currentOrganizerName = track.CoursePeriod?.Organizer?.name
+    const cartOrganizerId = getCartOrganizerId()
+    const cartOrganizerName = getCartOrganizerName()
+    const isDifferentOrganizer = cartOrganizerId && cartOrganizerId !== currentOrganizerId
 
     const price = hasPartner && track.pricePairCents
         ? track.pricePairCents / 100
@@ -32,12 +40,14 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
         : 'Total Price'
 
     function handleAddToCart() {
-        if (!role) return
+        if (!role || !currentOrganizerId || !currentOrganizerName) return
 
-        addItem({
+        addCourseItem({
             trackId: track.id,
             trackTitle: track.title,
             periodId,
+            organizerId: currentOrganizerId,
+            organizerName: currentOrganizerName,
             role,
             hasPartner,
             partnerEmail: (hasPartner && partnerEmail) ? partnerEmail : undefined,
@@ -47,6 +57,11 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
         router.push('/cart')
     }
 
+    function handleClearCartAndAdd() {
+        clearCart()
+        handleAddToCart()
+    }
+
     return (
         <Card className="max-w-md mx-auto">
             <CardHeader>
@@ -54,6 +69,28 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
                 <CardDescription>Step {step} of 3</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+
+                {/* Warning: Different Organizer */}
+                {isDifferentOrganizer && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                            <strong>Different Organizer</strong>
+                            <p className="mt-1 text-sm">
+                                Your cart contains courses from <strong>{cartOrganizerName}</strong>. 
+                                You can only checkout courses from one organizer at a time.
+                            </p>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="mt-2"
+                                onClick={handleClearCartAndAdd}
+                            >
+                                Clear cart and add this course
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 {/* Step 1: Role */}
                 {step === 1 && (
@@ -140,8 +177,11 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
                 {step < 3 ? (
                     <Button onClick={() => setStep(s => s + 1)} disabled={!role}>Next</Button>
                 ) : (
-                    <Button onClick={handleAddToCart}>
-                        Add to Cart
+                    <Button 
+                        onClick={handleAddToCart} 
+                        disabled={!role || isDifferentOrganizer}
+                    >
+                        {isDifferentOrganizer ? 'Cannot Add - Different Organizer' : 'Add to Cart'}
                     </Button>
                 )}
             </CardFooter>

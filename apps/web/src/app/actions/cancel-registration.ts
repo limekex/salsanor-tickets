@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db'
 import { createClient } from '@/utils/supabase/server'
 import Stripe from 'stripe'
 import { emailService } from '@/lib/email/email-service'
+import { generateCreditNotePDF, CreditNoteData } from '@/lib/tickets/pdf-generator'
+import { SellerInfo, BuyerInfo, TicketLineItem, DEFAULT_PLATFORM_INFO } from '@/lib/tickets/legal-requirements'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-11-17.clover',
@@ -26,17 +28,13 @@ export async function cancelRegistration(params: {
   const registration = await prisma.registration.findUnique({
     where: { id: params.registrationId },
     include: {
-      person: {
+      PersonProfile: true,
+      CoursePeriod: {
         include: {
-          user: true
+          Organizer: true
         }
       },
-      period: {
-        include: {
-          organizer: true
-        }
-      },
-      order: true
+      Order: true
     }
   })
 
@@ -48,21 +46,21 @@ export async function cancelRegistration(params: {
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: {
           OR: [
             { role: 'ADMIN' },
-            { role: 'ORG_ADMIN', organizerId: registration.period.organizerId },
-            { role: 'ORG_FINANCE', organizerId: registration.period.organizerId }
+            { role: 'ORG_ADMIN', organizerId: registration.CoursePeriod.organizerId },
+            { role: 'ORG_FINANCE', organizerId: registration.CoursePeriod.organizerId }
           ]
         }
       },
-      personProfile: true
+      PersonProfile: true
     }
   })
 
-  const isOwnRegistration = userAccount?.personProfile?.id === registration.personId
-  const hasAdminAccess = userAccount && userAccount.roles.length > 0
+  const isOwnRegistration = userAccount?.PersonProfile?.id === registration.personId
+  const hasAdminAccess = userAccount && userAccount.UserAccountRole.length > 0
 
   if (!isOwnRegistration && !hasAdminAccess) {
     throw new Error('Unauthorized')
@@ -74,17 +72,17 @@ export async function cancelRegistration(params: {
   }
 
   // Calculate refund amount
-  const originalAmount = Number(registration.order?.totalCents || 0)
+  const originalAmount = Number(registration.Order?.totalCents || 0)
   const refundAmount = Math.round((originalAmount * params.refundPercentage) / 100)
 
   let refundMessage = 'Ingen refusjon'
   let stripeRefundId = null
 
   // Process refund if percentage > 0 and there's a payment intent
-  if (params.refundPercentage > 0 && registration.order?.stripePaymentIntentId) {
+  if (params.refundPercentage > 0 && registration.Order?.stripePaymentIntentId) {
     try {
       const refund = await stripe.refunds.create({
-        payment_intent: registration.order.stripePaymentIntentId,
+        payment_intent: registration.Order.stripePaymentIntentId,
         amount: refundAmount, // Stripe uses cents/øre
         reason: params.reason ? 'requested_by_customer' : 'requested_by_customer',
         metadata: {
@@ -122,6 +120,100 @@ export async function cancelRegistration(params: {
     }
   })
 
+  // Create credit note if there's a refund
+  let creditNote = null
+  let creditNotePdfBuffer: Buffer | null = null
+  
+  if (params.refundPercentage > 0 && refundAmount > 0) {
+    const organizer = registration.CoursePeriod.Organizer
+    
+    // Generate credit note number
+    const year = new Date().getFullYear()
+    const creditNoteCount = await prisma.creditNote.count({
+      where: { organizerId: organizer.id }
+    })
+    const creditNumber = `CN-${year}-${String(creditNoteCount + 1).padStart(5, '0')}`
+    
+    // Calculate MVA
+    const mvaRate = Number(organizer.mvaRate || 0) / 100
+    const mvaCents = organizer.vatRegistered 
+      ? Math.round(refundAmount * mvaRate / (1 + mvaRate))
+      : 0
+    
+    // Create credit note record
+    creditNote = await prisma.creditNote.create({
+      data: {
+        creditNumber,
+        organizerId: organizer.id,
+        reason: params.reason || 'Kansellering av registrering',
+        refundType: params.refundPercentage === 100 ? 'FULL' : 'PARTIAL',
+        originalAmountCents: originalAmount,
+        refundAmountCents: refundAmount,
+        mvaCents,
+        totalCents: refundAmount,
+        stripeRefundId,
+        status: 'ISSUED',
+        orderId: registration.orderId || undefined,
+        registrationId: registration.id
+      }
+    })
+    
+    // Generate credit note PDF
+    try {
+      const sellerInfo: SellerInfo = {
+        legalName: organizer.legalName || organizer.name,
+        organizationNumber: organizer.organizationNumber || undefined,
+        address: organizer.invoiceAddress as SellerInfo['address'],
+        contactEmail: organizer.contactEmail || undefined,
+        vatRegistered: organizer.vatRegistered,
+        vatNumber: organizer.vatRegistered ? organizer.organizationNumber || undefined : undefined,
+        logoUrl: organizer.logoUrl || undefined
+      }
+      
+      const buyerInfo: BuyerInfo = {
+        name: `${registration.PersonProfile.firstName} ${registration.PersonProfile.lastName}`,
+        email: registration.PersonProfile.email
+      }
+      
+      // Build line items from the order/registration
+      const lineItems: TicketLineItem[] = [{
+        description: `Kurs: ${registration.CoursePeriod.name}`,
+        quantity: 1,
+        unitPriceCents: originalAmount,
+        totalPriceCents: originalAmount
+      }]
+      
+      const creditNoteData: CreditNoteData = {
+        creditNumber,
+        issueDate: new Date(),
+        originalOrderNumber: registration.Order?.orderNumber || undefined,
+        originalTransactionDate: registration.Order?.createdAt,
+        refundType: params.refundPercentage === 100 ? 'FULL' : params.refundPercentage > 0 ? 'PARTIAL' : 'NONE',
+        refundPercentage: params.refundPercentage,
+        reason: params.reason || 'Kansellering av registrering',
+        originalAmountCents: originalAmount,
+        refundAmountCents: refundAmount,
+        mvaCents,
+        totalCents: refundAmount,
+        lineItems,
+        seller: sellerInfo,
+        buyer: buyerInfo,
+        platform: DEFAULT_PLATFORM_INFO
+      }
+      
+      creditNotePdfBuffer = await generateCreditNotePDF(creditNoteData)
+      
+      // Update credit note with PDF generation timestamp
+      await prisma.creditNote.update({
+        where: { id: creditNote.id },
+        data: { pdfGeneratedAt: new Date() }
+      })
+    } catch (pdfError) {
+      console.error('Failed to generate credit note PDF:', pdfError)
+      // Continue without PDF - credit note record still exists
+    }
+  }
+
   // Update order if all registrations are cancelled
   if (registration.orderId) {
     const orderRegistrations = await prisma.registration.findMany({
@@ -142,40 +234,63 @@ export async function cancelRegistration(params: {
     }
   }
 
-  // Send cancellation email
+  // Send cancellation email with credit note PDF attachment
   try {
-    const userEmail = registration.person.user?.email || registration.person.email
-    const preferredLanguage = registration.person.preferredLanguage || 'no'
+    const userEmail = registration.PersonProfile.email
+    const preferredLanguage = registration.PersonProfile.preferredLanguage || 'no'
+    
+    // Prepare attachments
+    const attachments = creditNotePdfBuffer && creditNote ? [
+      {
+        filename: `kreditnota-${creditNote.creditNumber}.pdf`,
+        content: creditNotePdfBuffer
+      }
+    ] : undefined
     
     await emailService.sendTransactional({
       templateSlug: 'registration-cancelled',
-      recipientEmail: userEmail,
-      recipientName: registration.person.firstName,
+      recipientEmail: userEmail || '',
+      recipientName: registration.PersonProfile.firstName,
       language: preferredLanguage,
       variables: {
-        recipientName: registration.person.firstName,
-        courseName: registration.period.name,
-        orderNumber: registration.order?.orderNumber || 'N/A',
+        recipientName: registration.PersonProfile.firstName,
+        courseName: registration.CoursePeriod.name,
+        orderNumber: registration.Order?.orderNumber || 'N/A',
         orderTotal: `${(originalAmount / 100).toFixed(2)} kr`,
         refundAmount: params.refundPercentage > 0 ? `${(refundAmount / 100).toFixed(2)} kr` : '0 kr',
         refundMessage,
         cancelledDate: new Date().toLocaleDateString('no-NO'),
-        organizerName: registration.period.organizer.name,
-        organizerUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/org/${registration.period.organizer.slug}`,
-        currentYear: new Date().getFullYear().toString()
-      }
+        organizerName: registration.CoursePeriod.Organizer.name,
+        organizerUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/org/${registration.CoursePeriod.Organizer.slug}`,
+        currentYear: new Date().getFullYear().toString(),
+        creditNoteNumber: creditNote?.creditNumber || '',
+        hasCreditNote: !!creditNote
+      },
+      attachments
     })
+    
+    // Update credit note as sent
+    if (creditNote) {
+      await prisma.creditNote.update({
+        where: { id: creditNote.id },
+        data: { 
+          status: 'SENT',
+          sentAt: new Date()
+        }
+      })
+    }
   } catch (emailError) {
     console.error('Failed to send cancellation email:', emailError)
     // Don't throw - cancellation was successful even if email failed
   }
 
   revalidatePath('/profile')
-  revalidatePath(`/org/${registration.period.organizer.slug}`)
+  revalidatePath(`/org/${registration.CoursePeriod.Organizer.slug}`)
   
   return {
     success: true,
     refundAmount,
-    refundMessage
+    refundMessage,
+    creditNoteNumber: creditNote?.creditNumber
   }
 }

@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { randomUUID } from 'crypto'
 
 export async function checkOnboardingStatus() {
     const supabase = await createClient()
@@ -15,14 +16,14 @@ export async function checkOnboardingStatus() {
     // Check if user has completed onboarding (has PersonProfile)
     let userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     if (!userAccount) {
         // Try to find by email first (in case supabaseUid changed)
         userAccount = await prisma.userAccount.findUnique({
             where: { email: user.email! },
-            include: { personProfile: true }
+            include: { PersonProfile: true }
         })
 
         if (userAccount) {
@@ -30,31 +31,32 @@ export async function checkOnboardingStatus() {
             userAccount = await prisma.userAccount.update({
                 where: { id: userAccount.id },
                 data: { supabaseUid: user.id },
-                include: { personProfile: true }
+                include: { PersonProfile: true }
             })
         } else {
             // Create new account only if not found by email either
             try {
                 userAccount = await prisma.userAccount.create({
                     data: {
+                        id: randomUUID(),
                         supabaseUid: user.id,
                         email: user.email!
                     },
-                    include: { personProfile: true }
+                    include: { PersonProfile: true }
                 })
             } catch (error: any) {
                 // If unique constraint fails, try one more time to find by email
                 if (error.code === 'P2002') {
                     userAccount = await prisma.userAccount.findUnique({
                         where: { email: user.email! },
-                        include: { personProfile: true }
+                        include: { PersonProfile: true }
                     })
                     if (userAccount) {
                         // Update supabaseUid
                         userAccount = await prisma.userAccount.update({
                             where: { id: userAccount.id },
                             data: { supabaseUid: user.id },
-                            include: { personProfile: true }
+                            include: { PersonProfile: true }
                         })
                     }
                 }
@@ -66,11 +68,11 @@ export async function checkOnboardingStatus() {
     }
 
     // Check if profile exists but is missing required consent
-    const needsConsentUpdate = userAccount.personProfile && 
-        (!userAccount.personProfile.gdprConsentAt || !userAccount.personProfile.touConsentAt)
+    const needsConsentUpdate = userAccount.PersonProfile && 
+        (!userAccount.PersonProfile.gdprConsentAt || !userAccount.PersonProfile.touConsentAt)
 
     return { 
-        needsOnboarding: !userAccount.personProfile || needsConsentUpdate,
+        needsOnboarding: !userAccount.PersonProfile || needsConsentUpdate,
         userAccount,
         needsConsentUpdate: needsConsentUpdate || false
     }
@@ -86,7 +88,7 @@ export async function completeOnboarding(formData: FormData) {
 
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     if (!userAccount) {
@@ -125,18 +127,20 @@ export async function completeOnboarding(formData: FormData) {
             organizerMarketingConsent
         }
 
-        if (userAccount.personProfile) {
+        if (userAccount.PersonProfile) {
             // Update existing profile
             await prisma.personProfile.update({
-                where: { id: userAccount.personProfile.id },
+                where: { id: userAccount.PersonProfile.id },
                 data: profileData
             })
         } else {
             // Create new profile
             await prisma.personProfile.create({
                 data: {
+                    id: randomUUID(),
                     ...profileData,
-                    userId: userAccount.id
+                    userId: userAccount.id,
+                    updatedAt: new Date()
                 }
             })
         }

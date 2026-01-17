@@ -14,10 +14,10 @@ export async function updateProfile(formData: FormData) {
 
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
-    if (!userAccount?.personProfile) {
+    if (!userAccount?.PersonProfile) {
         return { error: 'Profile not found' }
     }
 
@@ -38,7 +38,7 @@ export async function updateProfile(formData: FormData) {
 
     try {
         await prisma.personProfile.update({
-            where: { id: userAccount.personProfile.id },
+            where: { id: userAccount.PersonProfile.id },
             data: {
                 firstName,
                 lastName,

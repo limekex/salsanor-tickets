@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { PayButton } from '@/components/pay-button'
 import { TicketQR } from '@/components/ticket-qr'
+import { QRCodeDisplay } from '@/components/qr-code-display'
 import { AcceptOfferButton, DeclineOfferButton } from './offer-buttons'
 import { CancelOrderButton } from './cancel-order-button'
 import { formatDistanceToNow } from 'date-fns'
@@ -26,44 +27,77 @@ export default async function ProfilePage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            personProfile: {
+            PersonProfile: {
                 include: {
-                    registrations: {
+                    Registration: {
+                        where: {
+                            // Only show registrations that are not in DRAFT status
+                            // DRAFT orders should not be visible until payment is confirmed
+                            status: { not: 'DRAFT' }
+                        },
                         include: {
-                            track: true,
-                            period: true,
-                            order: true,
-                            waitlist: true
+                            CourseTrack: true,
+                            CoursePeriod: true,
+                            Order: true,
+                            WaitlistEntry: true
                         },
                         orderBy: { createdAt: 'desc' }
                     },
-                    tickets: {
+                    EventRegistration: {
+                        where: {
+                            status: { not: 'DRAFT' }
+                        },
+                        include: {
+                            Event: {
+                                include: {
+                                    Organizer: true
+                                }
+                            },
+                            Order: true
+                        },
+                        orderBy: { createdAt: 'desc' }
+                    },
+                    Ticket: {
                         where: { status: 'ACTIVE' }
                     },
-                    memberships: {
+                    EventTicket: {
+                        where: { status: 'ACTIVE' },
+                        include: {
+                            Event: {
+                                include: {
+                                    Organizer: true
+                                }
+                            }
+                        }
+                    },
+                    Membership: {
                         where: {
                             status: { not: 'CANCELLED' }
                         },
                         include: {
-                            tier: true,
-                            organizer: true,
-                            person: true
+                            MembershipTier: true,
+                            Organizer: true,
+                            PersonProfile: true
                         },
                         orderBy: { validTo: 'desc' }
                     }
                 }
             },
-            roles: true
+            UserAccountRole: true
         }
     })
 
     // If no profile yet, redirect to onboarding
-    if (!userAccount?.personProfile) {
+    if (!userAccount?.PersonProfile) {
         redirect('/onboarding')
     }
 
-    const { registrations, tickets, memberships } = userAccount.personProfile
-    const hasStaffRoles = userAccount.roles.length > 0
+    const registrations = userAccount.PersonProfile.Registration
+    const eventRegistrations = userAccount.PersonProfile.EventRegistration || []
+    const eventTickets = userAccount.PersonProfile.EventTicket || []
+    const tickets = userAccount.PersonProfile.Ticket
+    const memberships = userAccount.PersonProfile.Membership
+    const hasStaffRoles = userAccount.UserAccountRole.length > 0
 
     return (
         <main className="container mx-auto py-rn-7 px-rn-4 space-y-rn-6">
@@ -93,6 +127,108 @@ export default async function ProfilePage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-rn-8">
                 {/* Main Content - Left Side */}
                 <div className="lg:col-span-2 space-y-rn-8">
+                    {/* Event Tickets Section */}
+                    {eventRegistrations.length > 0 && (
+                        <div className="space-y-rn-4">
+                            <h2 className="rn-h2">My Event Tickets</h2>
+                            <div className="grid gap-rn-6 md:grid-cols-2">
+                                {eventRegistrations.map((eventReg) => (
+                                    <Card key={eventReg.id}>
+                                        <CardHeader>
+                                            <div className="flex justify-between">
+                                                <Badge variant={eventReg.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                                                    {eventReg.status}
+                                                </Badge>
+                                                <span className="text-sm text-muted-foreground">
+                                                    {format(eventReg.createdAt, 'MMM d, yyyy')}
+                                                </span>
+                                            </div>
+                                            <CardTitle>{eventReg.Event.title}</CardTitle>
+                                            <CardDescription>{eventReg.Event.Organizer.name}</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="space-y-4">
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span>Quantity:</span>
+                                                        <span>{eventReg.quantity} ticket(s)</span>
+                                                    </div>
+                                                    {eventReg.Event.startsAt && (
+                                                        <div className="flex justify-between">
+                                                            <span>Date:</span>
+                                                            <span>{format(new Date(eventReg.Event.startsAt), 'MMM d, yyyy HH:mm')}</span>
+                                                        </div>
+                                                    )}
+                                                    {eventReg.Order && (
+                                                        <div className="flex justify-between border-t pt-2">
+                                                            <span>Total Paid/Due:</span>
+                                                            <span>{eventReg.Order.totalCents / 100},-</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Show tickets if active */}
+                                                {eventReg.status === 'ACTIVE' && (() => {
+                                                    const tickets = eventTickets.filter(t => t.eventId === eventReg.Event.id)
+                                                    if (tickets.length > 0) {
+                                                        return (
+                                                            <div className="border-t pt-4 space-y-3">
+                                                                <p className="text-sm font-medium">
+                                                                    {tickets.length === 1 ? 'Din billett:' : `Dine ${tickets.length} billetter:`}
+                                                                </p>
+                                                                {tickets.length === 1 ? (
+                                                                    <div className="flex justify-center">
+                                                                        <QRCodeDisplay token={tickets[0].qrTokenHash} size={150} />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-2">
+                                                                        {tickets.map((ticket, idx) => (
+                                                                            <details key={ticket.id} className="group">
+                                                                                <summary className="cursor-pointer list-none">
+                                                                                    <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent">
+                                                                                        <span className="font-medium">
+                                                                                            Billett {ticket.ticketNumber || idx + 1}
+                                                                                        </span>
+                                                                                        <svg 
+                                                                                            className="w-5 h-5 transition-transform group-open:rotate-180" 
+                                                                                            fill="none" 
+                                                                                            stroke="currentColor" 
+                                                                                            viewBox="0 0 24 24"
+                                                                                        >
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                                        </svg>
+                                                                                    </div>
+                                                                                </summary>
+                                                                                <div className="mt-2 flex justify-center p-4 bg-muted/50 rounded-lg">
+                                                                                    <QRCodeDisplay token={ticket.qrTokenHash} size={150} />
+                                                                                </div>
+                                                                            </details>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                <p className="text-xs text-center text-muted-foreground">
+                                                                    Vis disse ved innsjekk
+                                                                </p>
+                                                            </div>
+                                                        )
+                                                    }
+                                                    return null
+                                                })()}
+
+                                                {(eventReg.status === 'DRAFT' || eventReg.status === 'PENDING_PAYMENT') && eventReg.Order?.id && (
+                                                    <div className="space-y-2">
+                                                        <PayButton orderId={eventReg.Order.id} />
+                                                        <CancelOrderButton orderId={eventReg.Order.id} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Course Registrations Section */}
                     <div className="space-y-rn-4">
                         <h2 className="rn-h2">My Course Registrations</h2>
@@ -110,8 +246,8 @@ export default async function ProfilePage() {
                                                 {format(reg.createdAt, 'MMM d, yyyy')}
                                             </span>
                                         </div>
-                                        <CardTitle>{reg.track.title}</CardTitle>
-                                        <CardDescription>{reg.period.name}</CardDescription>
+                                        <CardTitle>{reg.CourseTrack.title}</CardTitle>
+                                        <CardDescription>{reg.CoursePeriod.name}</CardDescription>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-4">
@@ -120,21 +256,21 @@ export default async function ProfilePage() {
                                                     <span>Role:</span>
                                                     <span>{reg.chosenRole}</span>
                                                 </div>
-                                                {reg.order && (
+                                                {reg.Order && (
                                                     <div className="flex justify-between border-t pt-2">
                                                         <span>Total Paid/Due:</span>
-                                                        <span>{reg.order.totalCents / 100},-</span>
-                                        </div>
-                                    )}
-                                </div>
+                                                        <span>{reg.Order.totalCents / 100},-</span>
+                                                    </div>
+                                                )}
+                                            </div>
 
                                 {/* OFFER UI */}
-                                {reg.waitlist?.status === 'OFFERED' && reg.waitlist.offeredUntil && (
+                                {reg.WaitlistEntry?.status === 'OFFERED' && reg.WaitlistEntry.offeredUntil && (
                                     <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-md border border-orange-200 dark:border-orange-800 space-y-3">
                                         <div>
                                             <h4 className="font-bold text-orange-800 dark:text-orange-400">Spot Offered!</h4>
                                             <p className="text-xs text-orange-700 dark:text-orange-500">
-                                                Expires {formatDistanceToNow(reg.waitlist.offeredUntil, { addSuffix: true })}
+                                                Expires {formatDistanceToNow(reg.WaitlistEntry.offeredUntil, { addSuffix: true })}
                                             </p>
                                         </div>
                                         <div className="flex gap-2">
@@ -144,10 +280,10 @@ export default async function ProfilePage() {
                                     </div>
                                 )}
 
-                                {(reg.status === 'DRAFT' || reg.status === 'PENDING_PAYMENT') && reg.order?.id && (
+                                {(reg.status === 'DRAFT' || reg.status === 'PENDING_PAYMENT') && reg.Order?.id && (
                                     <div className="space-y-2">
-                                        <PayButton orderId={reg.order.id} />
-                                        <CancelOrderButton orderId={reg.order.id} />
+                                        <PayButton orderId={reg.Order.id} />
+                                        <CancelOrderButton orderId={reg.Order.id} />
                                     </div>
                                 )}
 
@@ -155,7 +291,7 @@ export default async function ProfilePage() {
                                     (() => {
                                         const ticket = tickets.find(t => t.periodId === reg.periodId)
                                         if (ticket) {
-                                            return <TicketQR token={ticket.qrTokenHash} title={reg.period.name} />
+                                            return <TicketQR token={ticket.qrTokenHash} title={reg.CoursePeriod.name} />
                                         }
                                         return null
                                     })()

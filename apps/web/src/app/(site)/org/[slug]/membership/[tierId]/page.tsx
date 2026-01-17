@@ -33,6 +33,8 @@ export default async function MembershipCheckoutPage({ params }: { params: Param
       <MembershipCheckoutForm 
         organizerSlug={slug}
         organizerName={data.organizer.name}
+        organizerMvaRate={data.organizer.mvaRate}
+        organizerVatRegistered={data.organizer.vatRegistered}
         tier={tier}
       />
     </main>

@@ -26,11 +26,11 @@ export default async function TrackDetailPage({ params }: { params: Params }) {
     const track = await prisma.courseTrack.findUnique({
         where: { id: trackId },
         include: {
-            period: true,
-            registrations: {
+            CoursePeriod: true,
+            Registration: {
                 include: {
-                    person: true,
-                    waitlist: true
+                    PersonProfile: true,
+                    WaitlistEntry: true
                 },
                 orderBy: { createdAt: 'asc' } // First come first serve
             }
@@ -55,13 +55,13 @@ export default async function TrackDetailPage({ params }: { params: Params }) {
                 <Card>
                     <CardHeader className="pb-rn-2"><CardTitle className="rn-meta">Capacity</CardTitle></CardHeader>
                     <CardContent className="rn-h1">
-                        {track.registrations.filter(r => r.status === 'ACTIVE').length} / {track.capacityTotal}
+                        {track.Registration.filter(r => r.status === 'ACTIVE').length} / {track.capacityTotal}
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="pb-rn-2"><CardTitle className="rn-meta">Waitlist</CardTitle></CardHeader>
                     <CardContent className="rn-h1">
-                        {track.registrations.filter(r => r.status === 'WAITLIST').length}
+                        {track.Registration.filter(r => r.status === 'WAITLIST').length}
                     </CardContent>
                 </Card>
             </div>
@@ -83,11 +83,11 @@ export default async function TrackDetailPage({ params }: { params: Params }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {track.registrations.map((reg) => (
+                            {track.Registration.map((reg) => (
                                 <TableRow key={reg.id}>
                                     <TableCell className="font-medium">
-                                        {reg.person.firstName} {reg.person.lastName}
-                                        <div className="text-xs text-muted-foreground">{reg.person.email}</div>
+                                        {reg.PersonProfile.firstName} {reg.PersonProfile.lastName}
+                                        <div className="text-xs text-muted-foreground">{reg.PersonProfile.email}</div>
                                     </TableCell>
                                     <TableCell>{reg.chosenRole}</TableCell>
                                     <TableCell>
@@ -97,15 +97,15 @@ export default async function TrackDetailPage({ params }: { params: Params }) {
                                         {new Date(reg.createdAt).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell>
-                                        {reg.waitlist && (
+                                        {reg.WaitlistEntry && (
                                             <div className="text-sm">
-                                                {reg.waitlist.status === 'OFFERED' && (
+                                                {reg.WaitlistEntry.status === 'OFFERED' && (
                                                     <span className="text-orange-600 font-semibold">
-                                                        Expires {formatDistanceToNow(reg.waitlist.offeredUntil!, { addSuffix: true })}
+                                                        Expires {formatDistanceToNow(reg.WaitlistEntry.offeredUntil!, { addSuffix: true })}
                                                     </span>
                                                 )}
-                                                {reg.waitlist.status === 'EXPIRED' && <span className="text-red-500">Expired</span>}
-                                                {reg.waitlist.status === 'ON_WAITLIST' && <span>Position: ?</span>}
+                                                {reg.WaitlistEntry.status === 'EXPIRED' && <span className="text-red-500">Expired</span>}
+                                                {reg.WaitlistEntry.status === 'ON_WAITLIST' && <span>Position: ?</span>}
                                             </div>
                                         )}
                                     </TableCell>

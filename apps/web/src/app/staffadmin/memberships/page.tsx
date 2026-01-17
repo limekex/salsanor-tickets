@@ -33,19 +33,19 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: {
           OR: [
             { role: 'ADMIN' },
             { role: 'ORG_ADMIN' }
           ]
         },
-        include: { organizer: true }
+        include: { Organizer: true }
       }
     }
   })
 
-  if (!userAccount?.roles?.[0]?.organizer) {
+  if (!userAccount?.UserAccountRole?.[0]?.Organizer) {
     return (
       <div className="space-y-rn-6">
         <h1 className="rn-h2">No Organization Access</h1>
@@ -128,9 +128,9 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
   if (params.search) {
     where.OR = [
       { memberNumber: { contains: params.search, mode: 'insensitive' as const } },
-      { person: { firstName: { contains: params.search, mode: 'insensitive' as const } } },
-      { person: { lastName: { contains: params.search, mode: 'insensitive' as const } } },
-      { person: { email: { contains: params.search, mode: 'insensitive' as const } } },
+      { PersonProfile: { firstName: { contains: params.search, mode: 'insensitive' as const } } },
+      { PersonProfile: { lastName: { contains: params.search, mode: 'insensitive' as const } } },
+      { PersonProfile: { email: { contains: params.search, mode: 'insensitive' as const } } },
     ]
   }
 
@@ -138,7 +138,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
     prisma.membership.findMany({
       where: where as any,
       include: {
-        person: {
+        PersonProfile: {
           select: {
             id: true,
             firstName: true,
@@ -147,7 +147,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
             phone: true
           }
         },
-        tier: {
+        MembershipTier: {
           select: {
             id: true,
             name: true,

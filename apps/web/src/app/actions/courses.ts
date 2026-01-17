@@ -8,6 +8,8 @@ export interface CourseFilters {
     weekday?: number
     timeAfter?: string // HH:MM format
     timeBefore?: string // HH:MM format
+    categoryId?: string
+    tagId?: string
 }
 
 export async function getPublicCoursePeriods(filters?: CourseFilters) {
@@ -28,14 +30,32 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
         trackWhere.timeStart = { lte: filters.timeBefore }
     }
 
+    // Build period filter conditions
+    const periodWhere: any = {
+        salesOpenAt: { lte: now },
+        salesCloseAt: { gte: now }
+    }
+    
+    if (filters?.organizerId) {
+        periodWhere.organizerId = filters.organizerId
+    }
+    
+    if (filters?.categoryId) {
+        periodWhere.categories = {
+            some: { id: filters.categoryId }
+        }
+    }
+    
+    if (filters?.tagId) {
+        periodWhere.tags = {
+            some: { id: filters.tagId }
+        }
+    }
+
     const periods = await prisma.coursePeriod.findMany({
-        where: {
-            ...(filters?.organizerId && { organizerId: filters.organizerId }),
-            salesOpenAt: { lte: now },
-            salesCloseAt: { gte: now }
-        },
+        where: periodWhere,
         include: {
-            organizer: {
+            Organizer: {
                 select: {
                     id: true,
                     slug: true,
@@ -43,7 +63,7 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
                     logoUrl: true,
                 }
             },
-            tracks: {
+            CourseTrack: {
                 where: Object.keys(trackWhere).length > 0 ? trackWhere : undefined,
                 orderBy: [
                     { weekday: 'asc' },
@@ -55,14 +75,23 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
     })
 
     // Filter out periods with no tracks after filtering
-    return periods.filter(p => p.tracks.length > 0)
+    return periods.filter(p => p.CourseTrack.length > 0)
 }
 
 export async function getCourseTrack(trackId: string) {
     return await prisma.courseTrack.findUnique({
         where: { id: trackId },
         include: {
-            period: true
+            CoursePeriod: {
+                include: {
+                    Organizer: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    }
+                }
+            }
         }
     })
 }
@@ -70,7 +99,7 @@ export async function getCourseTrack(trackId: string) {
 export async function getAvailableCourseLevels() {
     const tracks = await prisma.courseTrack.findMany({
         where: {
-            period: {
+            CoursePeriod: {
                 salesOpenAt: { lte: new Date() },
                 salesCloseAt: { gte: new Date() }
             }

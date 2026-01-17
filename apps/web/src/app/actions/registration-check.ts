@@ -12,15 +12,17 @@ export async function checkDuplicateRegistrations(trackIds: string[]) {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            personProfile: {
+            PersonProfile: {
                 include: {
-                    registrations: {
+                    Registration: {
                         where: {
                             trackId: { in: trackIds },
-                            status: { in: ['DRAFT', 'PENDING_PAYMENT', 'ACTIVE', 'WAITLIST'] }
+                            // Only check for real registrations that block new signups
+                            // DRAFT registrations are automatically cleaned up during checkout
+                            status: { in: ['PENDING_PAYMENT', 'ACTIVE', 'WAITLIST'] }
                         },
                         include: {
-                            track: {
+                            CourseTrack: {
                                 select: {
                                     id: true,
                                     title: true
@@ -33,5 +35,5 @@ export async function checkDuplicateRegistrations(trackIds: string[]) {
         }
     })
 
-    return userAccount?.personProfile?.registrations || []
+    return userAccount?.PersonProfile?.Registration || []
 }

@@ -26,12 +26,29 @@ export default async function NewStaffPeriodPage() {
         }
     })
 
-    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
-    const organizers = userAccount?.roles.map(r => r.organizer).filter(Boolean) || []
+    const adminOrgIds = userAccount?.UserAccountRole.map(r => r.organizerId).filter(Boolean) as string[] || []
+    const organizers = userAccount?.UserAccountRole.map(r => r.Organizer).filter(Boolean) || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')
     }
+
+    // Fetch categories (global) and tags (for user's orgs)
+    const [categories, tags] = await Promise.all([
+        prisma.category.findMany({ orderBy: { sortOrder: 'asc' } }),
+        prisma.tag.findMany({ 
+            where: { organizerId: { in: adminOrgIds } },
+            orderBy: { name: 'asc' }
+        })
+    ])
+
+    // Serialize Decimal fields for client component
+    const serializedOrganizers = organizers.map(org => ({
+        ...org,
+        mvaRate: Number(org.mvaRate),
+        stripeFeePercentage: Number(org.stripeFeePercentage),
+        fiscalYearStart: org.fiscalYearStart?.toISOString() ?? null,
+    }))
 
     return (
         <div className="max-w-3xl mx-auto space-y-6">
@@ -40,7 +57,9 @@ export default async function NewStaffPeriodPage() {
             </div>
             <StaffPeriodForm 
                 organizerIds={adminOrgIds}
-                organizers={organizers as any}
+                organizers={serializedOrganizers as any}
+                categories={categories}
+                tags={tags}
             />
         </div>
     )

@@ -12,9 +12,9 @@ export async function getFinancialOverview() {
             status: 'PAID'
         },
         include: {
-            period: {
+            CoursePeriod: {
                 include: {
-                    organizer: {
+                    Organizer: {
                         select: {
                             id: true,
                             name: true,
@@ -23,12 +23,12 @@ export async function getFinancialOverview() {
                     }
                 }
             },
-            payments: {
+            Payment: {
                 where: {
                     status: 'SUCCEEDED'
                 }
             },
-            registrations: {
+            Registration: {
                 select: {
                     id: true,
                     status: true
@@ -39,10 +39,10 @@ export async function getFinancialOverview() {
 
     // Calculate revenue by organization
     const revenueByOrg = orders
-        .filter(order => order.period !== null)
+        .filter(order => order.CoursePeriod !== null)
         .reduce((acc, order) => {
-        const orgId = order.period!.organizer.id
-        const orgName = order.period!.organizer.name
+        const orgId = order.CoursePeriod!.Organizer.id
+        const orgName = order.CoursePeriod!.Organizer.name
         
         if (!acc[orgId]) {
             acc[orgId] = {
@@ -56,24 +56,24 @@ export async function getFinancialOverview() {
         
         acc[orgId].totalRevenue += order.totalCents
         acc[orgId].orderCount += 1
-        acc[orgId].registrationCount += order.registrations.length
+        acc[orgId].registrationCount += order.Registration.length
         
         return acc
     }, {} as Record<string, any>)
 
     // Calculate revenue by period
     const revenueByPeriod = orders
-        .filter(order => order.period !== null)
+        .filter(order => order.CoursePeriod !== null)
         .reduce((acc, order) => {
-        const periodId = order.period!.id
-        const periodName = order.period!.name
-        const orgName = order.period!.organizer.name
+        const periodId = order.CoursePeriod!.id
+        const periodName = order.CoursePeriod!.name
+        const orgName = order.CoursePeriod!.Organizer.name
         
         if (!acc[periodId]) {
             acc[periodId] = {
                 periodId,
                 periodName,
-                periodCode: order.period!.code,
+                periodCode: order.CoursePeriod!.code,
                 organizerName: orgName,
                 totalRevenue: 0,
                 orderCount: 0,
@@ -83,7 +83,7 @@ export async function getFinancialOverview() {
         
         acc[periodId].totalRevenue += order.totalCents
         acc[periodId].orderCount += 1
-        acc[periodId].registrationCount += order.registrations.length
+        acc[periodId].registrationCount += order.Registration.length
         
         return acc
     }, {} as Record<string, any>)

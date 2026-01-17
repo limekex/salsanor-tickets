@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { X, SlidersHorizontal } from 'lucide-react'
+import type { Category, Tag } from '@prisma/client'
 
 interface CourseFiltersProps {
     organizers: Array<{
@@ -14,12 +15,16 @@ interface CourseFiltersProps {
         slug: string
     }>
     availableLevels: string[]
+    categories: Category[]
+    tags: Tag[]
     currentFilters: {
         org: string
         level: string
         weekday: string
         timeAfter: string
         timeBefore: string
+        category: string
+        tag: string
     }
 }
 
@@ -41,7 +46,7 @@ const TIME_RANGES = [
     { value: 'night', label: 'Night (21-24)', after: '21:00', before: '23:59' },
 ]
 
-export function CourseFilters({ organizers, availableLevels, currentFilters }: CourseFiltersProps) {
+export function CourseFilters({ organizers, availableLevels, categories, tags, currentFilters }: CourseFiltersProps) {
     const router = useRouter()
     
     // Determine initial time range based on current filters
@@ -57,6 +62,8 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
         level: currentFilters.level,
         weekday: currentFilters.weekday,
         timeRange: getInitialTimeRange(),
+        category: currentFilters.category,
+        tag: currentFilters.tag,
     })
 
     const updateFilter = (key: string, value: string) => {
@@ -75,6 +82,12 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
         if (filters.weekday && filters.weekday !== 'all') {
             params.set('weekday', filters.weekday)
         }
+        if (filters.category && filters.category !== 'all') {
+            params.set('category', filters.category)
+        }
+        if (filters.tag && filters.tag !== 'all') {
+            params.set('tag', filters.tag)
+        }
         
         // Convert time range to timeAfter/timeBefore
         const selectedRange = TIME_RANGES.find(r => r.value === filters.timeRange)
@@ -92,6 +105,8 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
             level: 'all',
             weekday: 'all',
             timeRange: 'all',
+            category: 'all',
+            tag: 'all',
         })
         router.push('/courses')
     }
@@ -99,7 +114,9 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
     const hasActiveFilters = filters.org !== 'all' || 
                             filters.level !== 'all' || 
                             filters.weekday !== 'all' ||
-                            filters.timeRange !== 'all'
+                            filters.timeRange !== 'all' ||
+                            filters.category !== 'all' ||
+                            filters.tag !== 'all'
 
     return (
         <Card className="border-rn-border">
@@ -183,6 +200,54 @@ export function CourseFilters({ organizers, availableLevels, currentFilters }: C
                                     {WEEKDAYS.map((day) => (
                                         <SelectItem key={day.value} value={day.value}>
                                             {day.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Category Filter */}
+                        <div className="space-y-rn-2">
+                            <label className="rn-meta font-medium">Category</label>
+                            <Select 
+                                value={filters.category} 
+                                onValueChange={(value: string) => updateFilter('category', value)}
+                            >
+                                <SelectTrigger className="h-10">
+                                    <SelectValue placeholder="All Categories" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Categories</SelectItem>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat.id} value={cat.id}>
+                                            {cat.icon} {cat.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Tag Filter */}
+                        <div className="space-y-rn-2">
+                            <label className="rn-meta font-medium">Tag</label>
+                            <Select 
+                                value={filters.tag} 
+                                onValueChange={(value: string) => updateFilter('tag', value)}
+                            >
+                                <SelectTrigger className="h-10">
+                                    <SelectValue placeholder="All Tags" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Tags</SelectItem>
+                                    {tags.map((tag) => (
+                                        <SelectItem key={tag.id} value={tag.id}>
+                                            <div className="flex items-center gap-2">
+                                                <span 
+                                                    className="inline-block w-3 h-3 rounded" 
+                                                    style={{ backgroundColor: tag.color }}
+                                                />
+                                                {tag.name}
+                                            </div>
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

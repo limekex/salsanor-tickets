@@ -163,6 +163,11 @@ export async function listMembershipTiers() {
     where: { organizerId },
     orderBy: [{ priority: 'asc' }, { name: 'asc' }],
     include: {
+      organizer: {
+        select: {
+          vatRegistered: true,
+        },
+      },
       _count: {
         select: { memberships: true },
       },
@@ -185,6 +190,7 @@ export async function listMembershipTiers() {
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
     memberCount: tier._count.memberships,
+    organizerVatRegistered: tier.organizer.vatRegistered,
   }))
 }
 
@@ -197,6 +203,8 @@ export async function getPublicMembershipTiers(organizerSlug: string) {
       membershipEnabled: true,
       membershipSalesOpen: true,
       membershipDescription: true,
+      mvaRate: true,
+      vatRegistered: true,
     }
   })
 
@@ -211,6 +219,8 @@ export async function getPublicMembershipTiers(organizerSlug: string) {
         membershipEnabled: organizer.membershipEnabled,
         membershipSalesOpen: organizer.membershipSalesOpen,
         membershipDescription: organizer.membershipDescription,
+        mvaRate: Number(organizer.mvaRate),
+        vatRegistered: organizer.vatRegistered,
       },
       tiers: []
     }
@@ -233,6 +243,8 @@ export async function getPublicMembershipTiers(organizerSlug: string) {
       membershipEnabled: organizer.membershipEnabled,
       membershipSalesOpen: organizer.membershipSalesOpen,
       membershipDescription: organizer.membershipDescription,
+      mvaRate: Number(organizer.mvaRate),
+      vatRegistered: organizer.vatRegistered,
     },
     tiers: tiers.map(t => ({
       id: t.id,
@@ -244,6 +256,7 @@ export async function getPublicMembershipTiers(organizerSlug: string) {
       discountPercent: Number(t.discountPercent),
       priority: t.priority,
       validationRequired: t.validationRequired,
+      mvaEnabled: t.mvaEnabled,
     }))
   }
 }

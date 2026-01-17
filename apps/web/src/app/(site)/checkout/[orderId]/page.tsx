@@ -22,14 +22,14 @@ export default async function CheckoutPage({ params }: { params: Promise<{ order
     const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: {
-            purchaser: true,
-            registrations: {
+            PersonProfile: true,
+            Registration: {
                 include: {
-                    track: {
+                    CourseTrack: {
                         include: {
-                            period: {
+                            CoursePeriod: {
                                 include: {
-                                    organizer: true
+                                    Organizer: true
                                 }
                             }
                         }
@@ -46,10 +46,10 @@ export default async function CheckoutPage({ params }: { params: Promise<{ order
     // Verify user owns this order
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
-    if (order.purchaserPersonId !== userAccount?.personProfile?.id) {
+    if (order.purchaserPersonId !== userAccount?.PersonProfile?.id) {
         redirect('/profile')
     }
 
@@ -64,7 +64,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ order
     // If redirect didn't happen (error occurred), show error
     if (paymentResult?.error) {
         return (
-            <div className="container max-w-2xl py-rn-12">
+            <main className="container mx-auto max-w-2xl py-rn-8 px-rn-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Payment Error</CardTitle>
@@ -81,7 +81,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ order
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </main>
         )
     }
 

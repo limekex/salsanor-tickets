@@ -25,13 +25,16 @@ interface TierFormProps {
     enabled: boolean
     validationRequired: boolean
     mvaEnabled: boolean
+    organizerVatRegistered?: boolean
   }
+  organizerVatRegistered?: boolean
 }
 
-export function TierForm({ tier }: TierFormProps) {
+export function TierForm({ tier, organizerVatRegistered = true }: TierFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isVatRegistered = organizerVatRegistered || tier?.organizerVatRegistered || false
 
   const [name, setName] = useState(tier?.name || '')
   const [slug, setSlug] = useState(tier?.slug || '')
@@ -238,15 +241,18 @@ export function TierForm({ tier }: TierFormProps) {
 
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="space-y-0.5">
-              <Label htmlFor="mvaEnabled">Include MVA in Price</Label>
+              <Label htmlFor="mvaEnabled">Calculate VAT/MVA</Label>
               <p className="text-sm text-muted-foreground">
-                If enabled, the price entered above includes MVA
+                {isVatRegistered 
+                  ? "When checked: VAT/MVA will be calculated and added to the price. When unchecked: Product is VAT-free" 
+                  : "Organization must be VAT registered to charge MVA"}
               </p>
             </div>
             <Switch
               id="mvaEnabled"
               checked={mvaEnabled}
               onCheckedChange={setMvaEnabled}
+              disabled={!isVatRegistered}
             />
           </div>
 

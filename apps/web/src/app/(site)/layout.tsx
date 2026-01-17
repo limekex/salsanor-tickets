@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { OnboardingCheck } from "@/components/onboarding-check";
 import { Toaster } from "sonner";
 import { PublicNav } from "@/components/public-nav";
+import { CartProvider } from "@/contexts/cart-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,21 +46,21 @@ export default async function RootLayout({
       const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-          personProfile: true,
-          roles: true
+          PersonProfile: true,
+          UserAccountRole: true
         }
       })
 
       // User needs onboarding if they don't have a profile OR if they're missing consent
       needsOnboarding = !!userAccount && (
-        !userAccount.personProfile || 
-        !userAccount.personProfile.gdprConsentAt || 
-        !userAccount.personProfile.touConsentAt
+        !userAccount.PersonProfile || 
+        !userAccount.PersonProfile.gdprConsentAt || 
+        !userAccount.PersonProfile.touConsentAt
       )
       
-      if (userAccount?.roles) {
-        isAdmin = userAccount.roles.some(r => r.role === 'ADMIN' || r.role === 'ORGANIZER')
-        hasStaffRoles = userAccount.roles.length > 0
+      if (userAccount?.UserAccountRole) {
+        isAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN' || r.role === 'ORGANIZER')
+        hasStaffRoles = userAccount.UserAccountRole.length > 0
       }
     }
   } catch (error) {
@@ -72,10 +73,12 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <OnboardingCheck needsOnboarding={needsOnboarding} />
-        <PublicNav user={user} hasStaffRoles={hasStaffRoles} isAdmin={isAdmin} />
-        {children}
-        <Toaster position="top-right" richColors />
+        <CartProvider>
+          <OnboardingCheck needsOnboarding={needsOnboarding} />
+          <PublicNav user={user} hasStaffRoles={hasStaffRoles} isAdmin={isAdmin} />
+          {children}
+          <Toaster position="top-right" richColors />
+        </CartProvider>
       </body>
     </html>
   );

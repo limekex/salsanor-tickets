@@ -1,39 +1,825 @@
-// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model AuditLog {
+  id          String       @id @default(uuid())
+  userId      String?
+  entityType  String
+  entityId    String
+  action      String
+  changes     Json
+  ipAddress   String?
+  userAgent   String?
+  timestamp   DateTime     @default(now())
+  organizerId String?
+  Invoice     Invoice      @relation(fields: [entityId], references: [id])
+  Organizer   Organizer?   @relation(fields: [organizerId], references: [id])
+  UserAccount UserAccount? @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([organizerId, timestamp])
+  @@index([timestamp])
+  @@index([userId])
 }
 
-enum UserRole {
-  ADMIN           // Global admin - can manage all organizers
-  ORGANIZER       // Deprecated - use ORG_ADMIN instead
-  ORG_ADMIN       // Organizer admin - can manage their organizer's periods/tracks
-  ORG_FINANCE     // Organizer finance - can view financial reports for their organizer
-  ORG_CHECKIN     // Organizer check-in staff - can check in for their organizer's events
-  INSTRUCTOR      // Can view participant lists
-  CHECKIN         // Global check-in staff
-  STAFF           // General staff
-  PARTICIPANT     // Regular participant
+model Category {
+  id           String         @id @default(uuid())
+  name         String         @unique
+  slug         String         @unique
+  description  String?
+  icon         String?
+  sortOrder    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  CoursePeriod CoursePeriod[]
+  Event        Event[]
+
+  @@index([sortOrder])
 }
 
-enum RegistrationStatus {
+model CheckIn {
+  id              String        @id @default(uuid())
+  ticketId        String
+  type            CheckInType
+  sessionId       String?
+  scannedByUserId String?
+  scannedAt       DateTime      @default(now())
+  meta            Json?
+  EventSession    EventSession? @relation(fields: [sessionId], references: [id], map: "CheckIn_eventSessionId_fkey")
+  UserAccount     UserAccount?  @relation(fields: [scannedByUserId], references: [id])
+  Ticket          Ticket        @relation(fields: [ticketId], references: [id])
+  TrackSession    TrackSession? @relation(fields: [sessionId], references: [id], map: "CheckIn_trackSessionId_fkey")
+
+  @@index([ticketId, scannedAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model CoursePeriod {
+  id           String         @id @default(uuid())
+  code         String         @unique
+  name         String
+  city         String
+  locationName String?
+  startDate    DateTime
+  endDate      DateTime
+  salesOpenAt  DateTime
+  salesCloseAt DateTime
+  timezone     String         @default("Europe/Oslo")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  organizerId  String
+  description  String?
+  featured     Boolean        @default(false)
+  imageUrl     String?
+  Organizer    Organizer      @relation(fields: [organizerId], references: [id])
+  CourseTrack  CourseTrack[]
+  DiscountRule DiscountRule[]
+  Order        Order[]
+  PairGroup    PairGroup[]
+  Registration Registration[]
+  Ticket       Ticket[]
+  Category     Category[]
+  Tag          Tag[]
+
+  @@index([featured])
+  @@index([organizerId])
+  @@index([startDate, endDate])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model CourseTrack {
+  id                     String         @id @default(uuid())
+  periodId               String
+  title                  String
+  levelLabel             String?
+  weekday                Int
+  timeStart              String
+  timeEnd                String
+  capacityTotal          Int
+  capacityLeaders        Int?
+  capacityFollowers      Int?
+  rolePolicy             TrackRole      @default(ANY)
+  waitlistEnabled        Boolean        @default(true)
+  priceSingleCents       Int
+  pricePairCents         Int?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  memberPricePairCents   Int?
+  memberPriceSingleCents Int?
+  CoursePeriod           CoursePeriod   @relation(fields: [periodId], references: [id])
+  Registration           Registration[]
+  TrackSession           TrackSession[]
+
+  @@index([periodId])
+}
+
+model CreditNote {
+  id              String    @id @default(uuid())
+  creditNumber    String    @unique
+  organizerId     String
+  invoiceId       String?
+  orderId         String?
+  registrationId  String?
+  
+  // Refund details
+  reason          String
+  refundType      RefundType @default(FULL)
+  originalAmountCents Int    // Original order/invoice amount
+  refundAmountCents   Int    // Amount being refunded
+  mvaCents        Int
+  totalCents      Int        // Total credit note amount (refund + MVA adjustment)
+  
+  // Stripe refund reference
+  stripeRefundId  String?
+  
+  // PDF storage
+  pdfUrl          String?    // URL to stored PDF
+  pdfGeneratedAt  DateTime?
+  
+  // Status tracking
+  issueDate       DateTime  @default(now())
+  status          CreditNoteStatus @default(ISSUED)
+  sentAt          DateTime?  // When email was sent
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  Invoice         Invoice?   @relation(fields: [invoiceId], references: [id])
+  Organizer       Organizer  @relation(fields: [organizerId], references: [id])
+  Order           Order?     @relation(fields: [orderId], references: [id])
+  Registration    Registration? @relation(fields: [registrationId], references: [id])
+
+  @@index([organizerId, creditNumber])
+  @@index([orderId])
+  @@index([registrationId])
+}
+
+model DiscountRule {
+  id           String       @id @default(uuid())
+  periodId     String
+  code         String
+  name         String
+  priority     Int
+  enabled      Boolean      @default(true)
+  ruleType     String
+  config       Json
+  createdAt    DateTime     @default(now())
+  CoursePeriod CoursePeriod @relation(fields: [periodId], references: [id])
+
+  @@unique([periodId, code])
+  @@index([periodId, priority])
+}
+
+model EmailLog {
+  id                String         @id @default(uuid())
+  organizerId       String?
+  templateId        String?
+  recipientEmail    String
+  recipientName     String?
+  subject           String
+  status            EmailStatus
+  providerMessageId String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  bouncedAt         DateTime?
+  errorMessage      String?
+  metadata          Json?
+  createdAt         DateTime       @default(now())
+  Organizer         Organizer?     @relation(fields: [organizerId], references: [id])
+  EmailTemplate     EmailTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([createdAt])
+  @@index([recipientEmail])
+  @@index([status])
+}
+
+/// Links EmailTemplate to PdfTemplate for automatic PDF attachments
+model EmailPdfAttachment {
+  id              String          @id @default(uuid())
+  emailTemplateId String
+  pdfTemplateType PdfTemplateType
+  isRequired      Boolean         @default(true)  // If false, only attach if PDF exists
+  sortOrder       Int             @default(0)     // Order of attachments
+  createdAt       DateTime        @default(now())
+  
+  EmailTemplate   EmailTemplate   @relation(fields: [emailTemplateId], references: [id], onDelete: Cascade)
+  
+  @@unique([emailTemplateId, pdfTemplateType])
+  @@index([emailTemplateId])
+}
+
+model EmailProvider {
+  id           String            @id @default(uuid())
+  provider     EmailProviderType
+  apiKey       String?
+  smtpHost     String?
+  smtpPort     Int?
+  smtpUsername String?
+  smtpPassword String?
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model EmailSettings {
+  id              String     @id @default(uuid())
+  organizerId     String?    @unique
+  fromName        String
+  fromEmail       String
+  replyToEmail    String
+  enableLogo      Boolean    @default(true)
+  enableSignature Boolean    @default(true)
+  signatureHtml   String?
+  primaryLanguage String     @default("no")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  Organizer       Organizer? @relation(fields: [organizerId], references: [id])
+}
+
+model EmailTemplate {
+  id          String        @id @default(uuid())
+  organizerId String?
+  category    EmailCategory
+  name        String
+  slug        String
+  language    String        @default("no")
+  subject     String
+  preheader   String?
+  htmlContent String
+  textContent String?
+  variables   Json
+  isActive    Boolean       @default(true)
+  version     Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  // PDF attachments configuration
+  pdfAttachments  EmailPdfAttachment[]
+  
+  EmailLog    EmailLog[]
+  Organizer   Organizer?    @relation(fields: [organizerId], references: [id])
+
+  @@unique([organizerId, slug, language])
+  @@index([category, isActive])
+}
+
+model Event {
+  id                   String              @id @default(uuid())
+  organizerId          String
+  slug                 String
+  title                String
+  eventType            EventType           @default(SINGLE)
+  startDateTime        DateTime
+  endDateTime          DateTime?
+  timezone             String              @default("Europe/Oslo")
+  locationName         String?
+  locationAddress      String?
+  city                 String?
+  salesOpenAt          DateTime
+  salesCloseAt         DateTime
+  capacityTotal        Int
+  requiresRole         Boolean             @default(false)
+  basePriceCents       Int
+  memberPriceCents     Int?
+  status               EventStatus         @default(DRAFT)
+  published            Boolean             @default(false)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  faqContent           Json?
+  faqEnabled           Boolean             @default(false)
+  featured             Boolean             @default(false)
+  imageUrl             String?
+  longDescription      String?
+  metaDescription      String?
+  metaTitle            String?
+  recurrenceExceptions String?
+  recurrenceRule       String?
+  recurringUntil       DateTime?
+  scheduleContent      Json?
+  scheduleEnabled      Boolean             @default(false)
+  shortDescription     String?
+  speakersContent      Json?
+  speakersEnabled      Boolean             @default(false)
+  Organizer            Organizer           @relation(fields: [organizerId], references: [id])
+  EventRegistration    EventRegistration[]
+  EventSession         EventSession[]
+  EventTicket          EventTicket[]
+  Category             Category[]
+  Tag                  Tag[]
+
+  @@unique([organizerId, slug])
+  @@index([featured])
+  @@index([organizerId, startDateTime])
+  @@index([published, startDateTime])
+}
+
+model EventRegistration {
+  id            String             @id @default(uuid())
+  eventId       String
+  personId      String
+  orderId       String?
+  chosenRole    TrackRole?
+  status        RegistrationStatus @default(PENDING_PAYMENT)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  quantity      Int                @default(1)
+  unitPriceCents Int               @default(0)
+  Event         Event              @relation(fields: [eventId], references: [id])
+  Order         Order?             @relation(fields: [orderId], references: [id])
+  PersonProfile PersonProfile      @relation(fields: [personId], references: [id])
+  EventTicket   EventTicket[]
+
+  @@unique([eventId, personId])
+  @@index([eventId, status])
+  @@index([personId])
+}
+
+model EventSession {
+  id        String      @id @default(uuid())
+  eventId   String
+  startsAt  DateTime
+  endsAt    DateTime
+  status    EventStatus @default(PUBLISHED)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  CheckIn   CheckIn[]
+  Event     Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, startsAt])
+  @@index([startsAt])
+}
+
+model EventTicket {
+  id            String        @id @default(uuid())
+  eventId       String
+  personId      String
+  registrationId String?
+  qrTokenHash   String        @unique
+  ticketNumber  Int?          // Sequential number for this person's tickets (1, 2, 3, etc)
+  status        TicketStatus  @default(ACTIVE)
+  checkedInAt   DateTime?
+  createdAt     DateTime      @default(now())
+  Event         Event         @relation(fields: [eventId], references: [id])
+  PersonProfile PersonProfile @relation(fields: [personId], references: [id])
+  EventRegistration EventRegistration? @relation(fields: [registrationId], references: [id])
+
+  @@index([eventId, personId])
+  @@index([personId])
+  @@index([registrationId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Invoice {
+  id              String        @id @default(uuid())
+  invoiceNumber   String        @unique
+  organizerId     String
+  orderId         String        @unique
+  customerName    String
+  customerEmail   String
+  customerOrgNr   String?
+  customerAddress Json?
+  subtotalCents   Int
+  mvaRate         Decimal
+  mvaCents        Int
+  totalCents      Int
+  currency        String        @default("NOK")
+  invoiceDate     DateTime      @default(now())
+  dueDate         DateTime
+  paymentTerms    String        @default("Due upon receipt")
+  status          InvoiceStatus @default(DRAFT)
+  paidAt          DateTime?
+  paidAmount      Int?
+  sentAt          DateTime?
+  pdfUrl          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  AuditLog        AuditLog[]
+  CreditNote      CreditNote[]
+  Order           Order         @relation(fields: [orderId], references: [id])
+  Organizer       Organizer     @relation(fields: [organizerId], references: [id])
+
+  @@index([invoiceDate])
+  @@index([organizerId, invoiceNumber])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Membership {
+  id                String           @id @default(uuid())
+  personId          String
+  memberNumber      String?
+  validFrom         DateTime
+  validTo           DateTime
+  source            String           @default("IMPORT")
+  createdAt         DateTime         @default(now())
+  autoRenew         Boolean          @default(false)
+  orderId           String?
+  organizerId       String
+  updatedAt         DateTime         @updatedAt
+  status            MembershipStatus @default(ACTIVE)
+  tierId            String
+  verificationToken String?          @unique
+  Order             Order?           @relation(fields: [orderId], references: [id])
+  Organizer         Organizer        @relation(fields: [organizerId], references: [id])
+  PersonProfile     PersonProfile    @relation(fields: [personId], references: [id])
+  MembershipTier    MembershipTier   @relation(fields: [tierId], references: [id])
+
+  @@unique([personId, organizerId, validFrom])
+  @@index([organizerId, status])
+  @@index([personId, validTo])
+  @@index([tierId])
+  @@index([verificationToken])
+}
+
+model MembershipTier {
+  id                 String       @id @default(uuid())
+  organizerId        String
+  name               String
+  slug               String
+  description        String?
+  priceCents         Int
+  benefits           Json?
+  discountPercent    Decimal      @default(0)
+  priority           Int          @default(0)
+  enabled            Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  validationRequired Boolean      @default(false)
+  mvaEnabled         Boolean      @default(true)
+  Membership         Membership[]
+  Organizer          Organizer    @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  @@unique([organizerId, slug])
+  @@index([organizerId, enabled])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Order {
+  id                         String              @id @default(uuid())
+  periodId                   String?
+  purchaserPersonId          String
+  status                     OrderStatus         @default(DRAFT)
+  currency                   String              @default("NOK")
+  subtotalCents              Int
+  discountCents              Int
+  totalCents                 Int
+  pricingSnapshot            Json
+  providerCheckoutRef        String?
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+  mvaCents                   Int                 @default(0)
+  mvaRate                    Decimal             @default(0)
+  subtotalAfterDiscountCents Int
+  orderType                  OrderType           @default(COURSE_PERIOD)
+  orderNumber                String?             @unique
+  stripeCheckoutSessionId    String?
+  stripePaymentIntentId      String?
+  stripeChargeId             String?
+  stripeTransactionId        String?
+  organizerId                String
+  CreditNote                 CreditNote[]
+  EventRegistration          EventRegistration[]
+  Invoice                    Invoice?
+  Membership                 Membership[]
+  Organizer                  Organizer           @relation(fields: [organizerId], references: [id])
+  CoursePeriod               CoursePeriod?       @relation(fields: [periodId], references: [id])
+  PersonProfile              PersonProfile       @relation(fields: [purchaserPersonId], references: [id])
+  Payment                    Payment[]
+  Registration               Registration[]
+
+  @@index([organizerId, status])
+  @@index([periodId, status])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Organizer {
+  id                       String            @id @default(uuid())
+  slug                     String            @unique
+  name                     String
+  description              String?
+  logoUrl                  String?
+  website                  String?
+  contactEmail             String?
+  city                     String?
+  country                  String            @default("Norway")
+  timezone                 String            @default("Europe/Oslo")
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  accountingSystem         String?
+  bankAccount              String?
+  companyType              String?
+  fiscalYearStart          DateTime?
+  invoiceAddress           Json?
+  invoiceEmail             String?
+  invoicePrefix            String            @default("INV")
+  legalName                String?
+  legalAddress             String?
+  legalEmail               String?
+  mvaRate                  Decimal           @default(0)
+  mvaReportingRequired     Boolean           @default(false)
+  nextInvoiceNumber        Int               @default(1)
+  nextOrderNumber          Int               @default(1)
+  orderPrefix              String            @default("ORD")
+  organizationNumber       String?           @unique
+  stripeConnectAccountId   String?           @unique
+  stripeFeePercentage      Decimal           @default(2.5)
+  stripeFixedFeeCents      Int               @default(0)
+  stripeOnboardingComplete Boolean           @default(false)
+  swiftBic                 String?
+  vatRegistered            Boolean           @default(false)
+  stripeChargesEnabled     Boolean           @default(false)
+  stripePayoutsEnabled     Boolean           @default(false)
+  membershipDescription    String?
+  membershipEnabled        Boolean           @default(false)
+  membershipSalesOpen      Boolean           @default(true)
+  nextMemberNumber         Int               @default(1)
+  platformFeeFixed         Int?
+  platformFeePercent       Decimal?
+  AuditLog                 AuditLog[]
+  CoursePeriod             CoursePeriod[]
+  CreditNote               CreditNote[]
+  EmailLog                 EmailLog[]
+  EmailSettings            EmailSettings?
+  EmailTemplate            EmailTemplate[]
+  Event                    Event[]
+  Invoice                  Invoice[]
+  Membership               Membership[]
+  MembershipTier           MembershipTier[]
+  Order                    Order[]
+  Tag                      Tag[]
+  UserAccountRole          UserAccountRole[]
+
+  @@index([slug])
+}
+
+model PairGroup {
+  id           String         @id @default(uuid())
+  periodId     String
+  createdAt    DateTime       @default(now())
+  CoursePeriod CoursePeriod   @relation(fields: [periodId], references: [id])
+  Registration Registration[]
+
+  @@index([periodId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Payment {
+  id                 String          @id @default(uuid())
+  orderId            String
+  provider           PaymentProvider
+  providerPaymentRef String
+  status             PaymentStatus
+  amountCents        Int
+  currency           String          @default("NOK")
+  rawPayload         Json
+  createdAt          DateTime        @default(now())
+  Order              Order           @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+model PaymentConfig {
+  id                 String          @id @default(uuid())
+  provider           PaymentProvider @unique
+  enabled            Boolean         @default(false)
+  isTest             Boolean         @default(true)
+  secretKey          String?
+  publishableKey     String?
+  webhookSecret      String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  platformAccountId  String?
+  platformFeeFixed   Int             @default(0)
+  platformFeePercent Decimal         @default(0)
+  useStripeConnect   Boolean         @default(false)
+}
+
+model PersonProfile {
+  id                        String              @id @default(uuid())
+  userId                    String?             @unique
+  firstName                 String
+  lastName                  String
+  phone                     String?
+  email                     String
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  photoUrl                  String?
+  preferredLanguage         String              @default("no")
+  city                      String?
+  country                   String              @default("Norway")
+  gdprConsentAt             DateTime?
+  organizerMarketingConsent Boolean             @default(false)
+  postalCode                String?
+  reginorMarketingConsent   Boolean             @default(false)
+  streetAddress             String?
+  touConsentAt              DateTime?
+  EventRegistration         EventRegistration[]
+  EventTicket               EventTicket[]
+  Membership                Membership[]
+  Order                     Order[]
+  UserAccount               UserAccount?        @relation(fields: [userId], references: [id])
+  Registration              Registration[]
+  Ticket                    Ticket[]
+
+  @@index([email])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Registration {
+  id                 String             @id @default(uuid())
+  periodId           String
+  trackId            String
+  personId           String
+  status             RegistrationStatus @default(DRAFT)
+  chosenRole         TrackRole          @default(ANY)
+  pairGroupId        String?
+  orderId            String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  cancellationReason String?
+  cancelledAt        DateTime?
+  refundAmount       Int?
+  refundPercentage   Int?
+  stripeRefundId     String?
+  CreditNote         CreditNote[]
+  Order              Order?             @relation(fields: [orderId], references: [id])
+  PairGroup          PairGroup?         @relation(fields: [pairGroupId], references: [id])
+  CoursePeriod       CoursePeriod       @relation(fields: [periodId], references: [id])
+  PersonProfile      PersonProfile      @relation(fields: [personId], references: [id])
+  CourseTrack        CourseTrack        @relation(fields: [trackId], references: [id])
+  WaitlistEntry      WaitlistEntry?
+
+  @@unique([trackId, personId])
+  @@index([periodId, trackId])
+}
+
+model Tag {
+  id           String         @id @default(uuid())
+  organizerId  String
+  name         String
+  slug         String
+  color        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  Organizer    Organizer      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  CoursePeriod CoursePeriod[]
+  Event        Event[]
+
+  @@unique([organizerId, slug])
+  @@index([organizerId])
+}
+
+model Ticket {
+  id            String        @id @default(uuid())
+  periodId      String
+  personId      String
+  status        TicketStatus  @default(ACTIVE)
+  qrTokenHash   String        @unique
+  issuedAt      DateTime      @default(now())
+  CheckIn       CheckIn[]
+  CoursePeriod  CoursePeriod  @relation(fields: [periodId], references: [id])
+  PersonProfile PersonProfile @relation(fields: [personId], references: [id])
+
+  @@unique([periodId, personId])
+  @@index([periodId])
+}
+
+model TrackSession {
+  id          String      @id @default(uuid())
+  trackId     String
+  startsAt    DateTime
+  endsAt      DateTime
+  CheckIn     CheckIn[]
+  CourseTrack CourseTrack @relation(fields: [trackId], references: [id])
+
+  @@index([trackId, startsAt])
+}
+
+model UserAccount {
+  id              String            @id @default(uuid())
+  supabaseUid     String            @unique
+  email           String            @unique
+  createdAt       DateTime          @default(now())
+  AuditLog        AuditLog[]
+  CheckIn         CheckIn[]
+  PersonProfile   PersonProfile?
+  UserAccountRole UserAccountRole[]
+}
+
+model UserAccountRole {
+  id          String      @id @default(uuid())
+  userId      String
+  role        UserRole
+  createdAt   DateTime    @default(now())
+  organizerId String?
+  Organizer   Organizer?  @relation(fields: [organizerId], references: [id])
+  UserAccount UserAccount @relation(fields: [userId], references: [id])
+
+  @@unique([userId, role, organizerId])
+  @@index([organizerId])
+}
+
+model WaitlistEntry {
+  id             String         @id @default(uuid())
+  registrationId String         @unique
+  status         WaitlistStatus @default(ON_WAITLIST)
+  offeredUntil   DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  Registration   Registration   @relation(fields: [registrationId], references: [id])
+}
+
+model WebhookEvent {
+  id           String   @id @default(uuid())
+  type         String
+  processedAt  DateTime @default(now())
+  payload      Json
+  status       String   @default("PROCESSED")
+  errorMessage String?
+
+  @@index([processedAt])
+  @@index([type])
+}
+
+enum CheckInType {
+  PERIOD_ENTRY
+  SESSION_ENTRY
+}
+
+enum CreditNoteStatus {
   DRAFT
-  PENDING_PAYMENT
-  ACTIVE
-  WAITLIST
-  CANCELLED
-  REFUNDED
+  ISSUED
+  SENT
+  VOIDED
 }
 
-enum TrackRole {
-  LEADER
-  FOLLOWER
-  ANY
+enum RefundType {
+  FULL
+  PARTIAL
+  NONE
+}
+
+enum EmailCategory {
+  TRANSACTIONAL
+  NOTIFICATION
+  MARKETING
+  SYSTEM
+}
+
+enum EmailProviderType {
+  BREVO
+  RESEND
+  SENDGRID
+  SES
+  SMTP
+}
+
+enum EmailStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum EventType {
+  SINGLE
+  RECURRING
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+  CREDITED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING_PAYMENT
 }
 
 enum OrderStatus {
@@ -42,6 +828,12 @@ enum OrderStatus {
   PAID
   CANCELLED
   REFUNDED
+}
+
+enum OrderType {
+  COURSE_PERIOD
+  EVENT
+  MEMBERSHIP
 }
 
 enum PaymentProvider {
@@ -56,30 +848,36 @@ enum PaymentStatus {
   REFUNDED
 }
 
-enum EmailProviderType {
-  BREVO
-  RESEND
-  SENDGRID
-  SES
-  SMTP
+enum RegistrationStatus {
+  DRAFT
+  PENDING_PAYMENT
+  ACTIVE
+  WAITLIST
+  CANCELLED
+  REFUNDED
 }
 
-enum EmailCategory {
-  TRANSACTIONAL
-  NOTIFICATION
-  MARKETING
-  SYSTEM
+enum TicketStatus {
+  ACTIVE
+  VOIDED
 }
 
-enum EmailStatus {
-  QUEUED
-  SENDING
-  SENT
-  DELIVERED
-  OPENED
-  CLICKED
-  BOUNCED
-  FAILED
+enum TrackRole {
+  LEADER
+  FOLLOWER
+  ANY
+}
+
+enum UserRole {
+  ADMIN
+  ORGANIZER
+  INSTRUCTOR
+  CHECKIN
+  STAFF
+  PARTICIPANT
+  ORG_ADMIN
+  ORG_FINANCE
+  ORG_CHECKIN
 }
 
 enum WaitlistStatus {
@@ -90,683 +888,46 @@ enum WaitlistStatus {
   REMOVED
 }
 
-enum TicketStatus {
-  ACTIVE
-  VOIDED
+/// PDF Template for ticket generation - managed by platform admin
+model PdfTemplate {
+  id              String          @id @default(uuid())
+  name            String          // e.g., "Event Ticket", "Course Ticket", "Receipt"
+  type            PdfTemplateType
+  isDefault       Boolean         @default(false)
+  isActive        Boolean         @default(true)
+  
+  // Template configuration (JSON with layout settings)
+  headerConfig    Json?           // Logo position, title, colors
+  bodyConfig      Json?           // Field positions, fonts, sizes
+  footerConfig    Json?           // Legal text, terms, contact info
+  qrConfig        Json?           // QR code position, size
+  
+  // Norwegian legal compliance fields to include
+  includeSellerInfo       Boolean @default(true)  // Organizer details
+  includePlatformInfo     Boolean @default(true)  // Platform as agent
+  includeBuyerInfo        Boolean @default(true)  // Customer details
+  includeVatBreakdown     Boolean @default(true)  // MVA specification
+  includePaymentInfo      Boolean @default(true)  // Payment method/date
+  includeTerms            Boolean @default(true)  // Terms and conditions
+  
+  // Custom text fields
+  headerText      String?
+  footerText      String?
+  termsText       String?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdById     String?
+  
+  @@unique([type, isDefault])
+  @@index([type, isActive])
 }
 
-enum CheckInType {
-  PERIOD_ENTRY
-  SESSION_ENTRY
+enum PdfTemplateType {
+  EVENT_TICKET
+  COURSE_TICKET
+  ORDER_RECEIPT
+  INVOICE
+  MEMBERSHIP_CARD
+  CREDIT_NOTE
 }
-
-model UserAccount {
-  id            String   @id @default(uuid())
-  supabaseUid   String   @unique
-  email         String   @unique
-  createdAt     DateTime @default(now())
-  roles         UserAccountRole[]
-  personProfile PersonProfile?
-  auditLogs     AuditLog[]
-}
-
-model UserAccountRole {
-  id           String   @id @default(uuid())
-  userId       String
-  role         UserRole
-  organizerId  String?  // Optional: for ORGANIZER role scoping
-  createdAt    DateTime @default(now())
-  user         UserAccount @relation(fields: [userId], references: [id])
-  organizer    Organizer? @relation(fields: [organizerId], references: [id])
-  @@unique([userId, role, organizerId])
-  @@index([organizerId])
-}
-
-model PersonProfile {
-  id          String   @id @default(uuid())
-  userId      String?  @unique
-  firstName   String
-  lastName    String
-  phone       String?
-  email       String
-  photoUrl    String?  // Profile photo URL for membership cards
-  preferredLanguage String @default("no") // Email language preference: 'no' or 'en'
-  
-  // Physical address
-  streetAddress String?
-  postalCode    String?
-  city          String?
-  country       String @default("Norway")
-  
-  // GDPR and consent
-  gdprConsentAt         DateTime? // When user accepted GDPR/privacy policy
-  touConsentAt          DateTime? // When user accepted Terms of Use
-  reginorMarketingConsent Boolean @default(false) // RegiNor marketing emails
-  organizerMarketingConsent Boolean @default(false) // Organizer marketing emails
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  memberships Membership[]
-  registrations Registration[]
-  eventRegistrations EventRegistration[]
-  tickets     Ticket[]
-  eventTickets EventTicket[]
-  orders      Order[]
-  user        UserAccount? @relation(fields: [userId], references: [id])
-  @@index([email])
-}
-
-model Organizer {
-  id            String   @id @default(uuid())
-  slug          String   @unique
-  name          String
-  description   String?
-  logoUrl       String?
-  website       String?
-  contactEmail  String?
-  city          String?
-  country       String   @default("Norway")
-  timezone      String   @default("Europe/Oslo")
-  
-  // Business Registration
-  organizationNumber String?  @unique // Norwegian org.nr (9 digits)
-  vatRegistered     Boolean  @default(false)
-  companyType       String?  // AS, ASA, ENK, etc.
-  legalName         String?  // Official registered name
-  
-  // Tax & Accounting
-  mvaRate              Decimal  @default(0) // 0, 12, 15, or 25
-  mvaReportingRequired Boolean  @default(false)
-  accountingSystem     String?  // TRIPLETEX, FIKEN, VISMA, etc.
-  fiscalYearStart      DateTime?
-  
-  // Invoice Configuration
-  invoicePrefix        String   @default("INV")
-  nextInvoiceNumber    Int      @default(1)
-  invoiceEmail         String?
-  invoiceAddress       Json?
-  bankAccount          String?
-  swiftBic             String?
-  
-  // Stripe Connect
-  stripeConnectAccountId   String?  @unique
-  stripeOnboardingComplete Boolean  @default(false)
-  stripeChargesEnabled     Boolean  @default(false)
-  stripePayoutsEnabled     Boolean  @default(false)
-  stripeFeePercentage      Decimal  @default(2.5)
-  stripeFixedFeeCents      Int      @default(0)
-  
-  // Platform Fees (overrides global PaymentConfig if set)
-  platformFeePercent       Decimal? // Override global platform fee %
-  platformFeeFixed         Int?     // Override global fixed fee in cents
-  
-  // Membership Product
-  membershipEnabled        Boolean  @default(false)
-  membershipSalesOpen      Boolean  @default(true)
-  membershipDescription    String?
-  nextMemberNumber         Int      @default(1) // Auto-increment for member numbers
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  periods       CoursePeriod[]
-  events        Event[]
-  memberships   Membership[]
-  membershipTiers MembershipTier[]
-  userRoles     UserAccountRole[]
-  invoices      Invoice[]
-  creditNotes   CreditNote[]
-  emailSettings EmailSettings?
-  emailTemplates EmailTemplate[]
-  emailLogs     EmailLog[]
-  
-  @@index([slug])
-}
-
-model MembershipTier {
-  id                  String   @id @default(uuid())
-  organizerId         String
-  name                String   // "Normal", "Supporting", "Family", etc.
-  slug                String   // "normal", "supporting", "family"
-  description         String?
-  priceCents          Int      // Annual price (includes MVA if mvaEnabled is true)
-  benefits            Json?    // Array of benefit strings
-  discountPercent     Decimal  @default(0) // Discount percentage for courses/events
-  priority            Int      @default(0) // Display order
-  enabled             Boolean  @default(true)
-  validationRequired  Boolean  @default(false) // If true, org admin must approve registrations
-  mvaEnabled          Boolean  @default(true) // If true, price includes MVA
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  organizer       Organizer @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-  memberships     Membership[]
-  
-  @@unique([organizerId, slug])
-  @@index([organizerId, enabled])
-}
-
-model CoursePeriod {
-  id            String   @id @default(uuid())
-  organizerId   String
-  code          String   @unique // e.g., "TB-2026-P1"
-  name          String
-  city          String
-  locationName  String?
-  startDate     DateTime
-  endDate       DateTime
-  salesOpenAt   DateTime
-  salesCloseAt  DateTime
-  timezone      String   @default("Europe/Oslo")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  organizer     Organizer @relation(fields: [organizerId], references: [id])
-  tracks        CourseTrack[]
-  pairGroups    PairGroup[]
-  registrations Registration[]
-  discountRules DiscountRule[]
-  orders        Order[]
-  tickets       Ticket[]
-  @@index([organizerId])
-  @@index([startDate, endDate])
-}
-
-model CourseTrack {
-  id             String   @id @default(uuid())
-  periodId       String
-  title          String
-  levelLabel     String?  // "Intro", "L2", etc.
-  weekday        Int      // 1=Mon..7=Sun
-  timeStart      String   // "19:00"
-  timeEnd        String   // "20:15"
-  capacityTotal  Int
-  capacityLeaders Int?    // optional split capacity
-  capacityFollowers Int?  // optional split capacity
-  rolePolicy     TrackRole @default(ANY)
-  waitlistEnabled Boolean @default(true)
-  priceSingleCents Int
-  pricePairCents   Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  period         CoursePeriod @relation(fields: [periodId], references: [id])
-  sessions       TrackSession[]
-  registrations  Registration[]
-  @@index([periodId])
-}
-
-model TrackSession {
-  id        String   @id @default(uuid())
-  trackId   String
-  startsAt  DateTime
-  endsAt    DateTime
-  track     CourseTrack @relation(fields: [trackId], references: [id])
-  checkIns  CheckIn[]
-  @@index([trackId, startsAt])
-}
-
-model PairGroup {
-  id        String   @id @default(uuid())
-  periodId  String
-  createdAt DateTime @default(now())
-  period    CoursePeriod @relation(fields: [periodId], references: [id])
-  members   Registration[]
-  @@index([periodId])
-}
-
-model Registration {
-  id            String   @id @default(uuid())
-  periodId      String
-  trackId       String
-  personId      String
-  status        RegistrationStatus @default(DRAFT)
-  chosenRole    TrackRole @default(ANY) // participant choice: leader/follower/any
-  pairGroupId   String?
-  orderId       String?
-  
-  // Cancellation tracking
-  cancelledAt         DateTime?
-  cancellationReason  String?
-  refundAmount        Int?      // Amount refunded in cents
-  refundPercentage    Int?      // 0-100
-  stripeRefundId      String?   // Stripe refund ID for tracking
-  
-  waitlist      WaitlistEntry?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  period        CoursePeriod @relation(fields: [periodId], references: [id])
-  track         CourseTrack  @relation(fields: [trackId], references: [id])
-  person        PersonProfile @relation(fields: [personId], references: [id])
-  pairGroup     PairGroup? @relation(fields: [pairGroupId], references: [id])
-  order         Order? @relation(fields: [orderId], references: [id])
-  @@unique([trackId, personId]) // prevent duplicates in same track
-  @@index([periodId, trackId])
-}
-
-model WaitlistEntry {
-  id            String   @id @default(uuid())
-  registrationId String @unique
-  status        WaitlistStatus @default(ON_WAITLIST)
-  offeredUntil  DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  registration  Registration @relation(fields: [registrationId], references: [id])
-}
-
-model Order {
-  id          String   @id @default(uuid())
-  periodId    String?  // Nullable for non-period orders (events, memberships)
-  purchaserPersonId String
-  orderNumber String?  @unique // Human-readable order number
-  status      OrderStatus @default(DRAFT)
-  currency    String   @default("NOK")
-  orderType   OrderType @default(COURSE_PERIOD) // COURSE_PERIOD, EVENT, MEMBERSHIP
-  
-  // Pricing breakdown
-  subtotalCents              Int  // Base price before MVA
-  discountCents              Int  // Discounts applied
-  subtotalAfterDiscountCents Int  // subtotalCents - discountCents
-  
-  // MVA/VAT tracking
-  mvaRate         Decimal  @default(0)    // 0.00, 12.00, 15.00, or 25.00
-  mvaCents        Int      @default(0)    // Calculated MVA amount
-  totalCents      Int                     // subtotalAfterDiscountCents + mvaCents
-  
-  // Stripe payment tracking
-  stripePaymentIntentId String?
-  stripeCheckoutSessionId String?
-  
-  pricingSnapshot Json // store applied rules + breakdown for audit
-  providerCheckoutRef String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  period      CoursePeriod? @relation(fields: [periodId], references: [id])
-  purchaser   PersonProfile @relation(fields: [purchaserPersonId], references: [id])
-  registrations Registration[]
-  eventRegistrations EventRegistration[]
-  memberships Membership[]
-  payments    Payment[]
-  invoice     Invoice?
-  @@index([periodId, status])
-}
-
-enum OrderType {
-  COURSE_PERIOD
-  EVENT
-  MEMBERSHIP
-}
-
-model Payment {
-  id          String @id @default(uuid())
-  orderId     String
-  provider    PaymentProvider
-  providerPaymentRef String
-  status      PaymentStatus
-  amountCents Int
-  currency    String @default("NOK")
-  rawPayload  Json
-  createdAt   DateTime @default(now())
-  order       Order @relation(fields: [orderId], references: [id])
-  @@index([orderId])
-}
-
-model Ticket {
-  id          String   @id @default(uuid())
-  periodId    String
-  personId    String
-  status      TicketStatus @default(ACTIVE)
-  qrTokenHash String   @unique // store hash only
-  issuedAt    DateTime @default(now())
-  period      CoursePeriod @relation(fields: [periodId], references: [id])
-  person      PersonProfile @relation(fields: [personId], references: [id])
-  checkIns    CheckIn[]
-  @@unique([periodId, personId]) // one ticket per person per period
-  @@index([periodId])
-}
-
-model CheckIn {
-  id          String   @id @default(uuid())
-  ticketId    String
-  type        CheckInType
-  sessionId   String?
-  scannedByUserId String?
-  scannedAt   DateTime @default(now())
-  meta        Json?
-  ticket      Ticket @relation(fields: [ticketId], references: [id])
-  session     TrackSession? @relation(fields: [sessionId], references: [id])
-  @@index([ticketId, scannedAt])
-}
-
-model Membership {
-  id                String   @id @default(uuid())
-  personId          String
-  organizerId       String
-  tierId            String   // Reference to MembershipTier
-  memberNumber      String?
-  validFrom         DateTime
-  validTo           DateTime
-  status            MembershipStatus @default(ACTIVE)
-  source            String   @default("IMPORT") // IMPORT, MANUAL, PURCHASE
-  autoRenew         Boolean  @default(false)
-  orderId           String?  // If purchased through platform
-  verificationToken String?  @unique // For QR code verification
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  person       PersonProfile @relation(fields: [personId], references: [id])
-  organizer    Organizer @relation(fields: [organizerId], references: [id])
-  tier         MembershipTier @relation(fields: [tierId], references: [id])
-  order        Order? @relation(fields: [orderId], references: [id])
-  
-  @@unique([personId, organizerId, validFrom])
-  @@index([personId, validTo])
-  @@index([organizerId, status])
-  @@index([tierId])
-  @@index([verificationToken])
-}
-
-enum MembershipStatus {
-  ACTIVE
-  EXPIRED
-  CANCELLED
-  PENDING_PAYMENT
-}
-
-model Event {
-  id              String   @id @default(uuid())
-  organizerId     String
-  slug            String
-  title           String
-  description     String?
-  eventType       EventType @default(SINGLE)
-  
-  // Timing
-  startDateTime   DateTime
-  endDateTime     DateTime?
-  timezone        String   @default("Europe/Oslo")
-  
-  // Location
-  locationName    String?
-  locationAddress String?
-  city            String?
-  
-  // Sales
-  salesOpenAt     DateTime
-  salesCloseAt    DateTime
-  
-  // Capacity
-  capacityTotal   Int
-  requiresRole    Boolean  @default(false) // If true, need leader/follower
-  
-  // Pricing
-  basePriceCents  Int
-  memberPriceCents Int?    // Special price for members
-  
-  // Settings
-  status          EventStatus @default(DRAFT)
-  published       Boolean  @default(false)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  organizer       Organizer @relation(fields: [organizerId], references: [id])
-  registrations   EventRegistration[]
-  tickets         EventTicket[]
-  
-  @@unique([organizerId, slug])
-  @@index([organizerId, startDateTime])
-  @@index([published, startDateTime])
-}
-
-enum EventType {
-  SINGLE      // One-time event
-  RECURRING   // Repeating event (e.g., weekly social)
-}
-
-enum EventStatus {
-  DRAFT
-  PUBLISHED
-  CANCELLED
-  COMPLETED
-}
-
-model EventRegistration {
-  id          String   @id @default(uuid())
-  eventId     String
-  personId    String
-  orderId     String?
-  chosenRole  TrackRole?
-  status      RegistrationStatus @default(PENDING_PAYMENT)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  event       Event @relation(fields: [eventId], references: [id])
-  person      PersonProfile @relation(fields: [personId], references: [id])
-  order       Order? @relation(fields: [orderId], references: [id])
-  
-  @@unique([eventId, personId])
-  @@index([eventId, status])
-  @@index([personId])
-}
-
-model EventTicket {
-  id          String   @id @default(uuid())
-  eventId     String
-  personId    String
-  qrTokenHash String   @unique
-  status      TicketStatus @default(ACTIVE)
-  checkedInAt DateTime?
-  createdAt   DateTime @default(now())
-  
-  event       Event @relation(fields: [eventId], references: [id])
-  person      PersonProfile @relation(fields: [personId], references: [id])
-  
-  @@unique([eventId, personId])
-  @@index([personId])
-}
-
-model DiscountRule {
-  id          String   @id @default(uuid())
-  periodId    String
-  code        String   // internal code e.g. "MULTI_2", "MEMBER_15"
-  name        String
-  priority    Int      // evaluation order
-  enabled     Boolean  @default(true)
-  ruleType    String   // e.g. "MULTI_COURSE", "MEMBERSHIP", "PAIR_PRICE", "PROMO_CODE"
-  config      Json     // structured config per type
-  createdAt   DateTime @default(now())
-  period      CoursePeriod @relation(fields: [periodId], references: [id])
-  @@unique([periodId, code])
-  @@index([periodId, priority])
-}
-
-model PaymentConfig {
-  id        String   @id @default(uuid())
-  provider  PaymentProvider @unique
-  enabled   Boolean  @default(false)
-  isTest    Boolean  @default(true)
-  
-  // Standard Stripe API keys (for direct payments)
-  secretKey String?  // Encrypted or protected via RLS (Admin only)
-  publishableKey String?
-  webhookSecret String?
-  
-  // Stripe Connect platform settings
-  useStripeConnect Boolean @default(false)
-  platformAccountId String? // Platform's Stripe account ID
-  platformFeePercent Decimal @default(0) // Platform commission %
-  platformFeeFixed Int @default(0) // Fixed fee in cents per transaction
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-enum InvoiceStatus {
-  DRAFT
-  SENT
-  PAID
-  OVERDUE
-  CANCELLED
-  CREDITED
-}
-
-model Invoice {
-  id              String   @id @default(uuid())
-  invoiceNumber   String   @unique  // Sequential: ORG-PREFIX-0001
-  organizerId     String
-  orderId         String   @unique
-  
-  // Customer Information
-  customerName    String
-  customerEmail   String
-  customerOrgNr   String?  // For B2B invoicing
-  customerAddress Json?
-  
-  // Financial Details
-  subtotalCents   Int
-  mvaRate         Decimal  // 0, 12, 15, or 25
-  mvaCents        Int      // Calculated MVA amount
-  totalCents      Int      // subtotalCents + mvaCents
-  currency        String   @default("NOK")
-  
-  // Invoice Details
-  invoiceDate     DateTime @default(now())
-  dueDate         DateTime
-  paymentTerms    String   @default("Due upon receipt")
-  status          InvoiceStatus @default(DRAFT)
-  
-  // Payment tracking
-  paidAt          DateTime?
-  paidAmount      Int?
-  
-  // Audit
-  sentAt          DateTime?
-  pdfUrl          String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  organizer       Organizer @relation(fields: [organizerId], references: [id])
-  order           Order @relation(fields: [orderId], references: [id])
-  creditNotes     CreditNote[]
-  auditLogs       AuditLog[]
-  
-  @@index([organizerId, invoiceNumber])
-  @@index([invoiceDate])
-}
-
-model CreditNote {
-  id              String   @id @default(uuid())
-  creditNumber    String   @unique
-  organizerId     String
-  invoiceId       String
-  
-  reason          String
-  amountCents     Int
-  mvaCents        Int
-  totalCents      Int
-  
-  issueDate       DateTime @default(now())
-  status          String   @default("ISSUED")
-  
-  createdAt       DateTime @default(now())
-  
-  organizer       Organizer @relation(fields: [organizerId], references: [id])
-  invoice         Invoice @relation(fields: [invoiceId], references: [id])
-  
-  @@index([organizerId, creditNumber])
-}
-
-model AuditLog {
-  id          String   @id @default(uuid())
-  userId      String?
-  entityType  String   // "Order", "Invoice", "Payment", etc.
-  entityId    String
-  action      String   // "CREATE", "UPDATE", "DELETE", "SEND", "PAID"
-  changes     Json     // Before/after snapshot
-  ipAddress   String?
-  userAgent   String?
-  timestamp   DateTime @default(now())
-  
-  user        UserAccount? @relation(fields: [userId], references: [id])
-  invoice     Invoice? @relation(fields: [entityId], references: [id])
-  
-  @@index([entityType, entityId])
-  @@index([timestamp])
-  @@index([userId])
-}
-
-model EmailProvider {
-  id              String   @id @default(uuid())
-  provider        EmailProviderType
-  apiKey          String?  // Encrypted
-  smtpHost        String?
-  smtpPort        Int?
-  smtpUsername    String?
-  smtpPassword    String?  // Encrypted
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model EmailSettings {
-  id                String   @id @default(uuid())
-  organizerId       String?  @unique // null = global settings
-  fromName          String
-  fromEmail         String
-  replyToEmail      String
-  enableLogo        Boolean  @default(true)
-  enableSignature   Boolean  @default(true)
-  signatureHtml     String?  @db.Text
-  primaryLanguage   String   @default("no")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  organizer         Organizer? @relation(fields: [organizerId], references: [id])
-}
-
-model EmailTemplate {
-  id              String   @id @default(uuid())
-  organizerId     String?  // null = global template
-  category        EmailCategory
-  name            String   // "Order Confirmation"
-  slug            String   // "order-confirmation"
-  language        String   @default("no")
-  subject         String
-  preheader       String?  // Preview text
-  htmlContent     String   @db.Text
-  textContent     String?  @db.Text
-  variables       Json     // Available variables for this template
-  isActive        Boolean  @default(true)
-  version         Int      @default(1)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  organizer       Organizer? @relation(fields: [organizerId], references: [id])
-  emailLogs       EmailLog[]
-  
-  @@unique([organizerId, slug, language])
-  @@index([category, isActive])
-}
-
-model EmailLog {
-  id                  String   @id @default(uuid())
-  organizerId         String?
-  templateId          String?
-  recipientEmail      String
-  recipientName       String?
-  subject             String
-  status              EmailStatus
-  providerMessageId   String?
-  sentAt              DateTime?
-  deliveredAt         DateTime?
-  openedAt            DateTime?
-  clickedAt           DateTime?
-  bouncedAt           DateTime?
-  errorMessage        String?  @db.Text
-  metadata            Json?    // Variables used, links clicked, etc
-  createdAt           DateTime @default(now())
-  template            EmailTemplate? @relation(fields: [templateId], references: [id])
-  organizer           Organizer? @relation(fields: [organizerId], references: [id])
-  
-  @@index([recipientEmail])
-  @@index([status])
-  @@index([createdAt])
-}
-

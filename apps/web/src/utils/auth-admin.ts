@@ -18,11 +18,11 @@ export async function requireAdmin() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: true
+            UserAccountRole: true
         }
     })
 
-    const isAdmin = userAccount?.roles.some(r => r.role === 'ADMIN')
+    const isAdmin = userAccount?.UserAccountRole.some(r => r.role === 'ADMIN')
 
     if (!isAdmin) {
         throw new Error('Unauthorized: Admin access required')
@@ -45,7 +45,7 @@ export async function requireOrganizerAccess(organizerId?: string) {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: true
+            UserAccountRole: true
         }
     })
 
@@ -54,14 +54,14 @@ export async function requireOrganizerAccess(organizerId?: string) {
     }
 
     // Global ADMIN can access everything
-    const isGlobalAdmin = userAccount.roles.some(r => r.role === 'ADMIN')
+    const isGlobalAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN')
     if (isGlobalAdmin) {
         return { userAccount, isGlobalAdmin: true, isOrgAdmin: false }
     }
 
     // If organizerId is provided, check if user is ORG_ADMIN for that organizer
     if (organizerId) {
-        const isOrgAdmin = userAccount.roles.some(
+        const isOrgAdmin = userAccount.UserAccountRole.some(
             r => (r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER') && r.organizerId === organizerId
         )
 
@@ -73,7 +73,7 @@ export async function requireOrganizerAccess(organizerId?: string) {
     }
 
     // No organizerId provided, but user must have at least one ORG_ADMIN role
-    const hasOrgAdminRole = userAccount.roles.some(r => r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER')
+    const hasOrgAdminRole = userAccount.UserAccountRole.some(r => r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER')
     if (!hasOrgAdminRole) {
         throw new Error('Unauthorized: Organizer admin access required')
     }
@@ -95,7 +95,7 @@ export async function getUserOrganizerIds() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: { in: ['ORG_ADMIN', 'ORGANIZER'] }
                 }
@@ -103,7 +103,7 @@ export async function getUserOrganizerIds() {
         }
     })
 
-    return userAccount?.roles
+    return userAccount?.UserAccountRole
         .filter(r => r.organizerId)
         .map(r => r.organizerId!) || []
 }
@@ -122,7 +122,7 @@ export async function hasRole(role: string, organizerId?: string) {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: true
+            UserAccountRole: true
         }
     })
 
@@ -131,14 +131,14 @@ export async function hasRole(role: string, organizerId?: string) {
     }
 
     // Global ADMIN has all permissions
-    if (userAccount.roles.some(r => r.role === 'ADMIN')) {
+    if (userAccount.UserAccountRole.some(r => r.role === 'ADMIN')) {
         return true
     }
 
     // Check for specific role
     if (organizerId) {
-        return userAccount.roles.some(r => r.role === role && r.organizerId === organizerId)
+        return userAccount.UserAccountRole.some(r => r.role === role && r.organizerId === organizerId)
     }
 
-    return userAccount.roles.some(r => r.role === role)
+    return userAccount.UserAccountRole.some(r => r.role === role)
 }
