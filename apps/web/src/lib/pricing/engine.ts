@@ -5,7 +5,9 @@ import { DiscountRuleFormData, membershipTierConfigSchema, multiCourseConfigSche
 /**
  * Norwegian Compliance: MVA/VAT Calculation
  * 
- * Calculates MVA (merverdiavgift/VAT) on order totals.
+ * IMPORTANT: Prices entered in the system are FINAL prices (inclusive of VAT).
+ * This function EXTRACTS the VAT component from the inclusive price for documentation.
+ * 
  * Common rates in Norway:
  * - 0%: Educational services (some courses may qualify)
  * - 12%: Transportation, food
@@ -13,42 +15,50 @@ import { DiscountRuleFormData, membershipTierConfigSchema, multiCourseConfigSche
  * - 25%: Standard rate for most goods and services
  * 
  * Dance courses are typically either 0% (educational) or 25% (recreational)
+ * 
+ * Formula for extracting VAT from inclusive price:
+ * VAT = inclusivePrice - (inclusivePrice / (1 + vatRate))
  */
 export interface MvaCalculation {
-    subtotalCents: number              // Amount before MVA
+    subtotalCents: number              // Amount including MVA (this is the final price)
     mvaRate: number                    // MVA percentage (0, 12, 15, or 25)
-    mvaCents: number                   // Calculated MVA amount
-    totalCents: number                 // subtotalCents + mvaCents
+    mvaCents: number                   // Extracted MVA amount (for documentation only)
+    totalCents: number                 // Same as subtotalCents (price is already inclusive)
 }
 
 export function calculateMva(params: {
-    subtotalCents: number
+    subtotalCents: number  // Price INCLUSIVE of VAT
     mvaRate: number
 }): MvaCalculation {
-    const mvaCents = Math.round(params.subtotalCents * (params.mvaRate / 100))
-    const totalCents = params.subtotalCents + mvaCents
+    // Extract VAT from inclusive price: VAT = total - (total / (1 + rate))
+    const mvaCents = params.mvaRate > 0 
+        ? Math.round(params.subtotalCents - (params.subtotalCents / (1 + params.mvaRate / 100)))
+        : 0
     
     return {
         subtotalCents: params.subtotalCents,
         mvaRate: params.mvaRate,
         mvaCents,
-        totalCents
+        totalCents: params.subtotalCents  // Price is already inclusive, so total = subtotal
     }
 }
 
 /**
  * Full order calculation including discounts and MVA
+ * 
+ * IMPORTANT: All prices are VAT-INCLUSIVE. Discounts are applied to the inclusive price.
+ * MVA is extracted for documentation purposes only - it doesn't change the final price.
  */
 export interface OrderCalculation extends MvaCalculation {
-    subtotalBeforeDiscountCents: number
-    discountCents: number
-    subtotalAfterDiscountCents: number
+    subtotalBeforeDiscountCents: number  // Original price (VAT-inclusive)
+    discountCents: number                 // Discount amount
+    subtotalAfterDiscountCents: number   // Price after discount (VAT-inclusive)
 }
 
 export function calculateOrderTotal(params: {
-    subtotalCents: number
-    discountCents: number
-    mvaRate: number
+    subtotalCents: number   // Price INCLUSIVE of VAT
+    discountCents: number   // Discount amount
+    mvaRate: number         // VAT rate for documentation (0 if not VAT-registered)
 }): OrderCalculation {
     const subtotalAfterDiscount = params.subtotalCents - params.discountCents
     const mva = calculateMva({
@@ -60,7 +70,7 @@ export function calculateOrderTotal(params: {
         subtotalBeforeDiscountCents: params.subtotalCents,
         discountCents: params.discountCents,
         subtotalAfterDiscountCents: subtotalAfterDiscount,
-        ...mva
+        ...mva  // mvaCents is extracted for documentation, totalCents = subtotalAfterDiscount
     }
 }
 
@@ -69,6 +79,8 @@ export interface PricingTrack {
     id: string
     priceSingleCents: number
     pricePairCents: number | null
+    memberPriceSingleCents?: number | null  // Fixed member price (if set, skip discount engine)
+    memberPricePairCents?: number | null    // Fixed member price for pairs
 }
 
 export interface CartItem {
@@ -85,6 +97,7 @@ export interface PricingLineItem {
     discountCents: number
     finalPriceCents: number
     appliedRuleCodes: string[]
+    usesFixedMemberPrice?: boolean  // Flag to skip discount rules
 }
 
 export interface AppliedRule {
@@ -117,17 +130,40 @@ export function calculatePricing(
     const appliedRules: AppliedRule[] = []
 
     // 1. Initialize Line Items with Base Price
+    // If user is a member and track has fixed member price, use that instead of base price
     let lineItems: PricingLineItem[] = cartItems.map(item => {
-        const basePrice = item.hasPartner && item.track.pricePairCents
-            ? item.track.pricePairCents
-            : item.track.priceSingleCents
+        let basePrice: number
+        let usesFixedMemberPrice = false
+        
+        // Check if member with fixed member price
+        if (context.isMember) {
+            const memberPrice = item.hasPartner && item.track.memberPricePairCents
+                ? item.track.memberPricePairCents
+                : item.track.memberPriceSingleCents
+            
+            if (memberPrice !== undefined && memberPrice !== null && memberPrice > 0) {
+                basePrice = memberPrice
+                usesFixedMemberPrice = true
+            } else {
+                // Fall back to regular price, discount engine will apply
+                basePrice = item.hasPartner && item.track.pricePairCents
+                    ? item.track.pricePairCents
+                    : item.track.priceSingleCents
+            }
+        } else {
+            // Non-member uses regular price
+            basePrice = item.hasPartner && item.track.pricePairCents
+                ? item.track.pricePairCents
+                : item.track.priceSingleCents
+        }
 
         return {
             trackId: item.trackId,
             basePriceCents: basePrice,
             discountCents: 0,
             finalPriceCents: basePrice,
-            appliedRuleCodes: []
+            appliedRuleCodes: [],
+            usesFixedMemberPrice // Track this to skip discount rules
         }
     })
 
@@ -151,9 +187,13 @@ export function calculatePricing(
                 if (!appliesToTier) continue
 
                 // Apply to all line items that have not been fully discounted
+                // SKIP items that use fixed member price
                 let ruleTotalDiscount = 0
 
                 lineItems = lineItems.map(line => {
+                    // Skip if using fixed member price
+                    if ((line as any).usesFixedMemberPrice) return line
+                    
                     // Check if already 100% free?
                     if (line.finalPriceCents <= 0) return line
 

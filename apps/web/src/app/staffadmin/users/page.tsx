@@ -28,29 +28,29 @@ export default async function StaffAdminUsersPage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
     })
 
-    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
+    const adminOrgIds = userAccount?.UserAccountRole.map(r => r.organizerId).filter(Boolean) as string[] || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')
     }
 
-    const adminOrganizers = userAccount?.roles.map(r => r.organizer) || []
+    const adminOrganizers = userAccount?.UserAccountRole.map(r => r.Organizer) || []
 
     // Get all users with roles in these organizations
     const usersWithRoles = await prisma.userAccount.findMany({
         where: {
-            roles: {
+            UserAccountRole: {
                 some: {
                     organizerId: {
                         in: adminOrgIds
@@ -59,15 +59,15 @@ export default async function StaffAdminUsersPage() {
             }
         },
         include: {
-            personProfile: true,
-            roles: {
+            PersonProfile: true,
+            UserAccountRole: {
                 where: {
                     organizerId: {
                         in: adminOrgIds
                     }
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         },
@@ -89,7 +89,7 @@ export default async function StaffAdminUsersPage() {
                 if (!org) return null
                 
                 const orgUsers = usersWithRoles.filter(u => 
-                    u.roles.some(r => r.organizerId === org.id)
+                    u.UserAccountRole.some(r => r.organizerId === org.id)
                 )
 
                 // Serialize Decimal fields for Client Component
@@ -120,13 +120,13 @@ export default async function StaffAdminUsersPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {orgUsers.map((user) => {
-                                        const orgRoles = user.roles.filter(r => r.organizerId === org.id)
+                                        const orgRoles = user.UserAccountRole.filter(r => r.organizerId === org.id)
                                         
                                         return (
                                             <TableRow key={user.id}>
                                                 <TableCell className="font-medium">
-                                                    {user.personProfile ? 
-                                                        `${user.personProfile.firstName} ${user.personProfile.lastName}` :
+                                                    {user.PersonProfile ? 
+                                                        `${user.PersonProfile.firstName} ${user.PersonProfile.lastName}` :
                                                         'No profile'
                                                     }
                                                 </TableCell>

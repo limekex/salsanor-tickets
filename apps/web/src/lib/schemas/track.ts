@@ -15,6 +15,8 @@ export const courseTrackSchema = z.object({
     waitlistEnabled: z.boolean(),
     priceSingleCents: z.coerce.number().min(0),
     pricePairCents: z.coerce.number().optional(),
+    memberPriceSingleCents: z.coerce.number().optional(),
+    memberPricePairCents: z.coerce.number().optional(),
 })
 
 export type CourseTrackFormValues = z.infer<typeof courseTrackSchema>

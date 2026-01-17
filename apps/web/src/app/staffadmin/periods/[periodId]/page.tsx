@@ -31,16 +31,20 @@ export default async function EditStaffPeriodPage({
         }
     })
 
-    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) as string[] || []
-    const organizers = userAccount?.roles.map(r => r.organizer).filter(Boolean) || []
+    const adminOrgIds = userAccount?.UserAccountRole.map(r => r.organizerId).filter(Boolean) as string[] || []
+    const organizers = userAccount?.UserAccountRole.map(r => r.Organizer).filter(Boolean) || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')
     }
 
-    // Fetch the period
+    // Fetch the period with categories and tags
     const period = await prisma.coursePeriod.findUnique({
-        where: { id: periodId }
+        where: { id: periodId },
+        include: {
+            categories: true,
+            tags: true
+        }
     })
 
     if (!period) {
@@ -52,6 +56,15 @@ export default async function EditStaffPeriodPage({
         throw new Error('Unauthorized: You do not have access to this period')
     }
 
+    // Fetch categories (global) and tags (for user's orgs)
+    const [categories, tags] = await Promise.all([
+        prisma.category.findMany({ orderBy: { sortOrder: 'asc' } }),
+        prisma.tag.findMany({ 
+            where: { organizerId: { in: adminOrgIds } },
+            orderBy: { name: 'asc' }
+        })
+    ])
+
     return (
         <div className="max-w-3xl mx-auto space-y-rn-6 px-rn-4 sm:px-0">
             <div className="flex items-center justify-between">
@@ -61,6 +74,8 @@ export default async function EditStaffPeriodPage({
                 period={period}
                 organizerIds={adminOrgIds}
                 organizers={organizers as any}
+                categories={categories}
+                tags={tags}
             />
         </div>
     )

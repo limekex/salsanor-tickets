@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { calculatePricing, CartItem, calculateOrderTotal } from '@/lib/pricing/engine'
 import { createAuditLog } from '@/lib/audit'
 import { redirect } from 'next/navigation'
+import { randomUUID } from 'crypto'
 
 export async function getCartPricing(items: { trackId: string, role: string, hasPartner: boolean, partnerEmail?: string }[]) {
     if (!items.length) return null
@@ -12,7 +13,15 @@ export async function getCartPricing(items: { trackId: string, role: string, has
     // Fetch all tracks involved
     const trackIds = items.map(i => i.trackId)
     const tracks = await prisma.courseTrack.findMany({
-        where: { id: { in: trackIds } }
+        where: { id: { in: trackIds } },
+        select: {
+            id: true,
+            periodId: true,
+            priceSingleCents: true,
+            pricePairCents: true,
+            memberPriceSingleCents: true,
+            memberPricePairCents: true
+        }
     })
 
     if (tracks.length !== items.length) {
@@ -40,9 +49,9 @@ export async function getCartPricing(items: { trackId: string, role: string, has
         const userAccount = await prisma.userAccount.findUnique({
             where: { supabaseUid: user.id },
             include: { 
-                personProfile: { 
+                PersonProfile: { 
                     include: { 
-                        memberships: {
+                        Membership: {
                             where: {
                                 validTo: { gt: new Date() }
                             },
@@ -56,7 +65,7 @@ export async function getCartPricing(items: { trackId: string, role: string, has
             }
         })
 
-        const activeMembership = userAccount?.personProfile?.memberships?.[0]
+        const activeMembership = userAccount?.PersonProfile?.Membership?.[0]
         if (activeMembership) {
             isMember = true
             membershipTierId = activeMembership.tierId
@@ -73,7 +82,9 @@ export async function getCartPricing(items: { trackId: string, role: string, has
             track: {
                 id: track.id,
                 priceSingleCents: track.priceSingleCents,
-                pricePairCents: track.pricePairCents
+                pricePairCents: track.pricePairCents,
+                memberPriceSingleCents: track.memberPriceSingleCents,
+                memberPricePairCents: track.memberPricePairCents
             }
         }
     })
@@ -90,10 +101,10 @@ export async function createOrderFromCart(items: { trackId: string, role: string
     // 1. Check if user has completed onboarding
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
-    if (!userAccount?.personProfile) {
+    if (!userAccount?.PersonProfile) {
         return { 
             error: 'Please complete your profile before checking out.',
             redirectToOnboarding: true 
@@ -104,7 +115,7 @@ export async function createOrderFromCart(items: { trackId: string, role: string
     const pricing = await getCartPricing(items)
     if (!pricing) return { error: 'Empty cart' }
 
-    const personId = userAccount.personProfile.id
+    const personId = userAccount.PersonProfile.id
 
     // 3. Create Order
     // Assuming all items are same period for now? 
@@ -168,11 +179,11 @@ export async function createOrderFromCart(items: { trackId: string, role: string
         // Get organizer MVA rate
         const period = await prisma.coursePeriod.findUniqueOrThrow({
             where: { id: periodId },
-            include: { organizer: true }
+            include: { Organizer: true }
         })
         
-        const mvaRate = period.organizer.mvaReportingRequired 
-            ? Number(period.organizer.mvaRate) 
+        const mvaRate = period.Organizer.mvaReportingRequired 
+            ? Number(period.Organizer.mvaRate) 
             : 0
             
         // Calculate order total with MVA
@@ -185,6 +196,7 @@ export async function createOrderFromCart(items: { trackId: string, role: string
         const order = await prisma.order.create({
             data: {
                 periodId,
+                organizerId: period.Organizer.id,
                 purchaserPersonId: personId!,
                 status: 'DRAFT',
                 subtotalCents: orderPricing.subtotalBeforeDiscountCents,
@@ -200,7 +212,7 @@ export async function createOrderFromCart(items: { trackId: string, role: string
                         amount: orderPricing.mvaCents
                     }
                 }),
-                registrations: {
+                Registration: {
                     create: items.map(item => ({
                         periodId,
                         trackId: item.trackId,
@@ -225,5 +237,233 @@ export async function createOrderFromCart(items: { trackId: string, role: string
     } catch (e: any) {
         console.error(e)
         return { error: 'Failed to place order: ' + e.message }
+    }
+}
+
+export async function createEventOrderFromCart(items: { eventId: string, quantity: number }[]) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'Must be logged in' }
+
+    // 1. Check if user has completed onboarding
+    const userAccount = await prisma.userAccount.findUnique({
+        where: { supabaseUid: user.id },
+        include: { PersonProfile: true }
+    })
+
+    if (!userAccount?.PersonProfile) {
+        return { 
+            error: 'Please complete your profile before checking out.',
+            redirectToOnboarding: true 
+        }
+    }
+
+    const personId = userAccount.PersonProfile.id
+
+    // 2. Fetch all events with organizer info
+    const eventIds = items.map(i => i.eventId)
+    const events = await prisma.event.findMany({
+        where: { id: { in: eventIds }, published: true },
+        select: {
+            id: true,
+            title: true,
+            organizerId: true,
+            basePriceCents: true,
+            memberPriceCents: true,
+            capacityTotal: true,
+            Organizer: {
+                select: {
+                    id: true,
+                    mvaReportingRequired: true,
+                    mvaRate: true
+                }
+            },
+            EventRegistration: {
+                select: { quantity: true },
+                where: { status: 'ACTIVE' }
+            }
+        }
+    })
+
+    if (events.length !== items.length) {
+        return { error: 'Some events are no longer available' }
+    }
+
+    // 3. Verify all events are from same organizer
+    const organizerIds = [...new Set(events.map(e => e.organizerId))]
+    if (organizerIds.length !== 1) {
+        return { error: 'All events must be from the same organizer' }
+    }
+
+    // 4. Check capacity for each event
+    // Sum up quantities from active registrations for accurate capacity tracking
+    for (const item of items) {
+        const event = events.find(e => e.id === item.eventId)!
+        const registeredCount = event.EventRegistration.reduce((sum, reg) => sum + reg.quantity, 0)
+        const available = event.capacityTotal - registeredCount
+        if (available < item.quantity) {
+            return { error: `${event.title} har kun ${available} plasser tilgjengelig` }
+        }
+    }
+
+    // 5. Check if user is a member (for pricing)
+    const activeMembership = await prisma.membership.findFirst({
+        where: {
+            personId,
+            status: 'ACTIVE',
+            validTo: { gte: new Date() }
+        }
+    })
+
+    const isMember = !!activeMembership
+
+    // 6. Calculate total price
+    // Price is entered as final price (inclusive of any VAT if applicable)
+    // VAT is only calculated and documented when organizer is VAT-registered
+    let subtotalCents = 0
+    for (const item of items) {
+        const event = events.find(e => e.id === item.eventId)!
+        const pricePerTicket = (isMember && event.memberPriceCents) 
+            ? event.memberPriceCents 
+            : event.basePriceCents
+        subtotalCents += pricePerTicket * item.quantity
+    }
+
+    // Get organizer MVA settings
+    const organizer = events[0].Organizer
+    
+    // Calculate MVA only if organizer is VAT-registered
+    // Price is already inclusive of VAT, so we calculate VAT component for documentation
+    const mvaRate = organizer.mvaReportingRequired ? Number(organizer.mvaRate || 25) : 0
+    const subtotalAfterDiscountCents = subtotalCents // No discounts for events yet
+    // Since price is VAT-inclusive, extract VAT from total: VAT = total - (total / (1 + rate))
+    const mvaCents = mvaRate > 0 
+        ? Math.round(subtotalAfterDiscountCents - (subtotalAfterDiscountCents / (1 + mvaRate / 100)))
+        : 0
+    // Total is the same as subtotal (price is already inclusive)
+    const totalCents = subtotalAfterDiscountCents
+
+    // 7. Create Order with EventRegistrations
+    // Use a transaction to prevent race conditions on capacity
+    try {
+        // Check if user already has active registrations for these events
+        const existingActiveRegs = await prisma.eventRegistration.findMany({
+            where: {
+                personId,
+                eventId: { in: items.map(i => i.eventId) },
+                status: 'ACTIVE'
+            },
+            include: { Event: { select: { title: true } } }
+        })
+        
+        if (existingActiveRegs.length > 0) {
+            const eventTitles = existingActiveRegs.map(r => r.Event.title).join(', ')
+            return { error: `Du er allerede påmeldt: ${eventTitles}` }
+        }
+
+        // Delete any pending payment registrations from previous failed attempts
+        for (const item of items) {
+            await prisma.eventRegistration.deleteMany({
+                where: {
+                    eventId: item.eventId,
+                    personId,
+                    status: 'PENDING_PAYMENT'
+                }
+            })
+        }
+
+        // Create order in a transaction with capacity re-check to prevent overselling
+        const order = await prisma.$transaction(async (tx) => {
+            // Re-check capacity within transaction to prevent race conditions
+            for (const item of items) {
+                const event = await tx.event.findUnique({
+                    where: { id: item.eventId },
+                    include: {
+                        EventRegistration: {
+                            select: { quantity: true },
+                            where: { status: 'ACTIVE' }
+                        }
+                    }
+                })
+                
+                if (!event) {
+                    throw new Error(`Event ${item.eventId} not found`)
+                }
+                
+                const registeredCount = event.EventRegistration.reduce((sum, reg) => sum + reg.quantity, 0)
+                const available = event.capacityTotal - registeredCount
+                
+                if (available < item.quantity) {
+                    throw new Error(`${event.title} har kun ${available} plasser tilgjengelig`)
+                }
+            }
+
+            // Create the order
+            return await tx.order.create({
+                data: {
+                    id: randomUUID(),
+                    updatedAt: new Date(),
+                    purchaserPersonId: personId,
+                    orderType: 'EVENT',
+                    organizerId: organizerIds[0],
+                    status: 'DRAFT',
+                    subtotalCents,
+                    discountCents: 0,
+                    subtotalAfterDiscountCents,
+                    mvaRate,
+                    mvaCents,
+                    totalCents,
+                    pricingSnapshot: JSON.stringify({
+                        events: items.map(item => {
+                            const event = events.find(e => e.id === item.eventId)!
+                            return {
+                                eventId: item.eventId,
+                                quantity: item.quantity,
+                                pricePerTicket: (isMember && event.memberPriceCents) 
+                                    ? event.memberPriceCents 
+                                    : event.basePriceCents,
+                                isMember
+                            }
+                        }),
+                        mva: {
+                            rate: mvaRate,
+                            amount: mvaCents
+                        }
+                    }),
+                    EventRegistration: {
+                        create: items.map(item => {
+                            const event = events.find(e => e.id === item.eventId)!
+                            const pricePerTicket = (isMember && event.memberPriceCents) 
+                                ? event.memberPriceCents 
+                                : event.basePriceCents
+                            
+                            return {
+                                id: randomUUID(),
+                                updatedAt: new Date(),
+                                eventId: item.eventId,
+                                personId,
+                                quantity: item.quantity,
+                                unitPriceCents: pricePerTicket,
+                                status: 'PENDING_PAYMENT'
+                            }
+                        })
+                    }
+                }
+            })
+        })
+
+        // TODO: Audit log disabled - AuditLog schema has hard FK to Invoice only
+        // Need to fix schema to support multiple entity types (Order, Payment, etc)
+        // See: packages/database/prisma/schema.prisma - AuditLog model
+
+        return { orderId: order.id }
+    } catch (e: any) {
+        console.error(e)
+        // Check if this is our capacity error
+        if (e.message && e.message.includes('har kun')) {
+            return { error: e.message }
+        }
+        return { error: 'Kunne ikke opprette ordre: ' + e.message }
     }
 }

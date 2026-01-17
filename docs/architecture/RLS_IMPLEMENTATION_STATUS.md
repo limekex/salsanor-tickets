@@ -94,9 +94,10 @@ After Order table success, enable RLS for remaining Tier 1 tables one at a time:
 1. ✅ Order (pilot completed)
 2. ⏭️ Payment
 3. ⏭️ Invoice
-4. ⏭️ Registration
-5. ⏭️ Membership
-6. ⏭️ AuditLog
+4. ⏭️ CreditNote (added 2026-01-11)
+5. ⏭️ Registration
+6. ⏭️ Membership
+7. ⏭️ AuditLog
 
 **For Each Table:**
 - Enable RLS
@@ -136,6 +137,7 @@ After Order table success, enable RLS for remaining Tier 1 tables one at a time:
 - [ ] Verify application works with Order RLS
 - [ ] Enable RLS on Payment table
 - [ ] Enable RLS on Invoice table
+- [ ] Enable RLS on CreditNote table
 - [ ] Enable RLS on Registration table
 - [ ] Enable RLS on Membership table
 - [ ] Enable RLS on AuditLog table

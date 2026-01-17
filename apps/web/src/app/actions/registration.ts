@@ -34,14 +34,14 @@ export async function createRegistration(prevState: any, formData: FormData) {
     // Check if UserAccount exists (should)
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     if (!userAccount) {
         return { error: 'User account not found via Supabase UID.' }
     }
 
-    let personId = userAccount.personProfile?.id
+    let personId = userAccount.PersonProfile?.id
 
     if (!personId) {
         // User needs to complete onboarding first
@@ -70,8 +70,8 @@ export async function createRegistration(prevState: any, formData: FormData) {
             }
 
             // Calculate with MVA
-            const mvaRate = track.period.organizer.mvaReportingRequired 
-                ? Number(track.period.organizer.mvaRate) 
+            const mvaRate = track.CoursePeriod.Organizer.mvaReportingRequired 
+                ? Number(track.CoursePeriod.Organizer.mvaRate) 
                 : 0
                 
             const pricing = calculateOrderTotal({
@@ -84,6 +84,7 @@ export async function createRegistration(prevState: any, formData: FormData) {
             const order = await tx.order.create({
                 data: {
                     periodId,
+                    organizerId: track.CoursePeriod.Organizer.id,
                     purchaserPersonId: personId!,
                     status: 'DRAFT',
                     subtotalCents: pricing.subtotalBeforeDiscountCents,

@@ -22,7 +22,7 @@ export async function GET(
     const userAccount = await prisma.userAccount.findUnique({
       where: { supabaseUid: user.id },
       include: {
-        roles: {
+        UserAccountRole: {
           where: {
             OR: [
               { role: 'ADMIN' },
@@ -30,13 +30,13 @@ export async function GET(
             ]
           },
           include: {
-            organizer: true
+            Organizer: true
           }
         }
       }
     })
 
-    if (!userAccount || userAccount.roles.length === 0) {
+    if (!userAccount || userAccount.UserAccountRole.length === 0) {
       return NextResponse.json(
         { valid: false, message: 'Unauthorized' },
         { status: 403 }
@@ -55,9 +55,9 @@ export async function GET(
     const membership = await prisma.membership.findUnique({
       where: { verificationToken: token },
       include: {
-        person: true,
-        tier: true,
-        organizer: true
+        PersonProfile: true,
+        MembershipTier: true,
+        Organizer: true
       }
     })
 
@@ -69,8 +69,8 @@ export async function GET(
     }
 
     // Check if user has access to this organization
-    const isGlobalAdmin = userAccount.roles.some(r => r.role === 'ADMIN')
-    const hasOrgAccess = userAccount.roles.some(
+    const isGlobalAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN')
+    const hasOrgAccess = userAccount.UserAccountRole.some(
       r => r.organizerId === membership.organizerId
     )
 
@@ -93,14 +93,14 @@ export async function GET(
 
     return NextResponse.json({
       valid: true,
-      personName: `${membership.person.firstName} ${membership.person.lastName}`,
-      organizerName: membership.organizer.name,
-      tierName: membership.tier.name,
+      personName: `${membership.PersonProfile.firstName} ${membership.PersonProfile.lastName}`,
+      organizerName: membership.Organizer.name,
+      tierName: membership.MembershipTier.name,
       memberNumber: membership.memberNumber,
       validFrom: format(membership.validFrom, 'MMM d, yyyy'),
       validTo: format(membership.validTo, 'MMM d, yyyy'),
       status: membership.status,
-      photoUrl: membership.person.photoUrl
+      photoUrl: membership.PersonProfile.photoUrl
     })
   } catch (error) {
     console.error('Membership verification error:', error)

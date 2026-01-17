@@ -17,6 +17,8 @@ import { PhotoCapture } from '@/components/photo-capture'
 interface MembershipCheckoutFormProps {
   organizerSlug: string
   organizerName: string
+  organizerMvaRate: number
+  organizerVatRegistered: boolean
   tier: {
     id: string
     name: string
@@ -26,10 +28,11 @@ interface MembershipCheckoutFormProps {
     benefits: string[]
     discountPercent: number
     validationRequired: boolean
+    mvaEnabled: boolean
   }
 }
 
-export function MembershipCheckoutForm({ organizerSlug, organizerName, tier }: MembershipCheckoutFormProps) {
+export function MembershipCheckoutForm({ organizerSlug, organizerName, organizerMvaRate, organizerVatRegistered, tier }: MembershipCheckoutFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,7 +90,23 @@ export function MembershipCheckoutForm({ organizerSlug, organizerName, tier }: M
     }
   }
 
-  const priceWithMva = tier.priceCents * 1.25 // Assuming 25% MVA
+  // Calculate prices based on MVA settings
+  let subtotalCents = tier.priceCents
+  let mvaCents = 0
+  let totalCents = tier.priceCents
+
+  // Only calculate MVA if: tier has it enabled, org is VAT registered, and org has a rate set
+  if (tier.mvaEnabled && organizerVatRegistered && organizerMvaRate > 0) {
+    // MVA should be calculated - add it to the base price
+    subtotalCents = tier.priceCents
+    mvaCents = Math.round(tier.priceCents * (organizerMvaRate / 100))
+    totalCents = tier.priceCents + mvaCents
+  } else {
+    // MVA-free product - no tax
+    subtotalCents = tier.priceCents
+    mvaCents = 0
+    totalCents = tier.priceCents
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -204,26 +223,28 @@ export function MembershipCheckoutForm({ organizerSlug, organizerName, tier }: M
             <div className="flex justify-between text-sm">
               <span>Membership ({tier.name})</span>
               <span>
-                {(tier.priceCents / 100).toLocaleString('nb-NO', {
+                {(subtotalCents / 100).toLocaleString('nb-NO', {
                   style: 'currency',
                   currency: 'NOK',
                 })}
               </span>
             </div>
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>MVA (25%)</span>
-              <span>
-                {((priceWithMva - tier.priceCents) / 100).toLocaleString('nb-NO', {
-                  style: 'currency',
-                  currency: 'NOK',
-                })}
-              </span>
-            </div>
+            {mvaCents > 0 && (
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>MVA ({organizerMvaRate}%)</span>
+                <span>
+                  {(mvaCents / 100).toLocaleString('nb-NO', {
+                    style: 'currency',
+                    currency: 'NOK',
+                  })}
+                </span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between font-bold">
               <span>Total</span>
               <span>
-                {(priceWithMva / 100).toLocaleString('nb-NO', {
+                {(totalCents / 100).toLocaleString('nb-NO', {
                   style: 'currency',
                   currency: 'NOK',
                 })}

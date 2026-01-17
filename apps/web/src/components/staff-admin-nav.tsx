@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu } from 'lucide-react'
+import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from './ui/button'
 import {
@@ -25,10 +25,12 @@ const navItems = [
     { href: '/staffadmin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/staffadmin/users', label: 'Users', icon: Users },
     { href: '/staffadmin/registrations', label: 'Registrations', icon: ClipboardList },
+    { href: '/staffadmin/orders', label: 'Orders', icon: Package },
 ]
 
 const productItems = [
     { href: '/staffadmin/periods', label: 'Periods', icon: Calendar },
+    { href: '/staffadmin/events', label: 'Events', icon: CalendarDays },
     { href: '/staffadmin/memberships', label: 'Memberships', icon: CreditCard },
     { href: '/staffadmin/discounts', label: 'Discounts', icon: Percent },
 ]

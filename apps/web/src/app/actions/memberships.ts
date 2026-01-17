@@ -38,23 +38,23 @@ export async function importMemberships(formData: FormData) {
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: {
           OR: [
             { role: 'ADMIN' },
             { role: 'ORG_ADMIN' }
           ]
         },
-        include: { organizer: true }
+        include: { Organizer: true }
       }
     }
   })
 
-  if (!userAccount?.roles?.[0]?.organizer) {
+  if (!userAccount?.UserAccountRole?.[0]?.Organizer) {
     return { error: 'No organization access' }
   }
 
-  const organizerId = userAccount.roles[0].organizer.id
+  const organizerId = userAccount.UserAccountRole[0].Organizer.id
   const file = formData.get('file') as File
   
   if (!file) {
@@ -402,7 +402,7 @@ export async function createMembershipOrder(data: {
   // Get user account and person profile
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
-    include: { personProfile: true }
+    include: { PersonProfile: true }
   })
 
   if (!userAccount) {
@@ -424,10 +424,10 @@ export async function createMembershipOrder(data: {
   }
 
   // Check if user already has an active membership for this organization
-  if (userAccount.personProfile) {
+  if (userAccount.PersonProfile) {
     const existingMembership = await prisma.membership.findFirst({
       where: {
-        personId: userAccount.personProfile.id,
+        personId: userAccount.PersonProfile.id,
         organizerId: tier.organizerId,
         validTo: { gte: new Date() }
       }
@@ -439,7 +439,7 @@ export async function createMembershipOrder(data: {
   }
 
   // If no person profile, create one
-  let personId = userAccount.personProfile?.id
+  let personId = userAccount.PersonProfile?.id
   if (!personId) {
     const person = await prisma.personProfile.create({
       data: {
@@ -463,9 +463,9 @@ export async function createMembershipOrder(data: {
     personId = person.id
   } else {
     // Update existing person profile with photo if provided
-    if (data.photoDataUrl && userAccount.personProfile) {
+    if (data.photoDataUrl && userAccount.PersonProfile) {
       await prisma.personProfile.update({
-        where: { id: userAccount.personProfile.id },
+        where: { id: userAccount.PersonProfile.id },
         data: { photoUrl: data.photoDataUrl }
       })
     }
@@ -489,17 +489,25 @@ export async function createMembershipOrder(data: {
     priceCentsIncludingMva
   })
 
-  // Calculate MVA if enabled for this tier
+  // Calculate MVA based on tier configuration
   let subtotalCents = priceCentsIncludingMva
   let mvaCents = 0
   let mvaRate = 0
+  let totalCents = priceCentsIncludingMva
 
-  if (tier.mvaEnabled && Number(tier.organizer.mvaRate) > 0) {
+  // Only calculate MVA if: tier has it enabled, org is VAT registered, and org has a rate set
+  if (tier.mvaEnabled && tier.organizer.vatRegistered && Number(tier.organizer.mvaRate) > 0) {
+    // MVA should be calculated - add it to the base price
     mvaRate = Number(tier.organizer.mvaRate)
-    // Price includes MVA, so we need to calculate backwards
-    // If price = 1250 and mva = 25%, then: subtotal = 1250 / 1.25 = 1000, mva = 250
-    subtotalCents = Math.round(priceCentsIncludingMva / (1 + mvaRate / 100))
-    mvaCents = priceCentsIncludingMva - subtotalCents
+    subtotalCents = priceCentsIncludingMva
+    mvaCents = Math.round(subtotalCents * (mvaRate / 100))
+    totalCents = subtotalCents + mvaCents
+  } else {
+    // MVA-free product - no tax calculation
+    subtotalCents = priceCentsIncludingMva
+    mvaCents = 0
+    mvaRate = 0
+    totalCents = priceCentsIncludingMva
   }
 
   // Determine membership status based on validation requirement and payment
@@ -520,6 +528,7 @@ export async function createMembershipOrder(data: {
   const order = await prisma.order.create({
     data: {
       purchaserPersonId: personId,
+      organizerId: tier.organizerId,
       periodId: null,
       orderType: 'MEMBERSHIP',
       status: orderStatus,
@@ -528,12 +537,12 @@ export async function createMembershipOrder(data: {
       subtotalAfterDiscountCents: subtotalCents,
       mvaRate: mvaRate,
       mvaCents,
-      totalCents: priceCentsIncludingMva,
+      totalCents: totalCents,
       pricingSnapshot: {
         tier: {
           id: tier.id,
           name: tier.name,
-          priceCents: priceCentsIncludingMva,
+          priceCents: tier.priceCents,
           mvaEnabled: tier.mvaEnabled,
           validationRequired: tier.validationRequired,
         }

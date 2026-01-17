@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { randomUUID } from 'crypto'
 
 export async function login(prevState: any, formData: FormData) {
     const supabase = await createClient()
@@ -23,13 +24,14 @@ export async function login(prevState: any, formData: FormData) {
         const { prisma } = await import('@/lib/db')
         const userAccount = await prisma.userAccount.findUnique({
             where: { supabaseUid: authData.user.id },
-            include: { personProfile: true }
+            include: { PersonProfile: true }
         })
 
         // If no account exists, create it
         if (!userAccount) {
             await prisma.userAccount.create({
                 data: {
+                    id: randomUUID(),
                     supabaseUid: authData.user.id,
                     email: authData.user.email!
                 }
@@ -39,7 +41,7 @@ export async function login(prevState: any, formData: FormData) {
         }
 
         // If account exists but no profile, redirect to onboarding
-        if (!userAccount.personProfile) {
+        if (!userAccount.PersonProfile) {
             revalidatePath('/', 'layout')
             redirect('/onboarding')
         }
@@ -79,6 +81,7 @@ export async function signup(prevState: any, formData: FormData) {
             // Trigger didn't fire, create manually
             userAccount = await prisma.userAccount.create({
                 data: {
+                    id: randomUUID(),
                     supabaseUid: authData.user.id,
                     email: authData.user.email!
                 }

@@ -56,6 +56,8 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
         waitlistEnabled: formData.get('waitlistEnabled') === 'on',
         priceSingleCents: formData.get('priceSingleCents'),
         pricePairCents: formData.get('pricePairCents') || undefined,
+        memberPriceSingleCents: formData.get('memberPriceSingleCents') || undefined,
+        memberPricePairCents: formData.get('memberPricePairCents') || undefined,
     }
 
     const result = courseTrackSchema.safeParse(raw)
@@ -137,6 +139,8 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
         waitlistEnabled: formData.get('waitlistEnabled') === 'on',
         priceSingleCents: formData.get('priceSingleCents'),
         pricePairCents: formData.get('pricePairCents') || undefined,
+        memberPriceSingleCents: formData.get('memberPriceSingleCents') || undefined,
+        memberPricePairCents: formData.get('memberPricePairCents') || undefined,
     }
 
     const result = courseTrackSchema.safeParse(raw)

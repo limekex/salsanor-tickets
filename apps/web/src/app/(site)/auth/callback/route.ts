@@ -24,7 +24,7 @@ export async function GET(request: Request) {
                     where: { supabaseUid: user.id },
                     select: { 
                         id: true,
-                        personProfile: {
+                        PersonProfile: {
                             select: { id: true }
                         }
                     }
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
                         },
                         select: {
                             id: true,
-                            personProfile: {
+                            PersonProfile: {
                                 select: { id: true }
                             }
                         }
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
                 }
 
                 // If no person profile, redirect to onboarding
-                if (!userAccount.personProfile) {
+                if (!userAccount.PersonProfile) {
                     const forwardedHost = request.headers.get('x-forwarded-host')
                     const isLocalEnv = process.env.NODE_ENV === 'development'
                     

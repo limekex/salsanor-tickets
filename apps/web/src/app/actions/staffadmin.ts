@@ -36,9 +36,49 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
     const website = formData.get('website') as string
     const contactEmail = formData.get('contactEmail') as string
     const city = formData.get('city') as string
+    const organizationNumber = formData.get('organizationNumber') as string
+    const legalName = formData.get('legalName') as string
+    const legalAddress = formData.get('legalAddress') as string
+    const legalEmail = formData.get('legalEmail') as string
+    const companyType = formData.get('companyType') as string
+    const vatRegistered = formData.get('vatRegistered') === 'true'
+    const mvaRate = formData.get('mvaRate') ? Number(formData.get('mvaRate')) : 0
+    const bankAccount = formData.get('bankAccount') as string
+    const orderPrefix = formData.get('orderPrefix') as string
 
     if (!name || name.trim().length === 0) {
         return { error: { name: ['Name is required'] } }
+    }
+
+    // Validate organization number if provided
+    if (organizationNumber && !/^\d{9}$/.test(organizationNumber)) {
+        return { error: { organizationNumber: ['Must be 9 digits'] } }
+    }
+
+    // Validate order prefix if provided
+    if (orderPrefix && (orderPrefix.length < 3 || orderPrefix.length > 5 || !/^[A-Z0-9]+$/.test(orderPrefix))) {
+        return { error: { orderPrefix: ['Must be 3-5 characters (A-Z, 0-9 only)'] } }
+    }
+
+    // Check if orderPrefix is unique (excluding current organizer)
+    if (orderPrefix && orderPrefix.trim() !== '') {
+        const existingOrg = await prisma.organizer.findFirst({
+            where: { 
+                orderPrefix: orderPrefix.trim(),
+                id: { not: organizerId }
+            }
+        })
+        if (existingOrg) {
+            return { error: { orderPrefix: ['Order prefix must be unique'] } }
+        }
+    }
+
+    // Validate legal email if provided
+    if (legalEmail && legalEmail.trim() !== '') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(legalEmail)) {
+            return { error: { legalEmail: ['Invalid email format'] } }
+        }
     }
 
     try {
@@ -50,6 +90,15 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
                 website: website?.trim() || null,
                 contactEmail: contactEmail?.trim() || null,
                 city: city?.trim() || null,
+                organizationNumber: organizationNumber?.trim() || null,
+                legalName: legalName?.trim() || null,
+                legalAddress: legalAddress?.trim() || null,
+                legalEmail: legalEmail?.trim() || null,
+                companyType: companyType?.trim() || null,
+                vatRegistered,
+                mvaRate,
+                bankAccount: bankAccount?.trim() || null,
+                orderPrefix: orderPrefix?.trim() || 'ORD',
             }
         })
 
@@ -203,7 +252,7 @@ export async function searchUserByEmailStaff(email: string, organizerId: string)
                     }
                 }
             },
-            personProfile: true
+            PersonProfile: true
         }
     })
 }

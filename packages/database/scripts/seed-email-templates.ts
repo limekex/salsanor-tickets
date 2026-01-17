@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { randomUUID } from 'crypto'
 
 const prisma = new PrismaClient()
 
@@ -1509,6 +1510,582 @@ SalsaNor Platform
       currentYear: 'Current year'
     },
   },
+  // COURSE_TICKET - Norwegian
+  {
+    slug: 'course-ticket',
+    name: 'Kursbillett',
+    category: 'TRANSACTIONAL' as const,
+    language: 'no',
+    subject: 'Din kursbillett: {{courseName}}',
+    preheader: 'Her er billetten din for kurset',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kursbillett</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🎫</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Din Kursbillett</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{recipientName}},</p>
+    
+    <p style="font-size: 16px;">Her er billetten din for <strong>{{courseName}}</strong>!</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #667eea;">Kursdetaljer</h2>
+      <p style="margin: 10px 0;"><strong>📚 Kurs:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Periode:</strong> {{coursePeriod}}</p>
+      <p style="margin: 10px 0;"><strong>🕐 Tidspunkt:</strong> {{courseTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Sted:</strong> {{courseLocation}}</p>
+      <p style="margin: 10px 0;"><strong>🎫 Billettnr:</strong> {{ticketNumber}}</p>
+    </div>
+    
+    <div style="background-color: #e8f4fd; padding: 15px; margin: 20px 0; border-left: 4px solid #667eea; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #1a56db;">
+        <strong>📎 Vedlegg:</strong> Din billett med QR-kode er vedlagt denne e-posten som PDF.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{ticketUrl}}" style="background-color: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        Se Billett Online
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Vis billetten ved oppmøte. Du kan enten bruke PDF-vedlegget eller lenken over.
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} {{organizerName}}. Alle rettigheter reservert.</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{recipientName}},
+
+Her er billetten din for {{courseName}}!
+
+KURSDETALJER:
+Kurs: {{courseName}}
+Periode: {{coursePeriod}}
+Tidspunkt: {{courseTime}}
+Sted: {{courseLocation}}
+Billettnr: {{ticketNumber}}
+
+📎 VEDLEGG: Din billett med QR-kode er vedlagt denne e-posten som PDF.
+
+Se billett online: {{ticketUrl}}
+
+Vis billetten ved oppmøte. Du kan enten bruke PDF-vedlegget eller lenken over.
+
+Med vennlig hilsen,
+{{organizerName}}
+
+---
+© {{currentYear}} {{organizerName}}. Alle rettigheter reservert.`,
+    variables: { 
+      recipientName: 'Mottakers navn',
+      courseName: 'Kursnavn',
+      coursePeriod: 'Kursperiode',
+      courseTime: 'Kurstidspunkt',
+      courseLocation: 'Kurssted',
+      ticketNumber: 'Billettnummer',
+      ticketUrl: 'Lenke til billett',
+      organizerName: 'Arrangørnavn',
+      currentYear: 'Inneværende år'
+    },
+  },
+  // COURSE_TICKET - English
+  {
+    slug: 'course-ticket',
+    name: 'Course Ticket',
+    category: 'TRANSACTIONAL' as const,
+    language: 'en',
+    subject: 'Your Course Ticket: {{courseName}}',
+    preheader: 'Here is your ticket for the course',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Course Ticket</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🎫</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Your Course Ticket</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hello {{recipientName}},</p>
+    
+    <p style="font-size: 16px;">Here is your ticket for <strong>{{courseName}}</strong>!</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #667eea;">Course Details</h2>
+      <p style="margin: 10px 0;"><strong>📚 Course:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Period:</strong> {{coursePeriod}}</p>
+      <p style="margin: 10px 0;"><strong>🕐 Time:</strong> {{courseTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Location:</strong> {{courseLocation}}</p>
+      <p style="margin: 10px 0;"><strong>🎫 Ticket #:</strong> {{ticketNumber}}</p>
+    </div>
+    
+    <div style="background-color: #e8f4fd; padding: 15px; margin: 20px 0; border-left: 4px solid #667eea; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #1a56db;">
+        <strong>📎 Attachment:</strong> Your ticket with QR code is attached to this email as a PDF.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{ticketUrl}}" style="background-color: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        View Ticket Online
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Show your ticket when you arrive. You can use either the PDF attachment or the link above.
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} {{organizerName}}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hello {{recipientName}},
+
+Here is your ticket for {{courseName}}!
+
+COURSE DETAILS:
+Course: {{courseName}}
+Period: {{coursePeriod}}
+Time: {{courseTime}}
+Location: {{courseLocation}}
+Ticket #: {{ticketNumber}}
+
+📎 ATTACHMENT: Your ticket with QR code is attached to this email as a PDF.
+
+View ticket online: {{ticketUrl}}
+
+Show your ticket when you arrive. You can use either the PDF attachment or the link above.
+
+Best regards,
+{{organizerName}}
+
+---
+© {{currentYear}} {{organizerName}}. All rights reserved.`,
+    variables: { 
+      recipientName: 'Recipient name',
+      courseName: 'Course name',
+      coursePeriod: 'Course period',
+      courseTime: 'Course time',
+      courseLocation: 'Course location',
+      ticketNumber: 'Ticket number',
+      ticketUrl: 'Ticket page link',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // EVENT_TICKET - Norwegian
+  {
+    slug: 'event-ticket',
+    name: 'Arrangementsbillett',
+    category: 'TRANSACTIONAL' as const,
+    language: 'no',
+    subject: 'Din billett: {{eventName}}',
+    preheader: 'Her er billetten din for arrangementet',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arrangementsbillett</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🎟️</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Din Billett</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{recipientName}},</p>
+    
+    <p style="font-size: 16px;">Her er billetten din for <strong>{{eventName}}</strong>!</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #f5576c;">Arrangementsdetaljer</h2>
+      <p style="margin: 10px 0;"><strong>🎉 Arrangement:</strong> {{eventName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Dato:</strong> {{eventDate}}</p>
+      <p style="margin: 10px 0;"><strong>🕐 Tid:</strong> {{eventTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Sted:</strong> {{eventLocation}}</p>
+      <p style="margin: 10px 0;"><strong>🎟️ Billettnr:</strong> {{ticketNumber}}</p>
+    </div>
+    
+    <div style="background-color: #fce7f3; padding: 15px; margin: 20px 0; border-left: 4px solid #f5576c; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #be185d;">
+        <strong>📎 Vedlegg:</strong> Din billett med QR-kode er vedlagt denne e-posten som PDF.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{ticketUrl}}" style="background-color: #f5576c; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        Se Billett Online
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Vis billetten ved inngangen. Du kan enten bruke PDF-vedlegget eller lenken over.
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} {{organizerName}}. Alle rettigheter reservert.</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{recipientName}},
+
+Her er billetten din for {{eventName}}!
+
+ARRANGEMENTSDETALJER:
+Arrangement: {{eventName}}
+Dato: {{eventDate}}
+Tid: {{eventTime}}
+Sted: {{eventLocation}}
+Billettnr: {{ticketNumber}}
+
+📎 VEDLEGG: Din billett med QR-kode er vedlagt denne e-posten som PDF.
+
+Se billett online: {{ticketUrl}}
+
+Vis billetten ved inngangen. Du kan enten bruke PDF-vedlegget eller lenken over.
+
+Med vennlig hilsen,
+{{organizerName}}
+
+---
+© {{currentYear}} {{organizerName}}. Alle rettigheter reservert.`,
+    variables: { 
+      recipientName: 'Mottakers navn',
+      eventName: 'Arrangementsnavn',
+      eventDate: 'Dato',
+      eventTime: 'Tidspunkt',
+      eventLocation: 'Sted',
+      ticketNumber: 'Billettnummer',
+      ticketUrl: 'Lenke til billett',
+      organizerName: 'Arrangørnavn',
+      currentYear: 'Inneværende år'
+    },
+  },
+  // EVENT_TICKET - English
+  {
+    slug: 'event-ticket',
+    name: 'Event Ticket',
+    category: 'TRANSACTIONAL' as const,
+    language: 'en',
+    subject: 'Your Ticket: {{eventName}}',
+    preheader: 'Here is your ticket for the event',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Ticket</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🎟️</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Your Ticket</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hello {{recipientName}},</p>
+    
+    <p style="font-size: 16px;">Here is your ticket for <strong>{{eventName}}</strong>!</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #f5576c;">Event Details</h2>
+      <p style="margin: 10px 0;"><strong>🎉 Event:</strong> {{eventName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Date:</strong> {{eventDate}}</p>
+      <p style="margin: 10px 0;"><strong>🕐 Time:</strong> {{eventTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Location:</strong> {{eventLocation}}</p>
+      <p style="margin: 10px 0;"><strong>🎟️ Ticket #:</strong> {{ticketNumber}}</p>
+    </div>
+    
+    <div style="background-color: #fce7f3; padding: 15px; margin: 20px 0; border-left: 4px solid #f5576c; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #be185d;">
+        <strong>📎 Attachment:</strong> Your ticket with QR code is attached to this email as a PDF.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{ticketUrl}}" style="background-color: #f5576c; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        View Ticket Online
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Show your ticket at the entrance. You can use either the PDF attachment or the link above.
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} {{organizerName}}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hello {{recipientName}},
+
+Here is your ticket for {{eventName}}!
+
+EVENT DETAILS:
+Event: {{eventName}}
+Date: {{eventDate}}
+Time: {{eventTime}}
+Location: {{eventLocation}}
+Ticket #: {{ticketNumber}}
+
+📎 ATTACHMENT: Your ticket with QR code is attached to this email as a PDF.
+
+View ticket online: {{ticketUrl}}
+
+Show your ticket at the entrance. You can use either the PDF attachment or the link above.
+
+Best regards,
+{{organizerName}}
+
+---
+© {{currentYear}} {{organizerName}}. All rights reserved.`,
+    variables: { 
+      recipientName: 'Recipient name',
+      eventName: 'Event name',
+      eventDate: 'Date',
+      eventTime: 'Time',
+      eventLocation: 'Location',
+      ticketNumber: 'Ticket number',
+      ticketUrl: 'Ticket page link',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // MEMBERSHIP_CARD - Norwegian
+  {
+    slug: 'membership-card',
+    name: 'Medlemskort',
+    category: 'TRANSACTIONAL' as const,
+    language: 'no',
+    subject: 'Ditt medlemskort hos {{organizationName}}',
+    preheader: 'Her er ditt digitale medlemskort',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medlemskort</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">💳</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Ditt Medlemskort</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{recipientName}},</p>
+    
+    <p style="font-size: 16px;">Her er ditt digitale medlemskort hos <strong>{{organizationName}}</strong>!</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+      <p style="font-size: 14px; color: #666; margin: 0;">Ditt medlemsnummer</p>
+      <p style="font-size: 32px; font-weight: bold; color: #11998e; margin: 10px 0;">{{memberNumber}}</p>
+      <p style="font-size: 14px; color: #666; margin: 0;">Medlemstype: {{tierName}}</p>
+      <p style="font-size: 14px; color: #666; margin: 5px 0;">Gyldig til: {{validUntil}}</p>
+    </div>
+    
+    <div style="background-color: #ecfdf5; padding: 15px; margin: 20px 0; border-left: 4px solid #11998e; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #065f46;">
+        <strong>📎 Vedlegg:</strong> Ditt medlemskort med QR-kode er vedlagt denne e-posten som PDF. Du kan skrive ut kortet eller vise det på mobilen.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{membershipCardUrl}}" style="background-color: #11998e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        Se Medlemskort Online
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Vis medlemskortet for å få tilgang til medlemsfordeler og rabatter.
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizationName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} {{organizationName}}. Alle rettigheter reservert.</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{recipientName}},
+
+Her er ditt digitale medlemskort hos {{organizationName}}!
+
+MEDLEMSKAPSDETALJER:
+Medlemsnummer: {{memberNumber}}
+Medlemstype: {{tierName}}
+Gyldig til: {{validUntil}}
+
+📎 VEDLEGG: Ditt medlemskort med QR-kode er vedlagt denne e-posten som PDF. Du kan skrive ut kortet eller vise det på mobilen.
+
+Se medlemskort online: {{membershipCardUrl}}
+
+Vis medlemskortet for å få tilgang til medlemsfordeler og rabatter.
+
+Med vennlig hilsen,
+{{organizationName}}
+
+---
+© {{currentYear}} {{organizationName}}. Alle rettigheter reservert.`,
+    variables: { 
+      recipientName: 'Mottakers navn',
+      organizationName: 'Organisasjonsnavn',
+      memberNumber: 'Medlemsnummer',
+      tierName: 'Medlemstype',
+      validUntil: 'Gyldig til dato',
+      membershipCardUrl: 'Lenke til medlemskort',
+      currentYear: 'Inneværende år'
+    },
+  },
+  // MEMBERSHIP_CARD - English
+  {
+    slug: 'membership-card',
+    name: 'Membership Card',
+    category: 'TRANSACTIONAL' as const,
+    language: 'en',
+    subject: 'Your Membership Card for {{organizationName}}',
+    preheader: 'Here is your digital membership card',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Membership Card</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">💳</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Your Membership Card</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hello {{recipientName}},</p>
+    
+    <p style="font-size: 16px;">Here is your digital membership card for <strong>{{organizationName}}</strong>!</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+      <p style="font-size: 14px; color: #666; margin: 0;">Your membership number</p>
+      <p style="font-size: 32px; font-weight: bold; color: #11998e; margin: 10px 0;">{{memberNumber}}</p>
+      <p style="font-size: 14px; color: #666; margin: 0;">Membership type: {{tierName}}</p>
+      <p style="font-size: 14px; color: #666; margin: 5px 0;">Valid until: {{validUntil}}</p>
+    </div>
+    
+    <div style="background-color: #ecfdf5; padding: 15px; margin: 20px 0; border-left: 4px solid #11998e; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #065f46;">
+        <strong>📎 Attachment:</strong> Your membership card with QR code is attached to this email as a PDF. You can print the card or show it on your phone.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{membershipCardUrl}}" style="background-color: #11998e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        View Membership Card Online
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Show your membership card to access member benefits and discounts.
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizationName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} {{organizationName}}. All rights reserved.</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hello {{recipientName}},
+
+Here is your digital membership card for {{organizationName}}!
+
+MEMBERSHIP DETAILS:
+Membership Number: {{memberNumber}}
+Membership Type: {{tierName}}
+Valid Until: {{validUntil}}
+
+📎 ATTACHMENT: Your membership card with QR code is attached to this email as a PDF. You can print the card or show it on your phone.
+
+View membership card online: {{membershipCardUrl}}
+
+Show your membership card to access member benefits and discounts.
+
+Best regards,
+{{organizationName}}
+
+---
+© {{currentYear}} {{organizationName}}. All rights reserved.`,
+    variables: { 
+      recipientName: 'Recipient name',
+      organizationName: 'Organization name',
+      memberNumber: 'Membership number',
+      tierName: 'Membership type',
+      validUntil: 'Valid until date',
+      membershipCardUrl: 'Link to membership card',
+      currentYear: 'Current year'
+    },
+  },
   // REGISTRATION_CANCELLED - Norwegian
   {
     slug: 'registration-cancelled',
@@ -1725,8 +2302,10 @@ export async function seedEmailTemplates() {
     if (!existing) {
       await prisma.emailTemplate.create({
         data: {
+          id: randomUUID(),
           ...template,
           organizerId: null,
+          updatedAt: new Date(),
         },
       })
       console.log(`  ✓ Created template: ${template.name} (${template.language})`)
@@ -1740,6 +2319,7 @@ export async function seedEmailTemplates() {
           subject: template.subject,
           preheader: template.preheader,
           variables: template.variables,
+          updatedAt: new Date(),
         },
       })
       console.log(`  ↻ Updated template: ${template.name} (${template.language})`)

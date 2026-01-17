@@ -1,6 +1,21 @@
-# RLS Helper Functions and Policies
+# RLS Helper Functions and Policies (Session-Based)
 
-This document contains SQL functions and policies for implementing Row-Level Security (RLS) in Supabase.
+This document contains SQL functions and policies for implementing Row-Level Security (RLS) using **server-set session variables** instead of JWT-based `auth.uid()`.
+
+## Architecture Overview
+
+**Why Session-Based RLS?**
+- ✅ Works with Prisma's connection pooling
+- ✅ No need for JWT in database connections
+- ✅ Server controls security context explicitly
+- ✅ RLS acts as "defense in depth" backup
+- ✅ Easy to test and debug
+
+**How It Works:**
+1. Server identifies user's organizerId (from session/roles)
+2. Server sets `app.organizer_id` via `set_config()` in transaction
+3. RLS policies check against `current_setting('app.organizer_id')`
+4. Database enforces isolation even if app has bugs
 
 ## Installation Instructions
 
@@ -13,124 +28,114 @@ Run these SQL statements in the Supabase SQL Editor in this order:
 
 ## Helper Functions
 
-### 1. Get Current User's Organization ID
+### 1. Get Current Organization ID (Session-Based)
 
-This function returns the organizerId for the currently authenticated user. It handles multiple roles and returns the first organization found.
+This function returns the organizerId set by the server in the current session.
 
 ```sql
 -- Drop if exists (for updates)
-DROP FUNCTION IF EXISTS current_user_org();
+DROP FUNCTION IF EXISTS app_current_organizer_id();
 
--- Create function to get current user's organizerId
-CREATE OR REPLACE FUNCTION current_user_org()
+-- Create function to get server-set organizerId
+CREATE OR REPLACE FUNCTION app_current_organizer_id()
 RETURNS TEXT
 LANGUAGE SQL
 STABLE
-SECURITY DEFINER
 AS $$
-  SELECT "organizerId" 
-  FROM "UserAccountRole"
-  WHERE "userId" = (
-    SELECT id 
-    FROM "UserAccount" 
-    WHERE "supabaseUid" = auth.uid()
-  )
-  AND "organizerId" IS NOT NULL
-  LIMIT 1;
+  SELECT nullif(current_setting('app.organizer_id', true), '');
 $$;
 
--- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION current_user_org() TO authenticated;
+-- Grant execute permission
+GRANT EXECUTE ON FUNCTION app_current_organizer_id() TO postgres;
 ```
 
-### 2. Check if User is Global Admin
+**Note:** The `true` parameter makes it return NULL if not set (no error).
 
-This function returns true if the current user has the ADMIN role (global access).
+### 2. Check if Session is Global Admin
+
+This function returns true if the server has set the global admin flag.
 
 ```sql
 -- Drop if exists
-DROP FUNCTION IF EXISTS is_global_admin();
+DROP FUNCTION IF EXISTS app_is_global_admin();
 
--- Create function to check if user is global admin
-CREATE OR REPLACE FUNCTION is_global_admin()
+-- Create function to check server-set admin flag
+CREATE OR REPLACE FUNCTION app_is_global_admin()
 RETURNS BOOLEAN
 LANGUAGE SQL
 STABLE
-SECURITY DEFINER
 AS $$
-  SELECT EXISTS (
-    SELECT 1 
-    FROM "UserAccountRole" uar
-    JOIN "UserAccount" ua ON uar."userId" = ua.id
-    WHERE ua."supabaseUid" = auth.uid()
-    AND uar.role = 'ADMIN'
+  SELECT coalesce(
+    nullif(current_setting('app.is_global_admin', true), '')::boolean,
+    false
   );
 $$;
 
 -- Grant execute permission
-GRANT EXECUTE ON FUNCTION is_global_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION app_is_global_admin() TO postgres;
 ```
 
-### 3. Check if User Has Role for Organization
+### 3. Get Current User ID (Session-Based)
 
-This function checks if the current user has a specific role for a given organization.
+Optional: If you need to track which specific user is making changes (for audit logs).
 
 ```sql
 -- Drop if exists
-DROP FUNCTION IF EXISTS has_org_role(TEXT, TEXT);
+DROP FUNCTION IF EXISTS app_current_user_id();
 
--- Create function to check if user has specific role for organization
-CREATE OR REPLACE FUNCTION has_org_role(
-  check_org_id TEXT,
-  check_role TEXT
-)
-RETURNS BOOLEAN
+-- Create function to get server-set userId
+CREATE OR REPLACE FUNCTION app_current_user_id()
+RETURNS TEXT
 LANGUAGE SQL
 STABLE
-SECURITY DEFINER
 AS $$
-  SELECT EXISTS (
-    SELECT 1 
-    FROM "UserAccountRole" uar
-    JOIN "UserAccount" ua ON uar."userId" = ua.id
-    WHERE ua."supabaseUid" = auth.uid()
-    AND uar."organizerId" = check_org_id
-    AND uar.role = check_role
+  SELECT nullif(current_setting('app.user_id', true), '');
+$$;
+
+-- Grant execute permission
+GRANT EXECUTE ON FUNCTION app_current_user_id() TO postgres;
+```
+
+---
+
+## Server-Side: Setting Session Variables
+
+### Prisma Transaction Pattern
+
+```typescript
+// Get user's organizerId from your auth system
+const organizerId = await getUserOrgId(session);
+const isAdmin = await isGlobalAdmin(session);
+
+// Set session context and run queries in transaction
+await prisma.$transaction(async (tx) => {
+  // Set session variables
+  await tx.$executeRawUnsafe(
+    `SELECT set_config('app.organizer_id', $1, true)`,
+    organizerId
   );
-$$;
+  
+  await tx.$executeRawUnsafe(
+    `SELECT set_config('app.is_global_admin', $1, true)`,
+    isAdmin.toString()
+  );
 
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION has_org_role(TEXT, TEXT) TO authenticated;
+  // Optional: set user ID for audit
+  await tx.$executeRawUnsafe(
+    `SELECT set_config('app.user_id', $1, true)`,
+    userId
+  );
+
+  // Now run your queries - RLS will enforce based on session
+  const orders = await tx.order.findMany({
+    where: { /* your filters */ }
+  });
+
+  return orders;
+});
 ```
 
-### 4. Get All User's Organization IDs
-
-This function returns all organizerId values for the current user (handles users with multiple org roles).
-
-```sql
--- Drop if exists
-DROP FUNCTION IF EXISTS user_org_ids();
-
--- Create function to get all organizerId values for current user
-CREATE OR REPLACE FUNCTION user_org_ids()
-RETURNS TABLE(org_id TEXT)
-LANGUAGE SQL
-STABLE
-SECURITY DEFINER
-AS $$
-  SELECT DISTINCT "organizerId"
-  FROM "UserAccountRole"
-  WHERE "userId" = (
-    SELECT id 
-    FROM "UserAccount" 
-    WHERE "supabaseUid" = auth.uid()
-  )
-  AND "organizerId" IS NOT NULL;
-$$;
-
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION user_org_ids() TO authenticated;
-```
+**Important:** The `true` parameter in `set_config()` means "transaction-local" - it resets after transaction ends.
 
 ---
 
@@ -143,51 +148,79 @@ GRANT EXECUTE ON FUNCTION user_org_ids() TO authenticated;
 ALTER TABLE "Order" ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if any
-DROP POLICY IF EXISTS "Users can read their org's orders" ON "Order";
-DROP POLICY IF EXISTS "Admins can read all orders" ON "Order";
-DROP POLICY IF EXISTS "Users can create orders for their org" ON "Order";
-DROP POLICY IF EXISTS "Users can update their org's orders" ON "Order";
+DROP POLICY IF EXISTS "Server can read org orders" ON "Order";
+DROP POLICY IF EXISTS "Server can create org orders" ON "Order";
+DROP POLICY IF EXISTS "Server can update org orders" ON "Order";
+DROP POLICY IF EXISTS "Admins can delete orders" ON "Order";
 
--- SELECT: Users can read orders from their organization or if they're global admin
-CREATE POLICY "Users can read their org's orders"
+-- SELECT: Server can read orders from session organizerId or if global admin
+CREATE POLICY "Server can read org orders"
 ON "Order"
 FOR SELECT
-TO authenticated
+TO postgres
 USING (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR is_global_admin()
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+  OR "purchaserPersonId" IN (
+    SELECT id FROM "PersonProfile"
+    WHERE "userId" = (
+      SELECT id FROM "UserAccount"
+      WHERE "supabaseUid" = auth.uid()::text
+    )
+  )
 );
+-- CourseTrack: Public data, readable by authenticated users
+ALTER TABLE "CourseTrack" ENABLE ROW LEVEL SECURITY;
 
--- INSERT: Users can create orders for their organization
-CREATE POLICY "Users can create orders for their org"
+DROP POLICY IF EXISTS "Anyone can read tracks" ON "CourseTrack";
+
+CREATE POLICY "Anyone can read tracks"
+ON "CourseTrack"
+FOR SELECT
+TO postgres
+USING (true);
+
+-- Organizer: Public data, readable by authenticated users  
+ALTER TABLE "Organizer" ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read organizers" ON "Organizer";
+
+CREATE POLICY "Anyone can read organizers"
+ON "Organizer"
+FOR SELECT
+TO postgres
+USING (true);
+
+-- INSERT: Server can create orders for session organization
+CREATE POLICY "Server can create org orders"
 ON "Order"
 FOR INSERT
-TO authenticated
+TO postgres
 WITH CHECK (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR is_global_admin()
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
 );
 
--- UPDATE: Users can update orders from their organization
-CREATE POLICY "Users can update their org's orders"
+-- UPDATE: Server can update orders from session organization
+CREATE POLICY "Server can update org orders"
 ON "Order"
 FOR UPDATE
-TO authenticated
+TO postgres
 USING (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR is_global_admin()
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
 )
 WITH CHECK (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR is_global_admin()
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
 );
 
--- DELETE: Only global admins can delete orders (optional - adjust as needed)
-CREATE POLICY "Only admins can delete orders"
+-- DELETE: Only global admins can delete orders
+CREATE POLICY "Admins can delete orders"
 ON "Order"
 FOR DELETE
-TO authenticated
-USING (is_global_admin());
+TO postgres
+USING (app_is_global_admin());
 ```
 
 ### Payment Table
@@ -197,54 +230,54 @@ USING (is_global_admin());
 ALTER TABLE "Payment" ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
-DROP POLICY IF EXISTS "Users can read their org's payments" ON "Payment";
-DROP POLICY IF EXISTS "Users can create payments for their org" ON "Payment";
-DROP POLICY IF EXISTS "Users can update their org's payments" ON "Payment";
+DROP POLICY IF EXISTS "Server can read org payments" ON "Payment";
+DROP POLICY IF EXISTS "Server can create org payments" ON "Payment";
+DROP POLICY IF EXISTS "Server can update org payments" ON "Payment";
 
--- SELECT: Users can read payments for orders from their organization
-CREATE POLICY "Users can read their org's payments"
+-- SELECT: Server can read payments for orders from session organization
+CREATE POLICY "Server can read org payments"
 ON "Payment"
 FOR SELECT
-TO authenticated
+TO postgres
 USING (
-  "orderId" IN (
+  app_is_global_admin()
+  OR "orderId" IN (
     SELECT id FROM "Order" 
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
 );
 
--- INSERT: System can create payments (adjust based on your auth flow)
-CREATE POLICY "Users can create payments for their org"
+-- INSERT: Server can create payments for session organization's orders
+CREATE POLICY "Server can create org payments"
 ON "Payment"
 FOR INSERT
-TO authenticated
+TO postgres
 WITH CHECK (
-  "orderId" IN (
+  app_is_global_admin()
+  OR "orderId" IN (
     SELECT id FROM "Order" 
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
 );
 
--- UPDATE: Finance managers and admins can update payments
-CREATE POLICY "Users can update their org's payments"
+-- UPDATE: Server can update payments from session organization
+CREATE POLICY "Server can update org payments"
 ON "Payment"
 FOR UPDATE
-TO authenticated
+TO postgres
 USING (
-  "orderId" IN (
+  app_is_global_admin()
+  OR "orderId" IN (
     SELECT id FROM "Order" 
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
 )
 WITH CHECK (
-  "orderId" IN (
+  app_is_global_admin()
+  OR "orderId" IN (
     SELECT id FROM "Order" 
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
 );
 ```
 
@@ -255,33 +288,138 @@ WITH CHECK (
 ALTER TABLE "Invoice" ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
-DROP POLICY IF EXISTS "Users can read their org's invoices" ON "Invoice";
-DROP POLICY IF EXISTS "Users can create invoices for their org" ON "Invoice";
+DROP POLICY IF EXISTS "Server can read org invoices" ON "Invoice";
+DROP POLICY IF EXISTS "Server can create org invoices" ON "Invoice";
 
--- SELECT: Users can read invoices for orders from their organization
-CREATE POLICY "Users can read their org's invoices"
+-- SELECT: Server can read invoices for orders from session organization
+CREATE POLICY "Server can read org invoices"
 ON "Invoice"
 FOR SELECT
-TO authenticated
+TO postgres
 USING (
-  "orderId" IN (
+  app_is_global_admin()
+  OR "orderId" IN (
     SELECT id FROM "Order" 
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
 );
 
--- INSERT: System can create invoices
-CREATE POLICY "Users can create invoices for their org"
+-- INSERT: Server can create invoices for session organization
+CREATE POLICY "Server can create org invoices"
 ON "Invoice"
 FOR INSERT
-TO authenticated
+TO postgres
 WITH CHECK (
-  "orderId" IN (
+  app_is_global_admin()
+  OR "orderId" IN (
     SELECT id FROM "Order" 
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
+);
+```
+
+### CreditNote Table
+
+```sql
+-- Enable RLS
+ALTER TABLE "CreditNote" ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Server can read org credit notes" ON "CreditNote";
+DROP POLICY IF EXISTS "Server can create org credit notes" ON "CreditNote";
+DROP POLICY IF EXISTS "Server can update org credit notes" ON "CreditNote";
+
+-- SELECT: Server can read credit notes from session organization
+-- Users can also read their own credit notes (via registration/order)
+CREATE POLICY "Server can read org credit notes"
+ON "CreditNote"
+FOR SELECT
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+  OR "orderId" IN (
+    SELECT id FROM "Order"
+    WHERE "purchaserPersonId" IN (
+      SELECT id FROM "PersonProfile"
+      WHERE "userId" = (
+        SELECT id FROM "UserAccount"
+        WHERE "supabaseUid" = auth.uid()::text
+      )
+    )
+  )
+);
+
+-- INSERT: Server can create credit notes for session organization
+CREATE POLICY "Server can create org credit notes"
+ON "CreditNote"
+FOR INSERT
+TO postgres
+WITH CHECK (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+);
+
+-- UPDATE: Server can update credit notes from session organization
+CREATE POLICY "Server can update org credit notes"
+ON "CreditNote"
+FOR UPDATE
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+)
+WITH CHECK (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+);
+```
+
+### CoursePeriod Table
+
+```sql
+-- Enable RLS
+ALTER TABLE "CoursePeriod" ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Server can read org periods" ON "CoursePeriod";
+DROP POLICY IF EXISTS "Server can manage org periods" ON "CoursePeriod";
+
+-- SELECT: Server can read periods from session organization or periods with user's registrations
+CREATE POLICY "Server can read org periods"
+ON "CoursePeriod"
+FOR SELECT
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+  OR id IN (
+    SELECT "periodId" FROM "Registration"
+    WHERE "orderId" IN (
+      SELECT id FROM "Order"
+      WHERE "purchaserPersonId" IN (
+        SELECT id FROM "PersonProfile"
+        WHERE "userId" = (
+          SELECT id FROM "UserAccount"
+          WHERE "supabaseUid" = auth.uid()::text
+        )
+      )
+    )
+  )
+);
+
+-- INSERT/UPDATE/DELETE: Server can manage periods for session organization
+CREATE POLICY "Server can manage org periods"
+ON "CoursePeriod"
+FOR ALL
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+)
+WITH CHECK (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
 );
 ```
 
@@ -292,61 +430,50 @@ WITH CHECK (
 ALTER TABLE "Registration" ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
-DROP POLICY IF EXISTS "Users can read their org's registrations" ON "Registration";
-DROP POLICY IF EXISTS "Users can create registrations for their org" ON "Registration";
-DROP POLICY IF EXISTS "Users can update their org's registrations" ON "Registration";
+DROP POLICY IF EXISTS "Server can read org registrations" ON "Registration";
+DROP POLICY IF EXISTS "Server can manage org registrations" ON "Registration";
 
--- SELECT: Users can read registrations from their organization's periods
-CREATE POLICY "Users can read their org's registrations"
+-- SELECT: Server can read registrations from session organization's periods or from own orders
+CREATE POLICY "Server can read org registrations"
 ON "Registration"
 FOR SELECT
-TO authenticated
+TO postgres
 USING (
-  "periodId" IN (
+  app_is_global_admin()
+  OR "periodId" IN (
     SELECT id FROM "CoursePeriod"
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
-  OR "personId" IN (
-    -- Allow users to read their own registrations
-    SELECT id FROM "PersonProfile"
-    WHERE "userId" = (
-      SELECT id FROM "UserAccount" WHERE "supabaseUid" = auth.uid()
+  OR "orderId" IN (
+    SELECT id FROM "Order"
+    WHERE "purchaserPersonId" IN (
+      SELECT id FROM "PersonProfile"
+      WHERE "userId" = (
+        SELECT id FROM "UserAccount"
+        WHERE "supabaseUid" = auth.uid()::text
+      )
     )
   )
 );
 
--- INSERT: Users can create registrations for their organization
-CREATE POLICY "Users can create registrations for their org"
+-- INSERT/UPDATE/DELETE: Server can manage registrations
+CREATE POLICY "Server can manage org registrations"
 ON "Registration"
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  "periodId" IN (
-    SELECT id FROM "CoursePeriod"
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
-  )
-  OR is_global_admin()
-);
-
--- UPDATE: Users can update registrations from their organization
-CREATE POLICY "Users can update their org's registrations"
-ON "Registration"
-FOR UPDATE
-TO authenticated
+FOR ALL
+TO postgres
 USING (
-  "periodId" IN (
+  app_is_global_admin()
+  OR "periodId" IN (
     SELECT id FROM "CoursePeriod"
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
 )
 WITH CHECK (
-  "periodId" IN (
+  app_is_global_admin()
+  OR "periodId" IN (
     SELECT id FROM "CoursePeriod"
-    WHERE "organizerId" IN (SELECT org_id FROM user_org_ids())
+    WHERE "organizerId" = app_current_organizer_id()
   )
-  OR is_global_admin()
 );
 ```
 
@@ -357,80 +484,32 @@ WITH CHECK (
 ALTER TABLE "Membership" ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
-DROP POLICY IF EXISTS "Users can read their org's memberships" ON "Membership";
-DROP POLICY IF EXISTS "Users can create memberships for their org" ON "Membership";
-DROP POLICY IF EXISTS "Users can update their org's memberships" ON "Membership";
+DROP POLICY IF EXISTS "Server can read org memberships" ON "Membership";
+DROP POLICY IF EXISTS "Server can manage org memberships" ON "Membership";
 
--- SELECT: Users can read memberships from their organization
-CREATE POLICY "Users can read their org's memberships"
+-- SELECT: Server can read memberships from session organization
+CREATE POLICY "Server can read org memberships"
 ON "Membership"
 FOR SELECT
-TO authenticated
+TO postgres
 USING (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR is_global_admin()
-  OR "personId" IN (
-    -- Allow users to read their own memberships
-    SELECT id FROM "PersonProfile"
-    WHERE "userId" = (
-      SELECT id FROM "UserAccount" WHERE "supabaseUid" = auth.uid()
-    )
-  )
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
 );
 
--- INSERT: Users can create memberships for their organization
-CREATE POLICY "Users can create memberships for their org"
+-- INSERT/UPDATE/DELETE: Server can manage memberships
+CREATE POLICY "Server can manage org memberships"
 ON "Membership"
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR is_global_admin()
-);
-
--- UPDATE: Users can update memberships from their organization
-CREATE POLICY "Users can update their org's memberships"
-ON "Membership"
-FOR UPDATE
-TO authenticated
+FOR ALL
+TO postgres
 USING (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR is_global_admin()
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
 )
 WITH CHECK (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR is_global_admin()
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
 );
-```
-
-### AuditLog Table
-
-```sql
--- Enable RLS
-ALTER TABLE "AuditLog" ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies
-DROP POLICY IF EXISTS "Users can read their org's audit logs" ON "AuditLog";
-DROP POLICY IF EXISTS "System can create audit logs" ON "AuditLog";
-
--- SELECT: Users can read audit logs for their organization (or platform-wide if admin)
-CREATE POLICY "Users can read their org's audit logs"
-ON "AuditLog"
-FOR SELECT
-TO authenticated
-USING (
-  "organizerId" IN (SELECT org_id FROM user_org_ids())
-  OR ("organizerId" IS NULL AND is_global_admin())
-  OR is_global_admin()
-);
-
--- INSERT: System can create audit logs (typically via service role)
--- Note: This should primarily be done via service_role key, not user auth
-CREATE POLICY "System can create audit logs"
-ON "AuditLog"
-FOR INSERT
-TO authenticated
-WITH CHECK (true);  -- Adjust based on your audit logging strategy
 ```
 
 ---
@@ -541,11 +620,284 @@ ALTER TABLE "AuditLog" ENABLE ROW LEVEL SECURITY;
 
 ## Next Steps
 
+### ✅ Tier 1 Complete (Development Database)
+
 1. ✅ Run helper function creation in Supabase SQL Editor (dev database)
 2. ✅ Test helper functions with different user accounts
-3. ✅ Enable RLS for Order table first
+3. ✅ Enable RLS for Order table (4 policies: SELECT/INSERT/UPDATE/DELETE)
 4. ✅ Test Order queries with different roles (org admin, finance, participant)
 5. ✅ Verify isolation (SalsaNor Oslo admin can't see Bergen orders)
-6. ⏭️ Roll out to remaining Tier 1 tables one at a time
-7. ⏭️ Apply to stage database
-8. ⏭️ Apply to production (with maintenance window)
+6. ✅ Enable RLS for CoursePeriod table (2 policies: SELECT/ALL)
+7. ✅ Enable RLS for Registration table (2 policies: SELECT/ALL)
+8. ✅ Enable RLS for Payment table (3 policies: SELECT/INSERT/UPDATE)
+9. ✅ Enable RLS for Invoice table (2 policies: SELECT/INSERT)
+10. ✅ Enable RLS for Membership table (2 policies: SELECT/ALL)
+
+### ⏭️ Next: Stage & Production Deployment
+
+11. ⏭️ Test membership pages with different org admins
+12. ⏭️ Review all Tier 1 isolation with comprehensive testing
+13. ⏭️ Apply to stage database (run all SQL from this doc)
+14. ⏭️ Test stage environment thoroughly
+15. ⏭️ Apply to production (with maintenance window)
+16. ⏭️ Plan Tier 2 rollout (Track, Ticket, EventRegistration, etc.)
+
+---
+
+## Tier 2 RLS Policies (Events, Categories, Tags)
+
+### Category Table (Global - Admin Only)
+
+```sql
+-- Enable RLS
+ALTER TABLE "Category" ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Anyone can read categories" ON "Category";
+DROP POLICY IF EXISTS "Admins can manage categories" ON "Category";
+
+-- SELECT: Anyone can read categories (needed for filtering)
+CREATE POLICY "Anyone can read categories"
+ON "Category"
+FOR SELECT
+TO postgres
+USING (true);
+
+-- INSERT/UPDATE/DELETE: Only global admins can manage categories
+CREATE POLICY "Admins can manage categories"
+ON "Category"
+FOR ALL
+TO postgres
+USING (app_is_global_admin())
+WITH CHECK (app_is_global_admin());
+```
+
+---
+
+### Tag Table (Per-Organizer)
+
+```sql
+-- Enable RLS
+ALTER TABLE "Tag" ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Anyone can read tags" ON "Tag";
+DROP POLICY IF EXISTS "Org admins can manage tags" ON "Tag";
+
+-- SELECT: Anyone can read tags (needed for public event/period listings)
+CREATE POLICY "Anyone can read tags"
+ON "Tag"
+FOR SELECT
+TO postgres
+USING (true);
+
+-- INSERT/UPDATE/DELETE: Org admins can manage their organization's tags
+CREATE POLICY "Org admins can manage tags"
+ON "Tag"
+FOR ALL
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+)
+WITH CHECK (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+);
+```
+
+---
+
+### Event Table
+
+```sql
+-- Enable RLS
+ALTER TABLE "Event" ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Anyone can read published events" ON "Event";
+DROP POLICY IF EXISTS "Org admins can read org events" ON "Event";
+DROP POLICY IF EXISTS "Org admins can manage events" ON "Event";
+
+-- SELECT: Anyone can read published events, org admins can read all their events
+CREATE POLICY "Anyone can read published events"
+ON "Event"
+FOR SELECT
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "published" = true
+  OR "organizerId" = app_current_organizer_id()
+);
+
+-- INSERT/UPDATE/DELETE: Org admins can manage their organization's events
+CREATE POLICY "Org admins can manage events"
+ON "Event"
+FOR ALL
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+)
+WITH CHECK (
+  app_is_global_admin()
+  OR "organizerId" = app_current_organizer_id()
+);
+```
+
+---
+
+### EventSession Table (for recurring events)
+
+```sql
+-- Enable RLS
+ALTER TABLE "EventSession" ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Anyone can read event sessions" ON "EventSession";
+DROP POLICY IF EXISTS "Org admins can manage event sessions" ON "EventSession";
+
+-- SELECT: Anyone can read sessions for published events
+CREATE POLICY "Anyone can read event sessions"
+ON "EventSession"
+FOR SELECT
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "published" = true
+    OR "organizerId" = app_current_organizer_id()
+  )
+);
+
+-- INSERT/UPDATE/DELETE: Org admins can manage sessions for their events
+CREATE POLICY "Org admins can manage event sessions"
+ON "EventSession"
+FOR ALL
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "organizerId" = app_current_organizer_id()
+  )
+)
+WITH CHECK (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "organizerId" = app_current_organizer_id()
+  )
+);
+```
+
+---
+
+### EventRegistration Table
+
+```sql
+-- Enable RLS
+ALTER TABLE "EventRegistration" ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Server can read event registrations" ON "EventRegistration";
+DROP POLICY IF EXISTS "Server can manage event registrations" ON "EventRegistration";
+
+-- SELECT: Org admins can read their event registrations, users can read their own
+CREATE POLICY "Server can read event registrations"
+ON "EventRegistration"
+FOR SELECT
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "organizerId" = app_current_organizer_id()
+  )
+  OR "orderId" IN (
+    SELECT id FROM "Order"
+    WHERE "purchaserPersonId" IN (
+      SELECT id FROM "PersonProfile"
+      WHERE "userId" = (
+        SELECT id FROM "UserAccount"
+        WHERE "supabaseUid" = auth.uid()::text
+      )
+    )
+  )
+);
+
+-- INSERT/UPDATE/DELETE: Server can manage event registrations
+CREATE POLICY "Server can manage event registrations"
+ON "EventRegistration"
+FOR ALL
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "organizerId" = app_current_organizer_id()
+  )
+)
+WITH CHECK (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "organizerId" = app_current_organizer_id()
+  )
+);
+```
+
+---
+
+### EventTicket Table
+
+```sql
+-- Enable RLS
+ALTER TABLE "EventTicket" ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies
+DROP POLICY IF EXISTS "Users can read own event tickets" ON "EventTicket";
+DROP POLICY IF EXISTS "Org admins can read event tickets" ON "EventTicket";
+DROP POLICY IF EXISTS "Server can manage event tickets" ON "EventTicket";
+
+-- SELECT: Users can read their own tickets, org admins can read their event tickets
+CREATE POLICY "Users can read event tickets"
+ON "EventTicket"
+FOR SELECT
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "organizerId" = app_current_organizer_id()
+  )
+  OR "personId" IN (
+    SELECT id FROM "PersonProfile"
+    WHERE "userId" = (
+      SELECT id FROM "UserAccount"
+      WHERE "supabaseUid" = auth.uid()::text
+    )
+  )
+);
+
+-- INSERT/UPDATE/DELETE: Server can manage event tickets
+CREATE POLICY "Server can manage event tickets"
+ON "EventTicket"
+FOR ALL
+TO postgres
+USING (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "organizerId" = app_current_organizer_id()
+  )
+)
+WITH CHECK (
+  app_is_global_admin()
+  OR "eventId" IN (
+    SELECT id FROM "Event"
+    WHERE "organizerId" = app_current_organizer_id()
+  )
+);
+```

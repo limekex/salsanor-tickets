@@ -39,9 +39,9 @@ export async function approveMembership(membershipId: string) {
   const membership = await prisma.membership.findUnique({
     where: { id: membershipId },
     include: { 
-      organizer: true,
-      tier: true,
-      person: true
+      Organizer: true,
+      MembershipTier: true,
+      PersonProfile: true
     }
   })
 
@@ -70,7 +70,7 @@ export async function approveMembership(membershipId: string) {
   // Find UserAccount for this PersonProfile
   const personUserAccount = await prisma.userAccount.findFirst({
     where: { 
-      personProfile: {
+      PersonProfile: {
         id: membership.personId
       }
     }
@@ -103,11 +103,11 @@ export async function approveMembership(membershipId: string) {
         organizerId: membership.organizerId,
         templateSlug: 'membership-approved',
         recipientEmail: personUserAccount.email,
-        recipientName: `${membership.person.firstName} ${membership.person.lastName}`.trim() || undefined,
+        recipientName: `${membership.PersonProfile.firstName} ${membership.PersonProfile.lastName}`.trim() || undefined,
         variables: {
-          recipientName: membership.person.firstName || 'Member',
-          organizationName: membership.organizer.name,
-          tierName: membership.tier.name,
+          recipientName: membership.PersonProfile.firstName || 'Member',
+          organizationName: membership.Organizer.name,
+          tierName: membership.MembershipTier.name,
           memberNumber: membership.memberNumber || 'N/A',
         },
         language: 'en',
@@ -239,7 +239,7 @@ export async function deleteMembership(membershipId: string) {
   }
 
   // Verify admin has access to this organization
-  const hasAccess = userAccount.roles.some(
+  const hasAccess = userAccount.UserAccountRole.some(
     r => r.role === 'ADMIN' || r.organizerId === membership.organizerId
   )
 

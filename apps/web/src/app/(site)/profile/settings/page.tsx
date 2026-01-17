@@ -17,11 +17,11 @@ export default async function ProfileSettingsPage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            personProfile: true
+            PersonProfile: true
         }
     })
 
-    if (!userAccount?.personProfile) {
+    if (!userAccount?.PersonProfile) {
         redirect('/onboarding')
     }
 

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { headers } from 'next/headers'
+import { randomUUID } from 'crypto'
 
 export interface AuditLogParams {
     userId?: string
@@ -26,6 +27,7 @@ export async function createAuditLog(params: AuditLogParams) {
     try {
         await prisma.auditLog.create({
             data: {
+                id: randomUUID(),
                 userId: params.userId,
                 entityType: params.entityType,
                 entityId: params.entityId,

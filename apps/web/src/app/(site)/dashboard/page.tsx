@@ -11,7 +11,9 @@ import {
     UserCheck, 
     DollarSign, 
     ClipboardList,
-    Building2
+    Building2,
+    QrCode,
+    Scan
 } from 'lucide-react'
 
 const ROLE_INFO: Record<string, {
@@ -149,6 +151,67 @@ export default async function DashboardPage() {
             <div>
                 <h1 className="rn-h1">Staff Dashboard</h1>
                 <p className="rn-meta text-rn-text-muted">Manage your responsibilities and access your tools</p>
+            </div>
+
+            {/* Quick Access Tools */}
+            <div className="space-y-rn-4">
+                <h2 className="rn-h2">Quick Access</h2>
+                <div className="grid gap-rn-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {/* Event Ticket Scanner */}
+                    {(globalRoles?.includes('CHECKIN') || 
+                      globalRoles?.includes('ADMIN') ||
+                      organizers.some(org => org.roles.includes('ORG_CHECKIN') || org.roles.includes('ORG_ADMIN'))
+                    ) && (
+                        <Card className="border-2 hover:border-rn-primary transition-colors">
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-rn-primary/10">
+                                        <QrCode className="h-6 w-6 text-rn-primary" />
+                                    </div>
+                                    <CardTitle className="text-base">Event Check-in</CardTitle>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <p className="rn-meta text-rn-text-muted">
+                                    Scan QR codes for event ticket validation and check-in
+                                </p>
+                                <Button asChild className="w-full" size="sm">
+                                    <Link href="/checkin">
+                                        <Scan className="h-4 w-4 mr-2" />
+                                        Open Scanner
+                                    </Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Membership Scanner */}
+                    {(globalRoles?.includes('ADMIN') ||
+                      organizers.some(org => org.roles.includes('ORG_ADMIN') || org.roles.includes('ORG_CHECKIN'))
+                    ) && (
+                        <Card className="border-2 hover:border-rn-success transition-colors">
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-rn-success/10">
+                                        <QrCode className="h-6 w-6 text-rn-success" />
+                                    </div>
+                                    <CardTitle className="text-base">Membership Verification</CardTitle>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <p className="rn-meta text-rn-text-muted">
+                                    Scan membership QR codes to verify status
+                                </p>
+                                <Button asChild className="w-full" variant="outline" size="sm">
+                                    <Link href="/membership-scanner">
+                                        <Scan className="h-4 w-4 mr-2" />
+                                        Open Scanner
+                                    </Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             </div>
 
             {/* Global Roles */}

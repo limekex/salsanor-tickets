@@ -33,6 +33,9 @@ yarn-error.log*
 docs/SECRETS.md
 docs/.secrets/
 
+# test password setup script (contains service role operations)
+packages/database/scripts/setup-test-passwords.ts
+
 # vercel
 .vercel
 
@@ -394,3 +397,14 @@ SSH_SETUP.md
 *.key
 id_rsa*
 id_ed25519*
+packages/database/check-user-sync.ts
+packages/database/scripts/check-email-settings.js
+packages/database/scripts/check-test-email.js
+packages/database/scripts/setup-brevo.js
+packages/database/scripts/seed-events.ts
+packages/database/scripts/fulfill-order.ts
+packages/database/scripts/seed-categories.ts
+packages/database/scripts/grant-admin.ts
+packages/database/scripts/grant-admin.ts
+packages/database/scripts/seed-email-templates.ts
+packages/database/scripts/update-status.ts

@@ -4,6 +4,14 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import Stripe from 'stripe'
 import { fulfillOrder } from '@/lib/fulfillment/service'
+import { 
+    SellerInfo, 
+    BuyerInfo, 
+    TransactionInfo, 
+    VatBreakdown,
+    TicketLineItem,
+    DEFAULT_PLATFORM_INFO 
+} from '@/lib/tickets/legal-requirements'
 
 export async function POST(req: Request) {
     const body = await req.text()
@@ -121,46 +129,382 @@ export async function POST(req: Request) {
 
             if (orderId) {
                 try {
-                    await fulfillOrder(orderId, session.id)
+                    // Extract Stripe references
+                    const stripeChargeId = session.payment_intent ? (typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id) : undefined
+                    // Note: transaction_id is typically on the charge object, not session. We'll store what we have.
                     
-                    // Send order confirmation email
+                    await fulfillOrder(orderId, session.id, stripeChargeId, undefined)
+                    
+                    // Send order confirmation email with PDF tickets
                     try {
                         const { emailService } = await import('@/lib/email/email-service')
+                        const { generateEventTicketPDF, generateCourseTicketPDF, generateMultiTicketPDF } = await import('@/lib/tickets/pdf-generator')
+                        
                         const order = await prisma.order.findUnique({
                             where: { id: orderId },
                             include: {
-                                purchaser: true,
-                                period: {
+                                PersonProfile: true,
+                                CoursePeriod: {
                                     include: {
-                                        organizer: true
+                                        Organizer: true
                                     }
                                 },
-                                registrations: {
+                                Registration: {
                                     include: {
-                                        track: true
+                                        CourseTrack: true
                                     }
-                                }
+                                },
+                                EventRegistration: {
+                                    include: {
+                                        Event: {
+                                            include: {
+                                                Organizer: true
+                                            }
+                                        }
+                                    }
+                                },
+                                Organizer: true
                             }
                         })
                         
-                        if (order?.purchaser?.email && order.period) {
-                            const trackNames = order.registrations.map(r => r.track?.title || 'Track').join(', ')
-                            const period = order.period // Type narrowing
+                        if (!order?.PersonProfile?.email) {
+                            console.error('No email found for order', orderId)
+                            return
+                        }
+
+                        const attendeeName = `${order.PersonProfile.firstName || ''} ${order.PersonProfile.lastName || ''}`.trim()
+                        const attachments: Array<{ filename: string; content: Buffer }> = []
+
+                        // ================================================================
+                        // Build Norwegian legal compliance data
+                        // ================================================================
+                        const buildSellerInfo = (org: typeof order.Organizer): SellerInfo => {
+                            // Parse legalAddress: "Street 123, 0123 Oslo, Norway" format
+                            let addressInfo: { street?: string; postalCode?: string; city?: string; country: string } | undefined
+                            if (org.legalAddress) {
+                                const parts = org.legalAddress.split(',')
+                                const street = parts[0]?.trim()
+                                const cityPart = parts[1]?.trim() // "0123 Oslo"
+                                const postalCodeMatch = cityPart?.match(/^(\d{4})\s+(.+)$/)
+                                
+                                addressInfo = {
+                                    street,
+                                    postalCode: postalCodeMatch?.[1],
+                                    city: postalCodeMatch?.[2] || cityPart || org.city,
+                                    country: org.country
+                                }
+                            }
+                            
+                            return {
+                                legalName: org.legalName || org.name,
+                                organizationNumber: org.organizationNumber || undefined,
+                                address: addressInfo,
+                                contactEmail: org.legalEmail || org.contactEmail || undefined,
+                                vatRegistered: org.vatRegistered || org.mvaReportingRequired,
+                                vatNumber: org.vatRegistered && org.organizationNumber ? org.organizationNumber : undefined,
+                                logoUrl: org.logoUrl || undefined
+                            }
+                        }
+
+                        const buyerInfo: BuyerInfo = {
+                            name: attendeeName || 'Guest',
+                            email: order.PersonProfile.email
+                        }
+
+                        if (!order.orderNumber) {
+                            console.error('Ordrenummer mangler - dette skal aldri skje etter fulfillOrder')
+                            throw new Error('Ordrenummer mangler - ordren må fullføres før dokumenter kan sendes')
+                        }
+
+                        const transactionInfo: TransactionInfo = {
+                            orderNumber: order.orderNumber,
+                            transactionDate: order.createdAt,
+                            paymentMethod: 'Kort (Stripe)'
+                        }
+
+                        // Generate PDF tickets based on order type
+                        if (order.orderType === 'EVENT' && order.EventRegistration.length > 0) {
+                            const totalQuantity = order.EventRegistration.reduce((sum, reg) => sum + reg.quantity, 0)
+                            
+                            // Calculate price per ticket if unitPriceCents is 0
+                            const pricePerTicket = totalQuantity > 0 ? Math.floor(order.subtotalAfterDiscountCents / totalQuantity) : 0
+                            
+                            // Get all event tickets for this order
+                            const allTicketData: Array<{
+                                qrToken: string
+                                ticketNumber: number
+                                eventTitle: string
+                                eventDate: Date
+                                eventVenue?: string
+                                seller: SellerInfo
+                                unitPriceCents: number
+                            }> = []
+
+                            let ticketNumber = 1
+                            for (const eventReg of order.EventRegistration) {
+                                const event = eventReg.Event
+                                if (!event) continue
+
+                                // Get ALL event tickets for this registration (one per quantity)
+                                const eventTickets = await prisma.eventTicket.findMany({
+                                    where: {
+                                        registrationId: eventReg.id
+                                    },
+                                    orderBy: { ticketNumber: 'asc' }
+                                })
+
+                                const seller = buildSellerInfo(event.Organizer)
+                                const unitPrice = eventReg.unitPriceCents || pricePerTicket
+
+                                // Ensure startsAt is a Date object (could be string from DB)
+                                const eventDate = event.startsAt ? new Date(event.startsAt) : new Date()
+
+                                // Add each unique ticket
+                                for (const ticket of eventTickets) {
+                                    allTicketData.push({
+                                        qrToken: ticket.qrTokenHash,
+                                        ticketNumber: ticketNumber++,
+                                        eventTitle: event.title,
+                                        eventDate,
+                                        eventVenue: event.venue || undefined,
+                                        seller,
+                                        unitPriceCents: unitPrice
+                                    })
+                                }
+                            }
+
+                            // Generate multi-ticket PDF if more than one ticket
+                            if (allTicketData.length > 1 && allTicketData[0]) {
+                                const firstTicket = allTicketData[0]
+                                const seller = firstTicket.seller
+                                
+                                // Calculate VAT breakdown
+                                let vatBreakdown: VatBreakdown | undefined
+                                if (seller.vatRegistered && order.mvaCents > 0) {
+                                    const mvaRate = Number(order.Organizer.mvaRate || 25)
+                                    vatBreakdown = {
+                                        netAmountCents: order.totalCents - order.mvaCents,
+                                        vatRate: mvaRate,
+                                        vatAmountCents: order.mvaCents,
+                                        grossAmountCents: order.totalCents,
+                                        pricesIncludeVat: true
+                                    }
+                                }
+
+                                const pdfBuffer = await generateMultiTicketPDF({
+                                    tickets: allTicketData.map(t => ({
+                                        qrToken: t.qrToken,
+                                        ticketNumber: t.ticketNumber
+                                    })),
+                                    eventTitle: firstTicket.eventTitle,
+                                    eventDate: firstTicket.eventDate,
+                                    eventVenue: firstTicket.eventVenue,
+                                    seller,
+                                    buyer: buyerInfo,
+                                    transaction: transactionInfo,
+                                    vat: vatBreakdown,
+                                    unitPriceCents: firstTicket.unitPriceCents,
+                                    platform: DEFAULT_PLATFORM_INFO
+                                })
+
+                                attachments.push({
+                                    filename: `billetter-${order.orderNumber}.pdf`,
+                                    content: pdfBuffer
+                                })
+                            } else if (allTicketData.length === 1) {
+                                // Single ticket
+                                const ticketData = allTicketData[0]!
+                                const seller = ticketData.seller
+
+                                let vatBreakdown: VatBreakdown | undefined
+                                if (seller.vatRegistered && order.mvaCents > 0) {
+                                    const mvaRate = Number(order.Organizer.mvaRate || 25)
+                                    vatBreakdown = {
+                                        netAmountCents: order.totalCents - order.mvaCents,
+                                        vatRate: mvaRate,
+                                        vatAmountCents: order.mvaCents,
+                                        grossAmountCents: order.totalCents,
+                                        pricesIncludeVat: true
+                                    }
+                                }
+
+                                const lineItem: TicketLineItem = {
+                                    description: ticketData.eventTitle,
+                                    quantity: 1,
+                                    unitPriceCents: ticketData.unitPriceCents,
+                                    totalPriceCents: ticketData.unitPriceCents
+                                }
+
+                                const pdfBuffer = await generateEventTicketPDF({
+                                    ticketNumber: 1,
+                                    totalTickets: 1,
+                                    eventTitle: ticketData.eventTitle,
+                                    eventDate: ticketData.eventDate,
+                                    eventVenue: ticketData.eventVenue,
+                                    qrToken: ticketData.qrToken,
+                                    seller,
+                                    buyer: buyerInfo,
+                                    transaction: transactionInfo,
+                                    vat: vatBreakdown,
+                                    lineItem,
+                                    platform: DEFAULT_PLATFORM_INFO
+                                })
+
+                                attachments.push({
+                                    filename: `billett-${order.orderNumber}.pdf`,
+                                    content: pdfBuffer
+                                })
+                            }
+
+                            // Generate order receipt PDF
+                            const { generateOrderReceiptPDF } = await import('@/lib/tickets/pdf-generator')
+                            
+                            // Use pricePerTicket calculated earlier for price fallback
+                            const orderItems = order.EventRegistration.map(reg => {
+                                const unitPrice = reg.unitPriceCents || pricePerTicket
+                                return {
+                                    description: reg.Event?.title || 'Event',
+                                    quantity: reg.quantity,
+                                    unitPriceCents: unitPrice,
+                                    totalPriceCents: unitPrice * reg.quantity
+                                }
+                            })
+
+                            let vatBreakdown: VatBreakdown | undefined
+                            if (order.Organizer.mvaReportingRequired && order.mvaCents > 0) {
+                                const mvaRate = Number(order.Organizer.mvaRate || 25)
+                                vatBreakdown = {
+                                    netAmountCents: order.totalCents - order.mvaCents,
+                                    vatRate: mvaRate,
+                                    vatAmountCents: order.mvaCents,
+                                    grossAmountCents: order.totalCents,
+                                    pricesIncludeVat: true
+                                }
+                            }
+
+                            const receiptPdf = await generateOrderReceiptPDF({
+                                seller: buildSellerInfo(order.Organizer),
+                                buyer: buyerInfo,
+                                transaction: transactionInfo,
+                                lineItems: orderItems,
+                                vat: vatBreakdown,
+                                platform: DEFAULT_PLATFORM_INFO
+                            })
+
+                            attachments.push({
+                                filename: `kvittering-${order.orderNumber}.pdf`,
+                                content: receiptPdf
+                            })
+
+                            // Send email with event ticket attachments
+                            await emailService.sendTransactional({
+                                organizerId: order.Organizer.id,
+                                templateSlug: 'order-confirmation',
+                                recipientEmail: order.PersonProfile.email,
+                                recipientName: attendeeName || undefined,
+                                variables: {
+                                    recipientName: order.PersonProfile.firstName || 'Guest',
+                                    organizationName: order.Organizer.name,
+                                    eventName: order.EventRegistration.map(r => r.Event?.title).join(', '),
+                                    orderNumber: order.orderNumber,
+                                    orderTotal: `${order.currency.toUpperCase()} ${(order.totalCents / 100).toFixed(2)}`,
+                                    ticketCount: totalQuantity.toString(),
+                                },
+                                language: 'no',
+                                attachments
+                            })
+                        } else if (order.orderType === 'COURSE_PERIOD' && order.CoursePeriod) {
+                            const trackNames = order.Registration.map(r => r.CourseTrack?.title || 'Track')
+                            const period = order.CoursePeriod
+
+                            // Get the course ticket with QR code
+                            const courseTicket = await prisma.ticket.findUnique({
+                                where: {
+                                    periodId_personId: {
+                                        periodId: period.id,
+                                        personId: order.purchaserPersonId
+                                    }
+                                }
+                            })
+
+                            if (courseTicket) {
+                                const seller = buildSellerInfo(period.Organizer)
+
+                                let vatBreakdown: VatBreakdown | undefined
+                                if (seller.vatRegistered && order.mvaCents > 0) {
+                                    const mvaRate = Number(period.Organizer.mvaRate || 25)
+                                    vatBreakdown = {
+                                        netAmountCents: order.totalCents - order.mvaCents,
+                                        vatRate: mvaRate,
+                                        vatAmountCents: order.mvaCents,
+                                        grossAmountCents: order.totalCents,
+                                        pricesIncludeVat: true
+                                    }
+                                }
+
+                                // Build line items from registrations
+                                // Since individual registration prices aren't stored, divide total by count
+                                const pricePerRegistration = Math.floor(order.subtotalAfterDiscountCents / order.Registration.length)
+                                const lineItems: TicketLineItem[] = order.Registration.map(reg => ({
+                                    description: reg.CourseTrack?.title || 'Kurs',
+                                    quantity: 1,
+                                    unitPriceCents: pricePerRegistration,
+                                    totalPriceCents: pricePerRegistration
+                                }))
+
+                                const pdfBuffer = await generateCourseTicketPDF({
+                                    periodName: period.name,
+                                    trackNames: trackNames,
+                                    startDate: period.startsAt || new Date(),
+                                    endDate: period.endsAt || new Date(),
+                                    qrToken: courseTicket.qrTokenHash,
+                                    seller,
+                                    buyer: buyerInfo,
+                                    transaction: transactionInfo,
+                                    vat: vatBreakdown,
+                                    lineItems,
+                                    platform: DEFAULT_PLATFORM_INFO
+                                })
+
+                                attachments.push({
+                                    filename: `kursbekreftelse-${order.orderNumber}.pdf`,
+                                    content: pdfBuffer
+                                })
+
+                                // Generate and attach order receipt
+                                const { generateOrderReceiptPDF } = await import('@/lib/tickets/pdf-generator')
+                                const receiptPdf = await generateOrderReceiptPDF({
+                                    seller,
+                                    buyer: buyerInfo,
+                                    transaction: transactionInfo,
+                                    lineItems,
+                                    vat: vatBreakdown,
+                                    platform: DEFAULT_PLATFORM_INFO
+                                })
+
+                                attachments.push({
+                                    filename: `kvittering-${order.orderNumber}.pdf`,
+                                    content: receiptPdf
+                                })
+                            }
+
+                            // Send email with course ticket attachment
                             await emailService.sendTransactional({
                                 organizerId: period.organizerId,
                                 templateSlug: 'order-confirmation',
-                                recipientEmail: order.purchaser.email,
-                                recipientName: `${order.purchaser.firstName} ${order.purchaser.lastName}`.trim() || undefined,
+                                recipientEmail: order.PersonProfile.email,
+                                recipientName: attendeeName || undefined,
                                 variables: {
-                                    recipientName: order.purchaser.firstName || 'Customer',
-                                    organizationName: period.organizer.name,
+                                    recipientName: order.PersonProfile.firstName || 'Participant',
+                                    organizationName: period.Organizer.name,
                                     eventName: period.name,
-                                    orderNumber: order.id.slice(0, 8),
+                                    orderNumber: order.orderNumber,
                                     orderTotal: `${order.currency.toUpperCase()} ${(order.totalCents / 100).toFixed(2)}`,
-                                    ticketCount: order.registrations.length.toString(),
-                                    trackNames: trackNames,
+                                    ticketCount: order.Registration.length.toString(),
+                                    trackNames: trackNames.join(', '),
                                 },
-                                language: 'en',
+                                language: 'no',
+                                attachments
                             })
                         }
                     } catch (emailError) {
@@ -380,7 +724,8 @@ export async function POST(req: Request) {
             const orderId = session.metadata?.orderId
             if (orderId) {
                 try {
-                    await fulfillOrder(orderId, session.id)
+                    const stripeChargeId = session.payment_intent ? (typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id) : undefined
+                    await fulfillOrder(orderId, session.id, stripeChargeId, undefined)
                     console.log(`Webhook: ✅ Async payment fulfilled for order ${orderId}`)
                 } catch (e) {
                     console.error('Webhook: Async payment fulfillment error', e)

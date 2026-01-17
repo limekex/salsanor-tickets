@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/utils/auth-admin'
 import { PaymentProvider } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+import { randomUUID } from 'crypto'
 
 export async function getPaymentConfigs() {
     await requireAdmin()
@@ -39,10 +40,13 @@ export async function updatePaymentConfig(
     await prisma.paymentConfig.upsert({
         where: { provider },
         create: {
+            id: randomUUID(),
             provider,
+            updatedAt: new Date(),
             ...trimmedData,
         },
         update: {
+            updatedAt: new Date(),
             ...trimmedData,
         }
     })

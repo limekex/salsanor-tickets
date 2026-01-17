@@ -39,8 +39,8 @@ export async function cancelOrder(orderId: string) {
         const order = await prisma.order.findUnique({
             where: { id: orderId },
             include: { 
-                purchaser: true,
-                registrations: true
+                PersonProfile: true,
+                Registration: true
             }
         })
 
@@ -51,10 +51,10 @@ export async function cancelOrder(orderId: string) {
         // Verify user owns this order
         const userAccount = await prisma.userAccount.findUnique({
             where: { supabaseUid: user.id },
-            include: { personProfile: true }
+            include: { PersonProfile: true }
         })
 
-        if (order.purchaserPersonId !== userAccount?.personProfile?.id) {
+        if (order.purchaserPersonId !== userAccount?.PersonProfile?.id) {
             return { error: 'Not authorized' }
         }
 

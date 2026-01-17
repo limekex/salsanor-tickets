@@ -21,18 +21,18 @@ export default async function StaffAdminSettingsPage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
     })
 
-    const adminOrganizers = userAccount?.roles.map(r => r.organizer).filter(Boolean) || []
+    const adminOrganizers = userAccount?.UserAccountRole.map(r => r.Organizer).filter(Boolean) || []
 
     if (adminOrganizers.length === 0) {
         redirect('/dashboard')

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { coursePeriodSchema, type CoursePeriodFormValues } from '@/lib/schemas/period'
 import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 import {
     Form,
     FormControl,
@@ -14,22 +15,26 @@ import {
     FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { createCoursePeriod, updateCoursePeriod } from '@/app/actions/periods'
+import { createStaffCoursePeriod, updateStaffCoursePeriod } from '@/app/actions/staffadmin-periods'
 import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { CoursePeriod } from '@salsanor/database'
+import type { CoursePeriod, Category, Tag } from '@salsanor/database'
 
 interface StaffPeriodFormProps {
-    period?: CoursePeriod
+    period?: CoursePeriod & { categories?: Category[]; tags?: Tag[] }
     organizerIds: string[]
     organizers: Array<{ id: string; name: string; slug: string }>
+    categories: Category[]
+    tags: Tag[]
 }
 
-export function StaffPeriodForm({ period, organizerIds, organizers }: StaffPeriodFormProps) {
+export function StaffPeriodForm({ period, organizerIds, organizers, categories, tags }: StaffPeriodFormProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(period?.categories?.map(c => c.id) ?? [])
+    const [selectedTagIds, setSelectedTagIds] = useState<string[]>(period?.tags?.map(t => t.id) ?? [])
     const isEditing = !!period
 
     // Filter to only show organizers the user manages
@@ -74,16 +79,32 @@ export function StaffPeriodForm({ period, organizerIds, organizers }: StaffPerio
         formData.append('endDate', new Date(data.endDate).toISOString())
         formData.append('salesOpenAt', new Date(data.salesOpenAt).toISOString())
         formData.append('salesCloseAt', new Date(data.salesCloseAt).toISOString())
+        formData.append('categoryIds', JSON.stringify(selectedCategoryIds))
+        formData.append('tagIds', JSON.stringify(selectedTagIds))
 
         startTransition(async () => {
             const result = isEditing
-                ? await updateCoursePeriod(period!.id, null, formData)
-                : await createCoursePeriod(null, formData)
+                ? await updateStaffCoursePeriod(period!.id, null, formData)
+                : await createStaffCoursePeriod(null, formData)
 
             if (result?.error) {
-                console.error(result.error)
-            } else {
-                router.push('/staffadmin/periods')
+                console.error('Form submission error:', result.error)
+                // Set field errors from server response
+                Object.entries(result.error).forEach(([field, messages]) => {
+                    if (field === '_form') {
+                        // General form error
+                        alert(messages.join(', '))
+                    } else if (Array.isArray(messages)) {
+                        // Field-specific error
+                        form.setError(field as any, {
+                            type: 'server',
+                            message: messages.join(', ')
+                        })
+                    }
+                })
+            } else if (result?.success) {
+                // Navigate to tracks page for the created/updated period
+                router.push(`/staffadmin/periods/${result.periodId}/tracks`)
                 router.refresh()
             }
         })
@@ -241,6 +262,56 @@ export function StaffPeriodForm({ period, organizerIds, organizers }: StaffPerio
                                     </FormItem>
                                 )}
                             />
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <FormLabel>Categories</FormLabel>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {categories.map(cat => (
+                                        <label key={cat.id} className="flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer hover:bg-accent">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedCategoryIds.includes(cat.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedCategoryIds([...selectedCategoryIds, cat.id])
+                                                    } else {
+                                                        setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== cat.id))
+                                                    }
+                                                }}
+                                            />
+                                            <span>{cat.icon} {cat.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <FormLabel>Tags</FormLabel>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {tags.map(tag => (
+                                        <label key={tag.id} className="flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer hover:bg-accent">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedTagIds.includes(tag.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedTagIds([...selectedTagIds, tag.id])
+                                                    } else {
+                                                        setSelectedTagIds(selectedTagIds.filter(id => id !== tag.id))
+                                                    }
+                                                }}
+                                            />
+                                            <span 
+                                                className="inline-block w-4 h-4 rounded" 
+                                                style={{ backgroundColor: tag.color }}
+                                            />
+                                            <span>{tag.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-4">

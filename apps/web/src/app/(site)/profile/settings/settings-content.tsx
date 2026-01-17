@@ -25,7 +25,7 @@ export function SettingsContent({ user, userAccount }: SettingsContentProps) {
                 <Card>
                     <CardContent className="pt-6">
                         <ProfileEditForm 
-                            profile={userAccount.personProfile}
+                            profile={userAccount.PersonProfile}
                             onCancel={() => setIsEditing(false)}
                         />
                     </CardContent>
@@ -63,19 +63,19 @@ export function SettingsContent({ user, userAccount }: SettingsContentProps) {
                         <div>
                             <label className="text-sm font-medium text-muted-foreground">Name</label>
                             <p className="text-sm">
-                                {userAccount.personProfile.firstName} {userAccount.personProfile.lastName}
+                                {userAccount.PersonProfile.firstName} {userAccount.PersonProfile.lastName}
                             </p>
                         </div>
-                        {userAccount.personProfile.phone && (
+                        {userAccount.PersonProfile.phone && (
                             <div>
                                 <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                                <p className="text-sm">{userAccount.personProfile.phone}</p>
+                                <p className="text-sm">{userAccount.PersonProfile.phone}</p>
                             </div>
                         )}
                         <div>
                             <label className="text-sm font-medium text-muted-foreground">Language</label>
                             <p className="text-sm">
-                                {userAccount.personProfile.preferredLanguage === 'no' ? 'Norwegian (Norsk)' : 'English'}
+                                {userAccount.PersonProfile.preferredLanguage === 'no' ? 'Norwegian (Norsk)' : 'English'}
                             </p>
                         </div>
                     </CardContent>
@@ -90,29 +90,29 @@ export function SettingsContent({ user, userAccount }: SettingsContentProps) {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {userAccount.personProfile.streetAddress ? (
+                        {userAccount.PersonProfile.streetAddress ? (
                             <>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Street Address</label>
-                                    <p className="text-sm">{userAccount.personProfile.streetAddress}</p>
+                                    <p className="text-sm">{userAccount.PersonProfile.streetAddress}</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    {userAccount.personProfile.postalCode && (
+                                    {userAccount.PersonProfile.postalCode && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">Postal Code</label>
                                             <p className="text-sm">{userAccount.personProfile.postalCode}</p>
                                         </div>
                                     )}
-                                    {userAccount.personProfile.city && (
+                                    {userAccount.PersonProfile.city && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">City</label>
-                                            <p className="text-sm">{userAccount.personProfile.city}</p>
+                                            <p className="text-sm">{userAccount.PersonProfile.city}</p>
                                         </div>
                                     )}
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Country</label>
-                                    <p className="text-sm">{userAccount.personProfile.country}</p>
+                                    <p className="text-sm">{userAccount.PersonProfile.country}</p>
                                 </div>
                             </>
                         ) : (
@@ -133,13 +133,13 @@ export function SettingsContent({ user, userAccount }: SettingsContentProps) {
                         <div>
                             <label className="text-sm font-medium text-muted-foreground">RegiNor Marketing</label>
                             <p className="text-sm">
-                                {userAccount.personProfile.reginorMarketingConsent ? '✓ Subscribed' : '✗ Not subscribed'}
+                                {userAccount.PersonProfile.reginorMarketingConsent ? '✓ Subscribed' : '✗ Not subscribed'}
                             </p>
                         </div>
                         <div>
                             <label className="text-sm font-medium text-muted-foreground">Organizer Marketing</label>
                             <p className="text-sm">
-                                {userAccount.personProfile.organizerMarketingConsent ? '✓ Subscribed' : '✗ Not subscribed'}
+                                {userAccount.PersonProfile.organizerMarketingConsent ? '✓ Subscribed' : '✗ Not subscribed'}
                             </p>
                         </div>
                     </CardContent>
@@ -157,8 +157,8 @@ export function SettingsContent({ user, userAccount }: SettingsContentProps) {
                         <div>
                             <label className="text-sm font-medium text-muted-foreground">GDPR Consent</label>
                             <p className="text-sm">
-                                {userAccount.personProfile.gdprConsentAt 
-                                    ? `Accepted ${new Date(userAccount.personProfile.gdprConsentAt).toLocaleDateString()}`
+                                {userAccount.PersonProfile.gdprConsentAt 
+                                    ? `Accepted ${new Date(userAccount.PersonProfile.gdprConsentAt).toLocaleDateString()}`
                                     : 'Not accepted'
                                 }
                             </p>
@@ -166,8 +166,8 @@ export function SettingsContent({ user, userAccount }: SettingsContentProps) {
                         <div>
                             <label className="text-sm font-medium text-muted-foreground">Terms of Use</label>
                             <p className="text-sm">
-                                {userAccount.personProfile.touConsentAt 
-                                    ? `Accepted ${new Date(userAccount.personProfile.touConsentAt).toLocaleDateString()}`
+                                {userAccount.PersonProfile.touConsentAt 
+                                    ? `Accepted ${new Date(userAccount.PersonProfile.touConsentAt).toLocaleDateString()}`
                                     : 'Not accepted'
                                 }
                             </p>

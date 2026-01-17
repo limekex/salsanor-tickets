@@ -47,9 +47,9 @@ export default async function StaffAdminPaymentsPage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
@@ -60,9 +60,9 @@ export default async function StaffAdminPaymentsPage() {
     }
 
     // Get organizations where user is admin
-    const adminOrganizers = userAccount.roles
+    const adminOrganizers = userAccount.UserAccountRole
         .filter(r => r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER' || r.role === 'ADMIN')
-        .map(r => r.organizer)
+        .map(r => r.Organizer)
         .filter((org): org is NonNullable<typeof org> => org !== null)
 
     if (adminOrganizers.length === 0) {

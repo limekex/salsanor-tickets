@@ -44,7 +44,7 @@ export default async function StaffAdminTracksPage({
         }
     })
 
-    const adminOrgIds = userAccount?.roles.map(r => r.organizerId).filter(Boolean) || []
+    const adminOrgIds = userAccount?.UserAccountRole.map(r => r.organizerId).filter(Boolean) || []
 
     if (adminOrgIds.length === 0) {
         redirect('/dashboard')
@@ -166,7 +166,7 @@ export default async function StaffAdminTracksPage({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {period.tracks.map((track) => {
+                            {period.CourseTrack.map((track) => {
                                 const priceNOK = Math.floor(track.priceSingleCents / 100)
                                 
                                 return (
@@ -199,7 +199,7 @@ export default async function StaffAdminTracksPage({
                                     </TableRow>
                                 )
                             })}
-                            {period.tracks.length === 0 && (
+                            {period.CourseTrack.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                         No tracks found. Create one to get started.

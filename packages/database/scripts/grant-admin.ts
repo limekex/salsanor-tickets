@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { randomUUID } from 'crypto'
 
 const prisma = new PrismaClient()
 
@@ -9,14 +10,14 @@ async function fixAdminRole() {
 
     const allAccounts = await prisma.userAccount.findMany({
         where: { email: targetEmail },
-        include: { roles: true, personProfile: true }
+        include: { UserAccountRole: true, PersonProfile: true }
     })
 
     console.log(`Found ${allAccounts.length} account(s):`)
     allAccounts.forEach(acc => {
         console.log(`- UID: ${acc.supabaseUid}`)
-        console.log(`  Roles: ${acc.roles.map(r => r.role).join(', ') || 'none'}`)
-        console.log(`  Has profile: ${!!acc.personProfile}`)
+        console.log(`  Roles: ${acc.UserAccountRole.map(r => r.role).join(', ') || 'none'}`)
+        console.log(`  Has profile: ${!!acc.PersonProfile}`)
     })
 
     // Find the real account (not placeholder)
@@ -31,13 +32,14 @@ async function fixAdminRole() {
     console.log('\n=== Granting ADMIN to real account ===')
 
     // Check if real account already has ADMIN
-    const hasAdmin = realAccount.roles.some(r => r.role === 'ADMIN')
+    const hasAdmin = realAccount.UserAccountRole.some(r => r.role === 'ADMIN')
     if (hasAdmin) {
         console.log('✅ Real account already has ADMIN role')
     } else {
         // Grant ADMIN role to real account
         await prisma.userAccountRole.create({
             data: {
+                id: randomUUID(),
                 userId: realAccount.id,
                 role: 'ADMIN',
                 organizerId: null

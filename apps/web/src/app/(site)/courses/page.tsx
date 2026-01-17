@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { CourseFilters } from './course-filters'
+import { CourseCardClient } from './course-card-client'
 
 type SearchParams = Promise<{ 
     org?: string
@@ -15,11 +16,13 @@ type SearchParams = Promise<{
     weekday?: string
     timeAfter?: string
     timeBefore?: string
+    category?: string
+    tag?: string
 }>
 
 export default async function CoursesPage({ searchParams }: { searchParams: SearchParams }) {
     const params = await searchParams
-    const { org, level, weekday, timeAfter, timeBefore } = params
+    const { org, level, weekday, timeAfter, timeBefore, category, tag } = params
     
     const filters = {
         organizerId: org && org !== 'all' ? org : undefined,
@@ -27,11 +30,19 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
         weekday: weekday ? parseInt(weekday) : undefined,
         timeAfter,
         timeBefore,
+        categoryId: category && category !== 'all' ? category : undefined,
+        tagId: tag && tag !== 'all' ? tag : undefined,
     }
     
     const periods = await getPublicCoursePeriods(filters)
     const organizers = await getPublicOrganizers()
     const availableLevels = await getAvailableCourseLevels()
+    
+    // Get categories and tags for filters
+    const [categories, tags] = await Promise.all([
+        prisma.category.findMany({ orderBy: { sortOrder: 'asc' } }),
+        prisma.tag.findMany({ orderBy: { name: 'asc' } })
+    ])
 
     // Get user's existing registrations
     const supabase = await createClient()
@@ -42,9 +53,9 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
         const userAccount = await prisma.userAccount.findUnique({
             where: { supabaseUid: user.id },
             include: {
-                personProfile: {
+                PersonProfile: {
                     include: {
-                        registrations: {
+                        Registration: {
                             where: {
                                 status: { in: ['DRAFT', 'PENDING_PAYMENT', 'ACTIVE', 'WAITLIST'] }
                             },
@@ -54,7 +65,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                 }
             }
         })
-        userRegistrations = userAccount?.personProfile?.registrations || []
+        userRegistrations = userAccount?.PersonProfile?.Registration || []
     }
 
     const weekDayName = (n: number) => {
@@ -72,12 +83,16 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
             <CourseFilters 
                 availableLevels={availableLevels}
                 organizers={organizers}
+                categories={categories}
+                tags={tags}
                 currentFilters={{
                     org: org || 'all',
                     level: level || 'all',
                     weekday: weekday || 'all',
                     timeAfter: timeAfter || 'all',
                     timeBefore: timeBefore || 'all',
+                    category: category || 'all',
+                    tag: tag || 'all',
                 }}
             />
 
@@ -97,70 +112,32 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                                     {format(period.startDate, 'MMMM d')} - {format(period.endDate, 'MMMM d, yyyy')} • {period.city}
                                 </p>
                             </div>
-                            <Link href={`/org/${period.organizer.slug}`} className="rn-caption text-rn-text-muted hover:text-rn-text flex items-center gap-rn-2">
-                                {period.organizer.logoUrl && (
-                                    <img src={period.organizer.logoUrl} alt={period.organizer.name} className="h-8 w-8 object-contain" />
+                            <Link href={`/org/${period.Organizer.slug}`} className="rn-caption text-rn-text-muted hover:text-rn-text flex items-center gap-rn-2">
+                                {period.Organizer.logoUrl && (
+                                    <img src={period.Organizer.logoUrl} alt={period.Organizer.name} className="h-8 w-8 object-contain" />
                                 )}
-                                <span>{period.organizer.name}</span>
+                                <span>{period.Organizer.name}</span>
                             </Link>
                         </div>
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {period.tracks.map((track) => {
+                        {period.CourseTrack.map((track) => {
                             const isSalesOpen = period.salesOpenAt < new Date() && period.salesCloseAt > new Date()
                             const isFull = track.capacityTotal <= 0 // Simplified full check, need registration count later
+                            const isRegistered = userRegistrations.some(r => r.trackId === track.id)
 
                             return (
-                                <Card key={track.id} className="flex flex-col h-full">
-                                    <CardHeader>
-                                        <div className="flex justify-between items-start">
-                                            <Badge variant="outline">{weekDayName(track.weekday)}s</Badge>
-                                            {track.levelLabel && <Badge>{track.levelLabel}</Badge>}
-                                        </div>
-                                        <CardTitle className="pt-2">{track.title}</CardTitle>
-                                        <CardDescription>
-                                            {track.timeStart} - {track.timeEnd}
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="flex-1 space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span>Single:</span>
-                                            <span className="font-semibold">{track.priceSingleCents / 100},-</span>
-                                        </div>
-                                        {track.pricePairCents && (
-                                            <div className="flex justify-between">
-                                                <span>Couple:</span>
-                                                <span className="font-semibold text-green-600">{track.pricePairCents / 100},-</span>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                    <CardFooter>
-                                        {(() => {
-                                            const isRegistered = userRegistrations.some(r => r.trackId === track.id)
-
-                                            if (isRegistered) {
-                                                return (
-                                                    <Button className="w-full" variant="secondary" disabled>
-                                                        Already Registered
-                                                    </Button>
-                                                )
-                                            }
-
-                                            return (
-                                                <Button className="w-full" disabled={!isSalesOpen} asChild={isSalesOpen}>
-                                                    {isSalesOpen ? (
-                                                        <Link href={`/courses/${period.id}/${track.id}/register`}>
-                                                            Register
-                                                        </Link>
-                                                    ) : (
-                                                        <span>Sales Closed</span>
-                                                    )}
-                                                </Button>
-                                            )
-                                        })()}
-                                    </CardFooter>
-                                </Card>
+                                <CourseCardClient
+                                    key={track.id}
+                                    track={track}
+                                    period={period}
+                                    weekDayLabel={weekDayName(track.weekday)}
+                                    isSalesOpen={isSalesOpen}
+                                    isRegistered={isRegistered}
+                                    organizerId={period.organizerId}
+                                    organizerName={period.Organizer.name}
+                                />
                             )
                         })}
                     </div>

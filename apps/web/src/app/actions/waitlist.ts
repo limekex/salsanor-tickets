@@ -13,11 +13,11 @@ export async function promoteToOffered(registrationId: string, hoursValid = 48) 
 
     const registration = await prisma.registration.findUnique({
         where: { id: registrationId },
-        include: { waitlist: true }
+        include: { WaitlistEntry: true }
     })
 
     if (!registration) throw new Error('Registration not found')
-    if ((registration.status as string) !== 'WAITLIST' && registration.waitlist?.status !== 'EXPIRED') {
+    if ((registration.status as string) !== 'WAITLIST' && registration.WaitlistEntry?.status !== 'EXPIRED') {
         // Strict check: must be actively on waitlist OR expired offer we want to renew
         if ((registration.status as string) !== 'WAITLIST') {
             throw new Error('Registration is not on waitlist')
@@ -46,12 +46,12 @@ export async function promoteToOffered(registrationId: string, hoursValid = 48) 
         const fullRegistration = await prisma.registration.findUnique({
             where: { id: registrationId },
             include: {
-                person: true,
-                track: {
+                PersonProfile: true,
+                CourseTrack: {
                     include: {
-                        period: {
+                        CoursePeriod: {
                             include: {
-                                organizer: true
+                                Organizer: true
                             }
                         }
                     }
@@ -59,7 +59,7 @@ export async function promoteToOffered(registrationId: string, hoursValid = 48) 
             }
         })
         
-        if (fullRegistration?.person?.email && fullRegistration.track?.period) {
+        if (fullRegistration?.PersonProfile?.email && fullRegistration.CourseTrack?.CoursePeriod) {
             const expiryDate = expiresAt.toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
@@ -70,15 +70,15 @@ export async function promoteToOffered(registrationId: string, hoursValid = 48) 
             })
             
             await emailService.sendTransactional({
-                organizerId: fullRegistration.track.period.organizerId,
+                organizerId: fullRegistration.CourseTrack.CoursePeriod.organizerId,
                 templateSlug: 'waitlist-offer',
-                recipientEmail: fullRegistration.person.email,
-                recipientName: `${fullRegistration.person.firstName} ${fullRegistration.person.lastName}`.trim() || undefined,
+                recipientEmail: fullRegistration.PersonProfile.email,
+                recipientName: `${fullRegistration.PersonProfile.firstName} ${fullRegistration.PersonProfile.lastName}`.trim() || undefined,
                 variables: {
-                    recipientName: fullRegistration.person.firstName || 'Participant',
-                    organizationName: fullRegistration.track.period.organizer.name,
-                    eventName: fullRegistration.track.period.name,
-                    trackName: fullRegistration.track.title,
+                    recipientName: fullRegistration.PersonProfile.firstName || 'Participant',
+                    organizationName: fullRegistration.CourseTrack.CoursePeriod.Organizer.name,
+                    eventName: fullRegistration.CourseTrack.CoursePeriod.name,
+                    trackName: fullRegistration.CourseTrack.title,
                     expiryDate: expiryDate,
                     hoursValid: hoursValid.toString(),
                 },
@@ -127,37 +127,37 @@ export async function acceptWaitlistOffer(registrationId: string) {
     const registration = await prisma.registration.findFirst({
         where: {
             id: registrationId,
-            person: { userId: user.user_metadata.sub || user.id } // Match person's user ID implies ownership?
+            PersonProfile: { userId: user.user_metadata.sub || user.id } // Match person's user ID implies ownership?
             // Actually, we should match via UserAccount -> PersonProfile -> Registration
             // But let's verify via person -> user connection
         },
         include: {
-            waitlist: true,
-            track: true,
-            person: true
+            WaitlistEntry: true,
+            CourseTrack: true,
+            PersonProfile: true
         }
     })
 
     // Better security:
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     // Check if registration personId matches user's personId
-    if (!registration || registration.personId !== userAccount?.personProfile?.id) {
+    if (!registration || registration.personId !== userAccount?.PersonProfile?.id) {
         throw new Error('Registration not found or access denied')
     }
 
-    if (registration.waitlist?.status !== 'OFFERED') {
+    if (registration.WaitlistEntry?.status !== 'OFFERED') {
         throw new Error('No valid offer found')
     }
-    if (registration.waitlist.offeredUntil && registration.waitlist.offeredUntil < new Date()) {
+    if (registration.WaitlistEntry.offeredUntil && registration.WaitlistEntry.offeredUntil < new Date()) {
         throw new Error('Offer expired')
     }
 
     // 2. Calculate Price
-    const track = registration.track
+    const track = registration.CourseTrack
     const periodId = track.periodId
 
     const rules = await prisma.discountRule.findMany({
@@ -193,6 +193,12 @@ export async function acceptWaitlistOffer(registrationId: string) {
     // Calculate
     const pricing = calculatePricing([cartItem], rules, { isMember })
 
+    // Get period with organizer for organizerId
+    const period = await prisma.coursePeriod.findUniqueOrThrow({
+        where: { id: periodId },
+        select: { organizerId: true }
+    })
+
     // 3. Update DB
     // Transactional? Yes.
 
@@ -215,6 +221,7 @@ export async function acceptWaitlistOffer(registrationId: string) {
         const order = await tx.order.create({
             data: {
                 periodId,
+                organizerId: period.organizerId,
                 purchaserPersonId: registration.personId,
                 status: 'DRAFT',
                 subtotalCents: pricing.subtotalCents,
@@ -222,14 +229,14 @@ export async function acceptWaitlistOffer(registrationId: string) {
                 discountCents: pricing.discountTotalCents,
                 totalCents: pricing.finalTotalCents,
                 pricingSnapshot: JSON.stringify(pricing),
-                registrations: {
+                Registration: {
                     connect: { id: registrationId }
                 }
             }
         })
 
         // Link Order to Registration (inverse relation needs explicit update if not using nested create?)
-        // `registrations: { connect: ... }` on Order create handles the relation update on Registration side in Prisma.
+        // `Registration: { connect: ... }` on Order create handles the relation update on Registration side in Prisma.
 
         return order
     })
@@ -245,11 +252,11 @@ export async function declineWaitlistOffer(registrationId: string) {
 
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
-        include: { personProfile: true }
+        include: { PersonProfile: true }
     })
 
     const registration = await prisma.registration.findUnique({ where: { id: registrationId } })
-    if (!registration || registration.personId !== userAccount?.personProfile?.id) {
+    if (!registration || registration.personId !== userAccount?.PersonProfile?.id) {
         throw new Error('Access denied')
     }
 

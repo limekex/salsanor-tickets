@@ -19,12 +19,12 @@ export default async function Home() {
   if (user) {
     const userAccount = await prisma.userAccount.findUnique({
       where: { supabaseUid: user.id },
-      include: { roles: true }
+      include: { UserAccountRole: true }
     })
     
-    if (userAccount?.roles) {
-      isAdmin = userAccount.roles.some(r => r.role === 'ADMIN' || r.role === 'ORGANIZER')
-      hasStaffRoles = userAccount.roles.length > 0
+    if (userAccount?.UserAccountRole) {
+      isAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN' || r.role === 'ORGANIZER')
+      hasStaffRoles = userAccount.UserAccountRole.length > 0
     }
   }
 
