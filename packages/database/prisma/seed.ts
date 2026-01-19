@@ -56,7 +56,7 @@ async function main() {
     await prisma.organizer.deleteMany({
         where: {
             slug: {
-                in: ['salsanor-oslo', 'bergen-salsa-club']
+                in: ['salsanor-oslo', 'bergen-salsa-club', 'salsanor-trondheim']
             }
         }
     })
@@ -73,18 +73,18 @@ async function main() {
         }
     })
 
-    const bergenSalsa = await prisma.organizer.create({
+    const salsanorTrondheim = await prisma.organizer.create({
         data: {
-            slug: 'bergen-salsa-club',
-            name: 'Bergen Salsa Club',
-            description: 'Bergen\'s vibrant salsa community',
-            city: 'Bergen',
+            slug: 'salsanor-trondheim',
+            name: 'SalsaNor Trondheim',
+            description: 'Trondheim\'s vibrant salsa community',
+            city: 'Trondheim',
             country: 'Norway',
-            contactEmail: 'info@bergensalsa.no'
+            contactEmail: 'info@salsanortrondheim.no'
         }
     })
 
-    console.log(`Created 2 organizers: ${salsanorOslo.name}, ${bergenSalsa.name}`)
+    console.log(`Created 2 organizers: ${salsanorOslo.name}, ${salsanorTrondheim.name}`)
 
     // 3. Create Period
     const period = await prisma.coursePeriod.create({
@@ -594,7 +594,7 @@ async function main() {
         data: {
             userId: bergenAdminUser.id,
             role: 'ORG_ADMIN',
-            organizerId: bergenSalsa.id
+            organizerId: salsanorTrondheim.id
         }
     })
 
