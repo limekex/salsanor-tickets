@@ -181,12 +181,12 @@ export async function createStripeConnectLink(
         const userAccount = await prisma.userAccount.findUnique({
             where: { supabaseUid: user.id },
             select: {
-                roles: true,
+                UserAccountRole: true,
                 // TODO: Add organizer access check
             }
         })
 
-        if (!userAccount?.roles?.some(r => r.role === 'ADMIN')) {
+        if (!userAccount?.UserAccountRole?.some(r => r.role === 'ADMIN')) {
             // TODO: Also check if user is organizer admin
             return { success: false, error: 'Unauthorized' }
         }

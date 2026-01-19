@@ -47,7 +47,7 @@ export default async function CoursePeriodsPage() {
                                 <TableRow key={period.id}>
                                     <TableCell className="font-medium">{period.code}</TableCell>
                                     <TableCell>{period.name}</TableCell>
-                                    <TableCell className="text-muted-foreground">{period.organizer.name}</TableCell>
+                                    <TableCell className="text-muted-foreground">{period.Organizer.name}</TableCell>
                                     <TableCell>
                                         {format(period.startDate, 'MMM d, yyyy')} -{' '}
                                         {format(period.endDate, 'MMM d, yyyy')}

@@ -183,14 +183,14 @@ export default async function StaffAdminOrderDetailPage({ params }: OrderDetailP
                         <div>
                             <p className="text-sm text-rn-text-muted mb-rn-1">Email</p>
                             <p className="font-medium">
-                                {order.PersonProfile.UserAccount?.[0]?.email ||
+                                {order.PersonProfile.UserAccount?.email ||
                                     order.PersonProfile.email ||
                                     'N/A'}
                             </p>
                         </div>
                         <div>
                             <p className="text-sm text-rn-text-muted mb-rn-1">Phone</p>
-                            <p className="font-medium">{order.PersonProfile.phoneNumber || 'N/A'}</p>
+                            <p className="font-medium">{order.PersonProfile.phone || 'N/A'}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -304,7 +304,7 @@ export default async function StaffAdminOrderDetailPage({ params }: OrderDetailP
                                                 {formatDateTimeNO(payment.createdAt)}
                                             </p>
                                         </div>
-                                        <Badge>{payment.paymentStatus}</Badge>
+                                        <Badge>{payment.status}</Badge>
                                     </div>
                                 ))}
                             </div>

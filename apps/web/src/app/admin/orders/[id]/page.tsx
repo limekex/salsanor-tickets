@@ -11,6 +11,7 @@ import { SendOrderEmails } from '../send-order-emails'
 
 const statusColors = {
     DRAFT: 'bg-gray-500',
+    PENDING: 'bg-yellow-500',
     PENDING_PAYMENT: 'bg-yellow-500',
     PAID: 'bg-green-500',
     CANCELLED: 'bg-red-500',
@@ -19,6 +20,7 @@ const statusColors = {
 
 const statusLabels = {
     DRAFT: 'Utkast',
+    PENDING: 'Venter betaling',
     PENDING_PAYMENT: 'Venter betaling',
     PAID: 'Betalt',
     CANCELLED: 'Kansellert',
@@ -86,7 +88,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         notFound()
     }
 
-    const purchaserEmail = order.PersonProfile.UserAccount?.[0]?.email || order.PersonProfile.email
+    const purchaserEmail = order.PersonProfile.UserAccount?.email || order.PersonProfile.email
 
     return (
         <div className="space-y-rn-6">
@@ -103,7 +105,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                         Opprettet {formatDateTimeNO(order.createdAt)}
                     </p>
                 </div>
-                <Badge className={statusColors[order.status]} className="text-base px-4 py-1">
+                <Badge className={`${statusColors[order.status]} text-base px-4 py-1`}>
                     {statusLabels[order.status]}
                 </Badge>
             </div>
@@ -181,12 +183,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                             <div>
                                 <p className="text-sm text-rn-text-muted">Telefon</p>
                                 <p className="font-medium">{order.PersonProfile.phone}</p>
-                            </div>
-                        )}
-                        {order.PersonProfile.birthDate && (
-                            <div>
-                                <p className="text-sm text-rn-text-muted">Fødselsdato</p>
-                                <p className="font-medium">{formatDateNO(order.PersonProfile.birthDate)}</p>
                             </div>
                         )}
                     </CardContent>
@@ -275,16 +271,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                             {order.Payment.map((payment) => (
                                 <div key={payment.id} className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg">
                                     <div className="flex-1">
-                                        <p className="font-medium">{payment.paymentMethod}</p>
+                                        <p className="font-medium">{payment.provider}</p>
                                         <p className="text-sm text-rn-text-muted">
                                             {formatDateTimeNO(payment.createdAt)}
                                         </p>
-                                        {payment.providerRef && (
-                                            <p className="text-xs text-rn-text-muted">
-                                                Ref: {payment.providerRef}
-                                            </p>
-                                        )}
-                                        {payment.providerPaymentRef && payment.providerPaymentRef !== payment.providerRef && (
+                                        {payment.providerPaymentRef && (
                                             <p className="text-xs font-mono text-rn-text-muted">
                                                 Payment Ref: {payment.providerPaymentRef}
                                             </p>
@@ -343,7 +334,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                                 <div className="flex-1">
                                     <p className="font-medium">Kreditnota</p>
                                     <p className="text-sm text-rn-text-muted">
-                                        {cn.creditNoteNumber} • {formatNOK(cn.totalCents)}
+                                        {cn.creditNumber} • {formatNOK(cn.totalCents)}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">

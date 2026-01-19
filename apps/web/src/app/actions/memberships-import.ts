@@ -60,7 +60,7 @@ export async function importMembershipsWithMapping(
   defaults: ImportDefaults
 ): Promise<ImportSummary> {
   const user = await requireOrganizerAccess()
-  const organizerId = user.userAccount.roles[0]?.organizerId
+  const organizerId = user.userAccount.UserAccountRole[0]?.organizerId
   
   if (!organizerId) {
     throw new Error('No organization access')

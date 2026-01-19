@@ -49,7 +49,10 @@ export default async function ProfilePage() {
                         },
                         include: {
                             Event: {
-                                include: {
+                                select: {
+                                    id: true,
+                                    title: true,
+                                    startDateTime: true,
                                     Organizer: true
                                 }
                             },
@@ -153,10 +156,10 @@ export default async function ProfilePage() {
                                                         <span>Quantity:</span>
                                                         <span>{eventReg.quantity} ticket(s)</span>
                                                     </div>
-                                                    {eventReg.Event.startsAt && (
+                                                    {eventReg.Event.startDateTime && (
                                                         <div className="flex justify-between">
                                                             <span>Date:</span>
-                                                            <span>{format(new Date(eventReg.Event.startsAt), 'MMM d, yyyy HH:mm')}</span>
+                                                            <span>{format(new Date(eventReg.Event.startDateTime), 'MMM d, yyyy HH:mm')}</span>
                                                         </div>
                                                     )}
                                                     {eventReg.Order && (
@@ -323,12 +326,12 @@ export default async function ProfilePage() {
                                                     </div>
                                                     <CardTitle className="text-lg">Pending Approval</CardTitle>
                                                     <CardDescription>
-                                                        {membership.organizer.name}
+                                                        {membership.Organizer.name}
                                                     </CardDescription>
                                                 </CardHeader>
                                                 <CardContent className="space-y-3">
                                                     <div className="text-sm text-center text-muted-foreground">
-                                                        Your <strong>{membership.tier.name}</strong> membership is waiting for validation from an administrator.
+                                                        Your <strong>{membership.MembershipTier.name}</strong> membership is waiting for validation from an administrator.
                                                     </div>
                                                     <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm">
                                                         <p className="text-yellow-800 dark:text-yellow-400">
@@ -347,11 +350,16 @@ export default async function ProfilePage() {
                                             membership={{
                                                 ...membership,
                                                 tier: {
-                                                    name: membership.tier.name,
-                                                    slug: membership.tier.slug
+                                                    name: membership.MembershipTier.name,
+                                                    slug: membership.MembershipTier.slug
                                                 },
                                                 organizer: {
-                                                    name: membership.organizer.name
+                                                    name: membership.Organizer.name
+                                                },
+                                                person: {
+                                                    firstName: membership.PersonProfile?.firstName || '',
+                                                    lastName: membership.PersonProfile?.lastName || '',
+                                                    photoUrl: membership.PersonProfile?.photoUrl || null
                                                 }
                                             }} 
                                         />

@@ -20,19 +20,19 @@ export default async function MembershipProductSettingsPage() {
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: {
           OR: [
             { role: 'ADMIN' },
             { role: 'ORG_ADMIN' }
           ]
         },
-        include: { organizer: true }
+        include: { Organizer: true }
       }
     }
   })
 
-  if (!userAccount?.roles?.[0]?.organizer) {
+  if (!userAccount?.UserAccountRole?.[0]?.Organizer) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">No Organization Access</h1>
@@ -41,7 +41,7 @@ export default async function MembershipProductSettingsPage() {
     )
   }
 
-  const organizer = userAccount.roles[0].organizer
+  const organizer = userAccount.UserAccountRole[0].Organizer
 
   // Get membership tiers count
   const tierCount = await prisma.membershipTier.count({

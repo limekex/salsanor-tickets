@@ -46,7 +46,7 @@ export function AddUserRoleDialog({
         id: string
         email: string
         personProfile: { firstName: string; lastName: string } | null
-        roles: Array<{ id: string; role: string; organizer?: { name: string } | null }>
+        roles: Array<{ id: string; role: string; Organizer?: { name: string } | null }>
     } | null
 }) {
     const router = useRouter()
@@ -58,7 +58,7 @@ export function AddUserRoleDialog({
         id: string
         email: string
         personProfile: { firstName: string; lastName: string } | null
-        roles: Array<{ id: string; role: string; organizer?: { name: string } | null }>
+        roles: Array<{ id: string; role: string; Organizer?: { name: string } | null }>
     } | null>(preselectedUser || null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -76,7 +76,19 @@ export function AddUserRoleDialog({
         try {
             const user = await searchUserByEmail(email.trim())
             if (user) {
-                setSearchedUser(user)
+                setSearchedUser({
+                    id: user.id,
+                    email: user.email,
+                    personProfile: user.PersonProfile ? {
+                        firstName: user.PersonProfile.firstName,
+                        lastName: user.PersonProfile.lastName
+                    } : null,
+                    roles: user.UserAccountRole.map(r => ({
+                        id: r.id,
+                        role: r.role,
+                        Organizer: r.Organizer
+                    }))
+                })
             } else {
                 setError('User not found')
             }
@@ -195,7 +207,7 @@ export function AddUserRoleDialog({
                                             {searchedUser.roles.map((role) => (
                                                 <Badge key={role.id} variant="secondary" className="text-xs">
                                                     {role.role}
-                                                    {role.organizer && ` @ ${role.organizer.name}`}
+                                                    {role.Organizer && ` @ ${role.Organizer.name}`}
                                                 </Badge>
                                             ))}
                                         </div>

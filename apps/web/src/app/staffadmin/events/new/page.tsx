@@ -9,7 +9,7 @@ import { prisma } from '@/lib/db'
 export default async function NewEventPage() {
     const userAccount = await requireOrgAdmin()
 
-    const orgAdminRole = userAccount.roles.find(r => r.role === 'ORG_ADMIN')
+    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
     if (!orgAdminRole?.organizerId) {
         return <div>No organization found</div>
     }

@@ -143,7 +143,7 @@ export default async function StaffAdminUserDetailPage({
                         id: user.id,
                         email: user.email,
                         personProfile: user.PersonProfile,
-                        roles: user.roles
+                        roles: user.UserAccountRole
                     }}
                 />
             </div>
@@ -186,7 +186,7 @@ export default async function StaffAdminUserDetailPage({
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {user.roles.length === 0 ? (
+                    {user.UserAccountRole.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p className="font-medium">No roles in your organizations</p>
@@ -194,7 +194,7 @@ export default async function StaffAdminUserDetailPage({
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {user.roles.map((role) => {
+                            {user.UserAccountRole.map((role) => {
                                 const roleInfo = ROLE_LABELS[role.role] || { 
                                     label: role.role, 
                                     color: 'bg-gray-100 text-gray-800',
@@ -214,9 +214,9 @@ export default async function StaffAdminUserDetailPage({
                                                 >
                                                     {roleInfo.label}
                                                 </Badge>
-                                                {role.organizer && (
+                                                {role.Organizer && (
                                                     <Badge variant="outline">
-                                                        {role.organizer.name}
+                                                        {role.Organizer.name}
                                                     </Badge>
                                                 )}
                                             </div>

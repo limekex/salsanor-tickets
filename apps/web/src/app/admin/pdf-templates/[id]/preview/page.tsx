@@ -13,6 +13,7 @@ const templateTypeLabels: Record<PdfTemplateType, string> = {
     ORDER_RECEIPT: 'Ordrekvittering',
     MEMBERSHIP_CARD: 'Medlemskort',
     CREDIT_NOTE: 'Kreditnota',
+    INVOICE: 'Faktura',
 }
 
 interface PreviewPdfTemplatePageProps {

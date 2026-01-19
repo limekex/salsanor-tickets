@@ -21,13 +21,13 @@ export default async function StaffAdminDiscountsPage() {
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: { role: 'ORG_ADMIN' }
       }
     }
   })
 
-  const organizerId = userAccount?.roles?.[0]?.organizerId
+  const organizerId = userAccount?.UserAccountRole?.[0]?.organizerId
 
   if (!organizerId) {
     return (
@@ -43,7 +43,7 @@ export default async function StaffAdminDiscountsPage() {
     where: { organizerId },
     include: {
       _count: {
-        select: { discountRules: true }
+        select: { DiscountRule: true }
       }
     },
     orderBy: { startDate: 'desc' }
@@ -78,9 +78,9 @@ export default async function StaffAdminDiscountsPage() {
             {periods.map((period) => (
               <TabsTrigger key={period.id} value={period.id}>
                 {period.name}
-                {period._count.discountRules > 0 && (
+                {period._count.DiscountRule > 0 && (
                   <Badge variant="secondary" className="ml-2">
-                    {period._count.discountRules}
+                    {period._count.DiscountRule}
                   </Badge>
                 )}
               </TabsTrigger>

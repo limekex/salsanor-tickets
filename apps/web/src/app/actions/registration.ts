@@ -55,9 +55,9 @@ export async function createRegistration(prevState: any, formData: FormData) {
             const track = await tx.courseTrack.findUniqueOrThrow({ 
                 where: { id: trackId },
                 include: {
-                    period: {
+                    CoursePeriod: {
                         include: {
-                            organizer: true
+                            Organizer: true
                         }
                     }
                 }
@@ -151,7 +151,7 @@ export async function getAllRegistrations() {
     
     return await prisma.registration.findMany({
         include: {
-            person: {
+            PersonProfile: {
                 select: {
                     id: true,
                     firstName: true,
@@ -159,7 +159,7 @@ export async function getAllRegistrations() {
                     email: true
                 }
             },
-            track: {
+            CourseTrack: {
                 select: {
                     id: true,
                     title: true,
@@ -168,12 +168,12 @@ export async function getAllRegistrations() {
                     timeEnd: true
                 }
             },
-            period: {
+            CoursePeriod: {
                 select: {
                     id: true,
                     code: true,
                     name: true,
-                    organizer: {
+                    Organizer: {
                         select: {
                             id: true,
                             name: true,
