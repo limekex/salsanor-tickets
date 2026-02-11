@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { StaffAdminNav } from '@/components/staff-admin-nav'
 import { Toaster } from "sonner";
+import { getStaffAdminSelectedOrg, setStaffAdminSelectedOrg } from '@/utils/staff-admin-org-context'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +26,11 @@ export const metadata: Metadata = {
   },
 };
 
+async function handleOrgChange(orgId: string) {
+    'use server'
+    await setStaffAdminSelectedOrg(orgId)
+}
+
 export default async function StaffAdminLayout({
     children,
 }: {
@@ -37,11 +43,17 @@ export default async function StaffAdminLayout({
         redirect('/auth/login')
     }
 
-    // Check if user has ORG_ADMIN role for at least one organization
+    // Check if user has ORG_ADMIN or ORG_FINANCE role for at least one organization
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
             UserAccountRole: {
+                where: {
+                    OR: [
+                        { role: 'ORG_ADMIN' },
+                        { role: 'ORG_FINANCE' }
+                    ]
+                },
                 include: {
                     Organizer: true
                 }
@@ -49,12 +61,34 @@ export default async function StaffAdminLayout({
         }
     })
 
-    const hasOrgAdminRole = userAccount?.UserAccountRole.some(
-        r => r.role === 'ORG_ADMIN' || r.role === 'ORG_FINANCE'
-    )
+    const hasStaffRole = userAccount?.UserAccountRole && userAccount.UserAccountRole.length > 0
     
-    if (!hasOrgAdminRole) {
+    if (!hasStaffRole) {
         throw new Error('Unauthorized: Organization admin or finance access required')
+    }
+
+    // Get list of organizations user has access to
+    const organizers = userAccount.UserAccountRole
+        .filter(r => r.Organizer)
+        .map(r => ({
+            id: r.Organizer!.id,
+            name: r.Organizer!.name,
+            slug: r.Organizer!.slug
+        }))
+        // Remove duplicates
+        .filter((org, index, self) => 
+            index === self.findIndex(o => o.id === org.id)
+        )
+
+    // Get or set current organization
+    let currentOrgId = await getStaffAdminSelectedOrg()
+    
+    // If no org selected or selected org not in user's orgs, use first org
+    if (!currentOrgId || !organizers.some(org => org.id === currentOrgId)) {
+        if (organizers.length > 0) {
+            currentOrgId = organizers[0].id
+            await setStaffAdminSelectedOrg(currentOrgId)
+        }
     }
 
     return (
@@ -64,7 +98,11 @@ export default async function StaffAdminLayout({
                 suppressHydrationWarning
             >
                 <div className="min-h-screen">
-                    <StaffAdminNav />
+                    <StaffAdminNav 
+                        organizers={organizers}
+                        currentOrgId={currentOrgId}
+                        onOrgChange={handleOrgChange}
+                    />
                     <main className="container mx-auto py-6">
                         {children}
                     </main>
