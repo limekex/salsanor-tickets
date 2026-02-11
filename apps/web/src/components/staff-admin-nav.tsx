@@ -20,30 +20,44 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { useOrganizerAccess } from '@/hooks/use-organizer-access'
 
 const navItems = [
-    { href: '/staffadmin', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/staffadmin/users', label: 'Users', icon: Users },
-    { href: '/staffadmin/registrations', label: 'Registrations', icon: ClipboardList },
-    { href: '/staffadmin/orders', label: 'Orders', icon: Package },
-    { href: '/staffadmin/finance', label: 'Finance', icon: Coins },
+    { href: '/staffadmin', label: 'Dashboard', icon: LayoutDashboard, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
+    { href: '/staffadmin/users', label: 'Users', icon: Users, roles: ['ORG_ADMIN'] },
+    { href: '/staffadmin/registrations', label: 'Registrations', icon: ClipboardList, roles: ['ORG_ADMIN'] },
+    { href: '/staffadmin/orders', label: 'Orders', icon: Package, roles: ['ORG_ADMIN'] },
+    { href: '/staffadmin/finance', label: 'Finance', icon: Coins, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
 ]
 
 const productItems = [
-    { href: '/staffadmin/periods', label: 'Periods', icon: Calendar },
-    { href: '/staffadmin/events', label: 'Events', icon: CalendarDays },
-    { href: '/staffadmin/memberships', label: 'Memberships', icon: CreditCard },
-    { href: '/staffadmin/discounts', label: 'Discounts', icon: Percent },
+    { href: '/staffadmin/periods', label: 'Periods', icon: Calendar, roles: ['ORG_ADMIN'] },
+    { href: '/staffadmin/events', label: 'Events', icon: CalendarDays, roles: ['ORG_ADMIN'] },
+    { href: '/staffadmin/memberships', label: 'Memberships', icon: CreditCard, roles: ['ORG_ADMIN'] },
+    { href: '/staffadmin/discounts', label: 'Discounts', icon: Percent, roles: ['ORG_ADMIN'] },
 ]
 
 export function StaffAdminNav() {
     const pathname = usePathname()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const { roles } = useOrganizerAccess()
+    
+    // Filter nav items based on user's roles
+    const visibleNavItems = navItems.filter(item => 
+        item.roles.some(role => roles.includes(role))
+    )
+    
+    const visibleProductItems = productItems.filter(item =>
+        item.roles.some(role => roles.includes(role))
+    )
     
     // Check if any product page is active
-    const isProductsActive = productItems.some(item => 
+    const isProductsActive = visibleProductItems.some(item => 
         pathname === item.href || pathname.startsWith(item.href + '/')
     )
+    
+    // Check if user has access to settings (ORG_ADMIN only)
+    const hasSettingsAccess = roles.includes('ORG_ADMIN')
 
     return (
         <nav className="border-b border-rn-border bg-rn-surface sticky top-0 z-50">
@@ -61,7 +75,7 @@ export function StaffAdminNav() {
                     
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex gap-rn-1 ml-auto">
-                        {navItems.map((item) => {
+                        {visibleNavItems.map((item) => {
                             const Icon = item.icon
                             const isActive = pathname === item.href ||
                                 (item.href !== '/staffadmin' && pathname.startsWith(item.href))
@@ -83,55 +97,59 @@ export function StaffAdminNav() {
                             )
                         })}
 
-                        {/* Products Dropdown */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger 
+                        {/* Products Dropdown - only show if there are visible product items */}
+                        {visibleProductItems.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger 
+                                    className={cn(
+                                        "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                        isProductsActive
+                                            ? "bg-rn-primary text-white"
+                                            : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
+                                    )}
+                                >
+                                    <Package className="h-4 w-4" />
+                                    Products
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    {visibleProductItems.map((item) => {
+                                        const Icon = item.icon
+                                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+                                        return (
+                                            <DropdownMenuItem key={item.href} asChild>
+                                                <Link
+                                                    href={item.href}
+                                                    className={cn(
+                                                        "flex items-center gap-rn-2 cursor-pointer",
+                                                        isActive && "bg-rn-surface-2"
+                                                    )}
+                                                >
+                                                    <Icon className="h-4 w-4" />
+                                                    {item.label}
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )
+                                    })}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+
+                        {/* Settings (Icon Only) - only for ORG_ADMIN */}
+                        {hasSettingsAccess && (
+                            <Link
+                                href="/staffadmin/settings"
                                 className={cn(
-                                    "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
-                                    isProductsActive
+                                    "flex items-center justify-center p-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                    pathname === '/staffadmin/settings' || pathname.startsWith('/staffadmin/settings/')
                                         ? "bg-rn-primary text-white"
                                         : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
                                 )}
+                                title="Settings"
                             >
-                                <Package className="h-4 w-4" />
-                                Products
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {productItems.map((item) => {
-                                    const Icon = item.icon
-                                    const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-
-                                    return (
-                                        <DropdownMenuItem key={item.href} asChild>
-                                            <Link
-                                                href={item.href}
-                                                className={cn(
-                                                    "flex items-center gap-rn-2 cursor-pointer",
-                                                    isActive && "bg-rn-surface-2"
-                                                )}
-                                            >
-                                                <Icon className="h-4 w-4" />
-                                                {item.label}
-                                            </Link>
-                                        </DropdownMenuItem>
-                                    )
-                                })}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        {/* Settings (Icon Only) */}
-                        <Link
-                            href="/staffadmin/settings"
-                            className={cn(
-                                "flex items-center justify-center p-2 rounded-rn-1 text-sm font-medium transition-colors",
-                                pathname === '/staffadmin/settings' || pathname.startsWith('/staffadmin/settings/')
-                                    ? "bg-rn-primary text-white"
-                                    : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
-                            )}
-                            title="Settings"
-                        >
-                            <Settings className="h-4 w-4" />
-                        </Link>
+                                <Settings className="h-4 w-4" />
+                            </Link>
+                        )}
 
                         {/* Back to Site (Icon Only) */}
                         <Link
@@ -158,7 +176,7 @@ export function StaffAdminNav() {
                             </SheetHeader>
                             <div className="flex flex-col gap-rn-2 mt-rn-6">
                                 {/* Main Nav Items */}
-                                {navItems.map((item) => {
+                                {visibleNavItems.map((item) => {
                                     const Icon = item.icon
                                     const isActive = pathname === item.href ||
                                         (item.href !== '/staffadmin' && pathname.startsWith(item.href))
@@ -181,46 +199,50 @@ export function StaffAdminNav() {
                                     )
                                 })}
 
-                                {/* Products Section */}
-                                <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
-                                    <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Products</p>
-                                    {productItems.map((item) => {
-                                        const Icon = item.icon
-                                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                {/* Products Section - only show if there are visible product items */}
+                                {visibleProductItems.length > 0 && (
+                                    <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
+                                        <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Products</p>
+                                        {visibleProductItems.map((item) => {
+                                            const Icon = item.icon
+                                            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
 
-                                        return (
-                                            <Link
-                                                key={item.href}
-                                                href={item.href}
-                                                onClick={() => setMobileMenuOpen(false)}
-                                                className={cn(
-                                                    "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
-                                                    isActive
-                                                        ? "bg-rn-primary text-white"
-                                                        : "text-rn-text hover:bg-rn-surface-2"
-                                                )}
-                                            >
-                                                <Icon className="h-5 w-5" />
-                                                {item.label}
-                                            </Link>
-                                        )
-                                    })}
-                                </div>
+                                            return (
+                                                <Link
+                                                    key={item.href}
+                                                    href={item.href}
+                                                    onClick={() => setMobileMenuOpen(false)}
+                                                    className={cn(
+                                                        "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                        isActive
+                                                            ? "bg-rn-primary text-white"
+                                                            : "text-rn-text hover:bg-rn-surface-2"
+                                                    )}
+                                                >
+                                                    <Icon className="h-5 w-5" />
+                                                    {item.label}
+                                                </Link>
+                                            )
+                                        })}
+                                    </div>
+                                )}
 
-                                {/* Settings */}
-                                <Link
-                                    href="/staffadmin/settings"
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className={cn(
-                                        "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors mt-rn-4 border-t border-rn-border pt-rn-4",
-                                        pathname === '/staffadmin/settings' || pathname.startsWith('/staffadmin/settings/')
-                                            ? "bg-rn-primary text-white"
-                                            : "text-rn-text hover:bg-rn-surface-2"
-                                    )}
-                                >
-                                    <Settings className="h-5 w-5" />
-                                    Settings
-                                </Link>
+                                {/* Settings - only for ORG_ADMIN */}
+                                {hasSettingsAccess && (
+                                    <Link
+                                        href="/staffadmin/settings"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className={cn(
+                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors mt-rn-4 border-t border-rn-border pt-rn-4",
+                                            pathname === '/staffadmin/settings' || pathname.startsWith('/staffadmin/settings/')
+                                                ? "bg-rn-primary text-white"
+                                                : "text-rn-text hover:bg-rn-surface-2"
+                                        )}
+                                    >
+                                        <Settings className="h-5 w-5" />
+                                        Settings
+                                    </Link>
+                                )}
 
                                 {/* Back to Site */}
                                 <Link
