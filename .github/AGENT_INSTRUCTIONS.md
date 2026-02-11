@@ -402,6 +402,97 @@ Use these in server actions after auth checks:
 - [ ] No date-fns imports for formatting
 - [ ] No inline price calculations
 - [ ] No duplicate card/empty state components
+- [ ] **TypeScript compiles without errors** (`npx tsc --noEmit`)
+
+---
+
+## 🔴 TypeScript Requirements - MANDATORY
+
+### Always Verify Type Safety
+
+Before completing ANY task, you MUST run:
+
+```bash
+cd apps/web && npx tsc --noEmit
+```
+
+If there are errors, **fix them before considering the task complete**.
+
+### Common TypeScript Mistakes to Avoid
+
+#### ❌ Missing null checks
+```tsx
+// ❌ FORBIDDEN - Will crash if user is null
+<span>{user.name}</span>
+
+// ✅ REQUIRED - Handle null/undefined
+<span>{user?.name ?? 'Unknown'}</span>
+```
+
+#### ❌ Incorrect function signatures
+```tsx
+// ❌ FORBIDDEN - Missing parameter types
+async function getData(id) { ... }
+
+// ✅ REQUIRED - Explicit types
+async function getData(id: string): Promise<Event | null> { ... }
+```
+
+#### ❌ Using `any` type
+```tsx
+// ❌ FORBIDDEN - Never use any
+const data: any = await fetchData()
+
+// ✅ REQUIRED - Use proper types
+import type { EventCardData } from '@/types'
+const data: EventCardData[] = await fetchData()
+```
+
+#### ❌ Ignoring async/await types
+```tsx
+// ❌ FORBIDDEN - Missing await
+const events = getEvents() // Returns Promise, not data!
+
+// ✅ REQUIRED - Proper async handling
+const events = await getEvents()
+```
+
+#### ❌ Wrong import paths
+```tsx
+// ❌ FORBIDDEN - Will fail in build
+import { formatPrice } from '@/lib/formatter'  // typo!
+
+// ✅ REQUIRED - Correct paths
+import { formatPrice } from '@/lib/formatters'
+```
+
+### After Every Code Change
+
+1. **Save the file** - Let VS Code show red squiggles
+2. **Check for errors** - Run `npx tsc --noEmit` in `apps/web`
+3. **Fix ALL errors** - Don't leave any TypeScript errors
+4. **Verify build** - For major changes, run `npm run build`
+
+### Type Checking Commands
+
+```bash
+# Quick type check (no emit)
+cd apps/web && npx tsc --noEmit
+
+# Check specific file patterns
+cd apps/web && npx tsc --noEmit 2>&1 | grep "error TS"
+
+# Full build check
+cd apps/web && npm run build
+```
+
+### If You Encounter Type Errors
+
+1. **Read the error message carefully** - TypeScript errors are descriptive
+2. **Check the types** - Look in `@/types` for correct interfaces
+3. **Check function signatures** - Ensure parameters match expected types
+4. **Use type guards** - For union types, narrow with conditionals
+5. **Don't use `as any` or `// @ts-ignore`** - Fix the root cause instead
 
 ---
 
