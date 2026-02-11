@@ -58,12 +58,12 @@ export default async function ExportPage() {
                     </div>
 
                     <div className="pt-rn-4 border-t border-rn-border">
-                        <form action={`/api/staffadmin/export/finance?organizerId=${organizerId}`} method="GET">
-                            <Button type="submit" size="lg">
+                        <Button asChild size="lg">
+                            <Link href={`/api/staffadmin/export/finance?organizerId=${organizerId}`}>
                                 <DownloadIcon className="mr-2 h-4 w-4" />
                                 Download CSV Export
-                            </Button>
-                        </form>
+                            </Link>
+                        </Button>
                     </div>
 
                     <div className="pt-rn-4 text-sm text-rn-text-muted">
