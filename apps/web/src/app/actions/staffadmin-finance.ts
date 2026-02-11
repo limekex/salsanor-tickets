@@ -149,7 +149,13 @@ export async function getOrgPaymentStatus(organizerId: string) {
             Order: {
                 select: {
                     id: true,
-                    createdAt: true
+                    orderNumber: true,
+                    createdAt: true,
+                    Invoice: {
+                        select: {
+                            invoiceNumber: true
+                        }
+                    }
                 }
             }
         },
@@ -257,6 +263,7 @@ export async function exportOrgFinancialData(organizerId: string) {
             },
             Organizer: true,
             Payment: true,
+            Invoice: true,
             Registration: {
                 include: {
                     PersonProfile: true,
@@ -300,6 +307,7 @@ export async function exportOrgFinancialData(organizerId: string) {
         
         return {
             orderId: order.id,
+            orderNumber: order.orderNumber || '',
             organizerName: order.Organizer.name,
             organizerOrgNr: order.Organizer.organizationNumber || '',
             periodName: productName,
@@ -315,6 +323,8 @@ export async function exportOrgFinancialData(organizerId: string) {
             registrationCount: order.Registration.length + order.EventRegistration.length + order.Membership.length,
             paymentProvider: order.Payment[0]?.provider || null,
             paymentStatus: order.Payment[0]?.status || null,
+            providerPaymentRef: order.Payment[0]?.providerPaymentRef || null,
+            invoiceNumber: order.Invoice && order.Invoice.length > 0 ? order.Invoice[0].invoiceNumber : null,
             createdAt: order.createdAt.toISOString(),
             updatedAt: order.updatedAt.toISOString()
         }

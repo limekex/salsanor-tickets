@@ -102,6 +102,7 @@ export default async function PaymentStatusPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead>Order Number</TableHead>
                                     <TableHead>Payment ID</TableHead>
                                     <TableHead>Order ID</TableHead>
                                     <TableHead>Date</TableHead>
@@ -109,11 +110,13 @@ export default async function PaymentStatusPage() {
                                     <TableHead>Provider</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Payment Ref</TableHead>
+                                    <TableHead>Invoice Number</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {payments.map((payment) => (
                                     <TableRow key={payment.id}>
+                                        <TableCell className="font-medium">{payment.Order.orderNumber || '—'}</TableCell>
                                         <TableCell className="font-mono text-sm">{payment.id.slice(0, 8)}</TableCell>
                                         <TableCell className="font-mono text-sm">{payment.orderId.slice(0, 8)}</TableCell>
                                         <TableCell>{formatDateNumeric(payment.createdAt)}</TableCell>
@@ -133,6 +136,9 @@ export default async function PaymentStatusPage() {
                                         </TableCell>
                                         <TableCell className="font-mono text-xs text-rn-text-muted">
                                             {payment.providerPaymentRef ? payment.providerPaymentRef.slice(0, 20) + '...' : '—'}
+                                        </TableCell>
+                                        <TableCell className="font-mono text-sm">
+                                            {payment.Order.Invoice && payment.Order.Invoice.length > 0 ? payment.Order.Invoice[0].invoiceNumber : '—'}
                                         </TableCell>
                                     </TableRow>
                                 ))}

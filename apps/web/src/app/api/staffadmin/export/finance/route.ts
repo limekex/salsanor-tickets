@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
         // Generate CSV
         const headers = [
             'Order ID',
+            'Order Number',
             'Organization',
             'Org.nr',
             'Product Name',
@@ -35,12 +36,15 @@ export async function GET(request: NextRequest) {
             'Registration Count',
             'Payment Provider',
             'Payment Status',
+            'Payment Reference',
+            'Invoice Number',
             'Created At',
             'Updated At'
         ].join(',')
 
         const rows = data.map(order => [
             order.orderId,
+            order.orderNumber || '',
             `"${order.organizerName}"`,
             order.organizerOrgNr,
             `"${order.periodName}"`,
@@ -56,6 +60,8 @@ export async function GET(request: NextRequest) {
             order.registrationCount,
             order.paymentProvider || '',
             order.paymentStatus || '',
+            order.providerPaymentRef || '',
+            order.invoiceNumber || '',
             order.createdAt,
             order.updatedAt
         ].join(','))
