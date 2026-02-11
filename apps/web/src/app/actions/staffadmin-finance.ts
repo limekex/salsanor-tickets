@@ -32,7 +32,7 @@ export async function getOrgFinancialSummary(organizerId: string) {
     // Pending payments
     const pendingOrders = await prisma.order.count({
         where: {
-            status: 'PENDING_PAYMENT',
+            status: 'PENDING',
             CoursePeriod: { organizerId }
         }
     })

@@ -27,9 +27,9 @@ export default async function PaymentStatusPage() {
         if (payment.status === 'SUCCEEDED') {
             acc.succeeded.count += 1
             acc.succeeded.amount += payment.amountCents
-        } else if (payment.status === 'PENDING') {
-            acc.pending.count += 1
-            acc.pending.amount += payment.amountCents
+        } else if (payment.status === 'REQUIRES_ACTION') {
+            acc.requiresAction.count += 1
+            acc.requiresAction.amount += payment.amountCents
         } else if (payment.status === 'FAILED') {
             acc.failed.count += 1
             acc.failed.amount += payment.amountCents
@@ -40,7 +40,7 @@ export default async function PaymentStatusPage() {
         return acc
     }, {
         succeeded: { count: 0, amount: 0 },
-        pending: { count: 0, amount: 0 },
+        requiresAction: { count: 0, amount: 0 },
         failed: { count: 0, amount: 0 },
         refunded: { count: 0, amount: 0 }
     })
@@ -72,11 +72,11 @@ export default async function PaymentStatusPage() {
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle className="rn-meta">Pending</CardTitle>
+                        <CardTitle className="rn-meta">Requires Action</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="rn-h2">{stats.pending.count}</div>
-                        <p className="rn-caption text-rn-text-muted mt-rn-1">{formatNOK(stats.pending.amount)}</p>
+                        <div className="rn-h2">{stats.requiresAction.count}</div>
+                        <p className="rn-caption text-rn-text-muted mt-rn-1">{formatNOK(stats.requiresAction.amount)}</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -115,7 +115,7 @@ export default async function PaymentStatusPage() {
                                     <TableHead className="text-right">Amount</TableHead>
                                     <TableHead>Provider</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Stripe ID</TableHead>
+                                    <TableHead>Payment Ref</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -130,7 +130,7 @@ export default async function PaymentStatusPage() {
                                             <Badge 
                                                 variant={
                                                     payment.status === 'SUCCEEDED' ? 'default' :
-                                                    payment.status === 'PENDING' ? 'secondary' :
+                                                    payment.status === 'REQUIRES_ACTION' ? 'secondary' :
                                                     payment.status === 'FAILED' ? 'destructive' :
                                                     'outline'
                                                 }
@@ -139,7 +139,7 @@ export default async function PaymentStatusPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="font-mono text-xs text-rn-text-muted">
-                                            {payment.stripePaymentIntentId ? payment.stripePaymentIntentId.slice(0, 20) + '...' : '—'}
+                                            {payment.providerPaymentRef ? payment.providerPaymentRef.slice(0, 20) + '...' : '—'}
                                         </TableCell>
                                     </TableRow>
                                 ))}

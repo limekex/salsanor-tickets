@@ -14,7 +14,7 @@ export default async function ExportPage() {
     }
     
     const organizerId = firstOrgRole.organizerId
-    const organizerName = firstOrgRole.Organizer.name
+    const organizerName = firstOrgRole.Organizer?.name || 'Unknown Organization'
 
     return (
         <div className="space-y-rn-6">
