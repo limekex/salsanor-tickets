@@ -6,9 +6,11 @@
     "dev": "next dev",
     "dev:turbo": "next dev --turbo",
     "dev:webpack": "TURBOPACK=false next dev",
+    "dev:clean": "rm -rf .next && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "clean": "rm -rf .next node_modules/.cache",
     "postinstall": "cd ../../packages/database && npx prisma generate"
   },
   "dependencies": {
