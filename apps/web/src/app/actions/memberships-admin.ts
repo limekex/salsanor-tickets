@@ -20,7 +20,7 @@ export async function approveMembership(membershipId: string) {
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: {
           OR: [
             { role: 'ADMIN' },
@@ -31,7 +31,7 @@ export async function approveMembership(membershipId: string) {
     }
   })
 
-  if (!userAccount || userAccount.roles.length === 0) {
+  if (!userAccount || userAccount.UserAccountRole.length === 0) {
     throw new Error('Unauthorized: Admin access required')
   }
 
@@ -50,7 +50,7 @@ export async function approveMembership(membershipId: string) {
   }
 
   // Verify admin has access to this organization
-  const hasAccess = userAccount.roles.some(
+  const hasAccess = userAccount.UserAccountRole.some(
     r => r.role === 'ADMIN' || r.organizerId === membership.organizerId
   )
 
@@ -82,8 +82,8 @@ export async function approveMembership(membershipId: string) {
     personId: membership.personId,
     foundUserAccount: !!personUserAccount,
     personEmail: personUserAccount?.email,
-    personName: `${membership.person.firstName} ${membership.person.lastName}`,
-    tierName: membership.tier.name,
+    personName: `${membership.PersonProfile.firstName} ${membership.PersonProfile.lastName}`,
+    tierName: membership.MembershipTier.name,
     memberNumber: membership.memberNumber
   })
 
@@ -144,7 +144,7 @@ export async function rejectMembership(membershipId: string) {
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: {
           OR: [
             { role: 'ADMIN' },
@@ -155,23 +155,24 @@ export async function rejectMembership(membershipId: string) {
     }
   })
 
-  if (!userAccount || userAccount.roles.length === 0) {
+  if (!userAccount || userAccount.UserAccountRole.length === 0) {
     throw new Error('Unauthorized: Admin access required')
   }
 
   // Get membership and verify organization access
   const membership = await prisma.membership.findUnique({
     where: { id: membershipId },
-    include: { organizer: true }
+    include: { Organizer: true }
   })
 
   if (!membership) {
     throw new Error('Membership not found')
   }
 
-  // Verify admin has access to this organization
-  const hasAccess = userAccount.roles.some(
-    r => r.role === 'ADMIN' || r.organizerId === membership.organizerId
+  // Verify admin has access to this organization (ADMIN can access all, ORG_ADMIN only their org)
+  const isGlobalAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN')
+  const hasAccess = isGlobalAdmin || userAccount.UserAccountRole.some(
+    r => r.role === 'ORG_ADMIN' && r.organizerId === membership.organizerId
   )
 
   if (!hasAccess) {
@@ -208,7 +209,7 @@ export async function deleteMembership(membershipId: string) {
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: {
           OR: [
             { role: 'ADMIN' },
@@ -219,14 +220,14 @@ export async function deleteMembership(membershipId: string) {
     }
   })
 
-  if (!userAccount || userAccount.roles.length === 0) {
+  if (!userAccount || userAccount.UserAccountRole.length === 0) {
     throw new Error('Unauthorized: Admin access required')
   }
 
   // Get membership and verify organization access
   const membership = await prisma.membership.findUnique({
     where: { id: membershipId },
-    include: { organizer: true }
+    include: { Organizer: true }
   })
 
   if (!membership) {
@@ -239,8 +240,9 @@ export async function deleteMembership(membershipId: string) {
   }
 
   // Verify admin has access to this organization
-  const hasAccess = userAccount.UserAccountRole.some(
-    r => r.role === 'ADMIN' || r.organizerId === membership.organizerId
+  const isGlobalAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN')
+  const hasAccess = isGlobalAdmin || userAccount.UserAccountRole.some(
+    r => r.role === 'ORG_ADMIN' && r.organizerId === membership.organizerId
   )
 
   if (!hasAccess) {
@@ -276,7 +278,7 @@ export async function updateMembershipStatus(
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: {
           OR: [
             { role: 'ADMIN' },
@@ -287,7 +289,7 @@ export async function updateMembershipStatus(
     }
   })
 
-  if (!userAccount || userAccount.roles.length === 0) {
+  if (!userAccount || userAccount.UserAccountRole.length === 0) {
     throw new Error('Unauthorized: Admin access required')
   }
 
@@ -301,8 +303,9 @@ export async function updateMembershipStatus(
   }
 
   // Verify admin has access to this organization
-  const hasAccess = userAccount.roles.some(
-    r => r.role === 'ADMIN' || r.organizerId === membership.organizerId
+  const isGlobalAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN')
+  const hasAccess = isGlobalAdmin || userAccount.UserAccountRole.some(
+    r => r.role === 'ORG_ADMIN' && r.organizerId === membership.organizerId
   )
 
   if (!hasAccess) {

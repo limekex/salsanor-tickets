@@ -45,8 +45,8 @@ export function AddUserRoleDialog({
     preselectedUser?: {
         id: string
         email: string
-        personProfile: { firstName: string; lastName: string } | null
-        roles: Array<{ id: string; role: string; organizer?: { name: string } | null }>
+        PersonProfile: { firstName: string; lastName: string } | null
+        UserAccountRole: Array<{ id: string; role: string; Organizer?: { name: string } | null }>
     } | null
 }) {
     const router = useRouter()
@@ -57,8 +57,8 @@ export function AddUserRoleDialog({
     const [searchedUser, setSearchedUser] = useState<{
         id: string
         email: string
-        personProfile: { firstName: string; lastName: string } | null
-        roles: Array<{ id: string; role: string; organizer?: { name: string } | null }>
+        PersonProfile: { firstName: string; lastName: string } | null
+        UserAccountRole: Array<{ id: string; role: string; Organizer?: { name: string } | null }>
     } | null>(preselectedUser || null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -185,17 +185,17 @@ export function AddUserRoleDialog({
                             <div className="flex items-start justify-between">
                                 <div>
                                     <p className="font-medium">
-                                        {searchedUser.personProfile
-                                            ? `${searchedUser.personProfile.firstName} ${searchedUser.personProfile.lastName}`
+                                        {searchedUser.PersonProfile
+                                            ? `${searchedUser.PersonProfile.firstName} ${searchedUser.PersonProfile.lastName}`
                                             : 'No profile'}
                                     </p>
                                     <p className="text-sm text-muted-foreground">{searchedUser.email}</p>
-                                    {searchedUser.roles.length > 0 && (
+                                    {searchedUser.UserAccountRole.length > 0 && (
                                         <div className="mt-2 flex flex-wrap gap-1">
-                                            {searchedUser.roles.map((role) => (
+                                            {searchedUser.UserAccountRole.map((role) => (
                                                 <Badge key={role.id} variant="secondary" className="text-xs">
                                                     {role.role}
-                                                    {role.organizer && ` @ ${role.organizer.name}`}
+                                                    {role.Organizer && ` @ ${role.Organizer.name}`}
                                                 </Badge>
                                             ))}
                                         </div>

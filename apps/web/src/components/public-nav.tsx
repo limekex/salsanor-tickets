@@ -6,6 +6,7 @@ import { Button } from './ui/button'
 import { Menu, ShoppingCart } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { useCart } from '@/hooks/use-cart'
+import { useUser } from '@/hooks'
 import { useRouter } from 'next/navigation'
 import {
   Sheet,
@@ -16,20 +17,18 @@ import {
 } from '@/components/ui/sheet'
 import { Badge } from './ui/badge'
 
-type PublicNavProps = {
-  user: { id: string; email?: string } | null
-  hasStaffRoles: boolean
-  isAdmin: boolean
-}
-
-export function PublicNav({ user, hasStaffRoles, isAdmin }: PublicNavProps) {
+export function PublicNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { items, isLoaded } = useCart()
+  const { user, hasRole, isGlobalAdmin, isOrgAdmin } = useUser()
   const router = useRouter()
   
   // Recalculate count on every render when items change
   const cartCount = items.length
+  
+  // Check if user has staff roles
+  const hasStaffRoles = isOrgAdmin() || hasRole('STAFF') || hasRole('INSTRUCTOR')
 
   const handleSignOut = async () => {
     startTransition(async () => {
@@ -79,7 +78,7 @@ export function PublicNav({ user, hasStaffRoles, isAdmin }: PublicNavProps) {
                     <Link href="/dashboard">Dashboard</Link>
                   </Button>
                 )}
-                {isAdmin && (
+                {isGlobalAdmin() && (
                   <Button asChild variant="ghost" size="sm">
                     <Link href="/admin">Admin Panel</Link>
                   </Button>
@@ -217,7 +216,7 @@ export function PublicNav({ user, hasStaffRoles, isAdmin }: PublicNavProps) {
                       </Button>
                     )}
                     
-                    {isAdmin && (
+                    {isGlobalAdmin() && (
                       <Button 
                         asChild 
                         variant="ghost" 

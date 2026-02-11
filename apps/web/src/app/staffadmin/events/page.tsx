@@ -6,14 +6,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { Plus, Calendar, MapPin, Users, ExternalLink } from 'lucide-react'
-import { format } from 'date-fns'
 import { PublishEventButton } from './publish-event-button'
 import { DeleteEventButton } from './delete-event-button'
+import { formatDateTimeShort } from '@/lib/formatters'
+import { EmptyState } from '@/components/empty-state'
 
 export default async function StaffAdminEventsPage() {
     const userAccount = await requireOrgAdmin()
 
-    const orgAdminRole = userAccount.roles.find(r => r.role === 'ORG_ADMIN')
+    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
     if (!orgAdminRole?.organizerId) {
         return <div>No organization found</div>
     }
@@ -46,12 +47,15 @@ export default async function StaffAdminEventsPage() {
                 </CardHeader>
                 <CardContent>
                     {events.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <p>No events yet.</p>
-                            <Button asChild className="mt-4" variant="outline">
-                                <Link href="/staffadmin/events/new">Create First Event</Link>
-                            </Button>
-                        </div>
+                        <EmptyState
+                            icon={Calendar}
+                            title="No Events Yet"
+                            description="Create your first event to get started."
+                            action={{
+                                label: "Create First Event",
+                                href: "/staffadmin/events/new"
+                            }}
+                        />
                     ) : (
                         <Table>
                             <TableHeader>
@@ -67,7 +71,7 @@ export default async function StaffAdminEventsPage() {
                             </TableHeader>
                             <TableBody>
                                 {events.map((event) => {
-                                    const registrationCount = event._count.registrations
+                                    const registrationCount = event._count.EventRegistration
                                     const capacityPercent = Math.round((registrationCount / event.capacityTotal) * 100)
 
                                     return (
@@ -80,26 +84,26 @@ export default async function StaffAdminEventsPage() {
                                                             <Badge variant="default" className="text-xs">Featured</Badge>
                                                         )}
                                                     </div>
-                                                    {event.categories.length > 0 && (
+                                                    {event.Category.length > 0 && (
                                                         <div className="flex gap-1 flex-wrap">
-                                                            {event.categories.map(cat => (
+                                                            {event.Category.map(cat => (
                                                                 <Badge key={cat.id} variant="outline" className="text-xs">
                                                                     {cat.icon} {cat.name}
                                                                 </Badge>
                                                             ))}
                                                         </div>
                                                     )}
-                                                    {event.tags.length > 0 && (
+                                                    {event.Tag.length > 0 && (
                                                         <div className="flex gap-1 flex-wrap">
-                                                            {event.tags.map(tag => (
+                                                            {event.Tag.map(tag => (
                                                                 <Badge 
                                                                     key={tag.id} 
                                                                     variant="secondary" 
                                                                     className="text-xs"
                                                                     style={{ 
-                                                                        backgroundColor: tag.color + '20',
-                                                                        color: tag.color,
-                                                                        borderColor: tag.color
+                                                                        backgroundColor: (tag.color || '#888') + '20',
+                                                                        color: tag.color || undefined,
+                                                                        borderColor: tag.color || undefined
                                                                     }}
                                                                 >
                                                                     {tag.name}
@@ -117,7 +121,7 @@ export default async function StaffAdminEventsPage() {
                                             <TableCell>
                                                 <div className="flex items-center gap-2 text-sm">
                                                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                                                    {format(new Date(event.startDateTime), 'dd MMM yyyy HH:mm')}
+                                                    {formatDateTimeShort(event.startDateTime)}
                                                 </div>
                                             </TableCell>
                                             <TableCell>

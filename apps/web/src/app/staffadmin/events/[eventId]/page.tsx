@@ -15,7 +15,7 @@ export default async function EditEventPage({ params }: PageProps) {
     const { eventId } = await params
     const userAccount = await requireOrgAdmin()
 
-    const orgAdminRole = userAccount.roles.find(r => r.role === 'ORG_ADMIN')
+    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
     if (!orgAdminRole?.organizerId) {
         return <div>No organization found</div>
     }
@@ -26,8 +26,8 @@ export default async function EditEventPage({ params }: PageProps) {
             organizerId: orgAdminRole.organizerId
         },
         include: {
-            categories: true,
-            tags: true
+            Category: true,
+            Tag: true
         }
     })
 

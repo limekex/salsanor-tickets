@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Plus, Users } from 'lucide-react'
 import { listMembershipTiers } from '@/app/actions/membership-tiers'
+import { formatPrice } from '@/lib/formatters'
 
 export default async function MembershipTiersPage() {
   const tiers = await listMembershipTiers()
@@ -50,7 +51,7 @@ export default async function MembershipTiersPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Price</span>
-                  <span className="font-medium">{(tier.priceCents / 100).toFixed(0)} NOK/year</span>
+                  <span className="font-medium">{formatPrice(tier.priceCents)}/year</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Members</span>

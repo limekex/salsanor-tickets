@@ -9,7 +9,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { format } from 'date-fns'
+import { formatDateShort } from '@/lib/formatters'
 import { CancelRegistrationButton } from '@/components/cancel-registration-button'
 
 export default async function RegistrationsPage() {
@@ -77,24 +77,24 @@ export default async function RegistrationsPage() {
                             {registrations.map((reg) => (
                                 <TableRow key={reg.id}>
                                     <TableCell className="font-medium">
-                                        {reg.person.firstName} {reg.person.lastName}
+                                        {reg.PersonProfile.firstName} {reg.PersonProfile.lastName}
                                         <div className="text-xs text-muted-foreground">
-                                            {reg.person.email}
+                                            {reg.PersonProfile.email}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-sm">
-                                        {reg.period.organizer.name}
+                                        {reg.CoursePeriod.Organizer.name}
                                     </TableCell>
                                     <TableCell className="text-sm">
-                                        <div>{reg.period.name}</div>
+                                        <div>{reg.CoursePeriod.name}</div>
                                         <div className="text-xs text-muted-foreground">
-                                            {reg.period.code}
+                                            {reg.CoursePeriod.code}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-sm">
-                                        <div>{reg.track.title}</div>
+                                        <div>{reg.CourseTrack.title}</div>
                                         <div className="text-xs text-muted-foreground">
-                                            {reg.track.weekday} {reg.track.timeStart}
+                                            {reg.CourseTrack.weekday} {reg.CourseTrack.timeStart}
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -104,19 +104,19 @@ export default async function RegistrationsPage() {
                                         {getStatusBadge(reg.status)}
                                         {reg.cancelledAt && (
                                             <div className="text-xs text-muted-foreground mt-1">
-                                                Cancelled {format(reg.cancelledAt, 'MMM d, yyyy')}
+                                                Cancelled {formatDateShort(reg.cancelledAt)}
                                             </div>
                                         )}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
-                                        {format(reg.createdAt, 'MMM d, yyyy')}
+                                        {formatDateShort(reg.createdAt)}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {reg.status !== 'CANCELLED' && (
                                             <CancelRegistrationButton 
                                                 registrationId={reg.id}
-                                                participantName={`${reg.person.firstName} ${reg.person.lastName}`}
-                                                courseName={`${reg.period.name} - ${reg.track.title}`}
+                                                participantName={`${reg.PersonProfile.firstName} ${reg.PersonProfile.lastName}`}
+                                                courseName={`${reg.CoursePeriod.name} - ${reg.CourseTrack.title}`}
                                             />
                                         )}
                                     </TableCell>

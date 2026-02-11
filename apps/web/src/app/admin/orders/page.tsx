@@ -9,7 +9,7 @@ import { formatDateNO, formatNOK } from '@/lib/tickets/legal-requirements'
 
 const statusColors = {
     DRAFT: 'bg-gray-500',
-    PENDING_PAYMENT: 'bg-yellow-500',
+    PENDING: 'bg-yellow-500',
     PAID: 'bg-green-500',
     CANCELLED: 'bg-red-500',
     REFUNDED: 'bg-purple-500',
@@ -17,7 +17,7 @@ const statusColors = {
 
 const statusLabels = {
     DRAFT: 'Draft',
-    PENDING_PAYMENT: 'Pending Payment',
+    PENDING: 'Pending Payment',
     PAID: 'Paid',
     CANCELLED: 'Cancelled',
     REFUNDED: 'Refunded',

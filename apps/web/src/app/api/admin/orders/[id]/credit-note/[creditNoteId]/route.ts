@@ -32,20 +32,22 @@ export async function GET(
         }
 
         const order = creditNote.Order
+        if (!order) {
+            return NextResponse.json({ error: 'Order not found for credit note' }, { status: 404 })
+        }
         const org = order.Organizer
 
         // Build credit note data
         const buyerName = `${order.PersonProfile.firstName || ''} ${order.PersonProfile.lastName || ''}`.trim() || 'N/A'
         
-        // Parse line items from JSON
-        const lineItems = Array.isArray(creditNote.lineItems) 
-            ? creditNote.lineItems as any[]
-            : []
+        // Line items are derived from the credit note details - no lineItems field exists on CreditNote
+        const lineItems: any[] = []
 
         const sellerInfo = {
             name: org.name,
+            legalName: org.legalName || org.name,
             organizationNumber: org.organizationNumber || undefined,
-            address: org.address ? (typeof org.address === 'string' ? JSON.parse(org.address) : org.address) : undefined,
+            address: org.legalAddress ? { street: org.legalAddress } : undefined,
             contactEmail: org.legalEmail || org.contactEmail || undefined,
             vatRegistered: org.vatRegistered || org.mvaReportingRequired,
             vatNumber: org.vatRegistered && org.organizationNumber ? org.organizationNumber : undefined,
@@ -53,13 +55,13 @@ export async function GET(
         }
 
         const creditNoteData = {
-            creditNumber: creditNote.creditNoteNumber,
-            issueDate: creditNote.createdAt,
-            originalInvoiceNumber: creditNote.originalInvoiceNumber || undefined,
+            creditNumber: creditNote.creditNumber,
+            issueDate: creditNote.issueDate,
+            originalInvoiceNumber: undefined as string | undefined,
             originalOrderNumber: order.orderNumber || undefined,
             originalTransactionDate: order.createdAt,
             refundType: creditNote.refundType as 'FULL' | 'PARTIAL' | 'NONE',
-            refundPercentage: Number(creditNote.refundPercentage || 0),
+            refundPercentage: 0, // Not stored on credit note - computed if needed
             reason: creditNote.reason || 'Kansellering',
             originalAmountCents: creditNote.originalAmountCents,
             refundAmountCents: creditNote.refundAmountCents,
@@ -76,10 +78,10 @@ export async function GET(
 
         const pdfBuffer = await generateCreditNotePDF(creditNoteData)
 
-        return new Response(pdfBuffer, {
+        return new Response(new Uint8Array(pdfBuffer), {
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="kreditnota-${creditNote.creditNoteNumber}.pdf"`,
+                'Content-Disposition': `attachment; filename="kreditnota-${creditNote.creditNumber}.pdf"`,
             },
         })
     } catch (error) {

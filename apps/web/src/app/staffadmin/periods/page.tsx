@@ -12,8 +12,8 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { format } from 'date-fns'
 import Link from 'next/link'
+import { formatDateRange } from '@/lib/formatters'
 
 export default async function StaffAdminPeriodsPage() {
     const supabase = await createClient()
@@ -27,12 +27,12 @@ export default async function StaffAdminPeriodsPage() {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
@@ -52,12 +52,12 @@ export default async function StaffAdminPeriodsPage() {
             }
         },
         include: {
-            organizer: true,
-            tracks: {
+            Organizer: true,
+            CourseTrack: {
                 include: {
                     _count: {
                         select: {
-                            registrations: true
+                            Registration: true
                         }
                     }
                 }
@@ -107,10 +107,9 @@ export default async function StaffAdminPeriodsPage() {
                                     <TableRow key={period.id}>
                                         <TableCell className="font-medium">{period.code}</TableCell>
                                         <TableCell>{period.name}</TableCell>
-                                        <TableCell className="text-muted-foreground">{period.Organizer.name}</TableCell>
+                                        <TableCell>{period.Organizer.name}</TableCell>
                                         <TableCell>
-                                            {format(period.startDate, 'MMM d, yyyy')} -{' '}
-                                            {format(period.endDate, 'MMM d, yyyy')}
+                                            {formatDateRange(period.startDate, period.endDate)}
                                         </TableCell>
                                         <TableCell>
                                             {isSalesOpen ? (

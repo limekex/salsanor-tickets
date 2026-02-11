@@ -36,7 +36,7 @@ export default async function NewStaffTrackPage({
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN',
                     organizerId: period.organizerId
@@ -45,7 +45,7 @@ export default async function NewStaffTrackPage({
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         throw new Error('Unauthorized: You do not have access to create tracks for this period')
     }
 

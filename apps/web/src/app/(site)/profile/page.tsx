@@ -5,15 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { format } from 'date-fns'
 import { PayButton } from '@/components/pay-button'
 import { TicketQR } from '@/components/ticket-qr'
 import { QRCodeDisplay } from '@/components/qr-code-display'
 import { AcceptOfferButton, DeclineOfferButton } from './offer-buttons'
 import { CancelOrderButton } from './cancel-order-button'
-import { formatDistanceToNow } from 'date-fns'
 import { LayoutDashboard, Clock, Settings } from 'lucide-react'
 import { MembershipCard } from '@/components/membership-card'
+import { formatDateShort, formatDateTimeShort, formatPrice, formatRelativeTime } from '@/lib/formatters'
 
 export default async function ProfilePage() {
     const supabase = await createClient()
@@ -140,7 +139,7 @@ export default async function ProfilePage() {
                                                     {eventReg.status}
                                                 </Badge>
                                                 <span className="text-sm text-muted-foreground">
-                                                    {format(eventReg.createdAt, 'MMM d, yyyy')}
+                                                    {formatDateShort(eventReg.createdAt)}
                                                 </span>
                                             </div>
                                             <CardTitle>{eventReg.Event.title}</CardTitle>
@@ -153,16 +152,16 @@ export default async function ProfilePage() {
                                                         <span>Quantity:</span>
                                                         <span>{eventReg.quantity} ticket(s)</span>
                                                     </div>
-                                                    {eventReg.Event.startsAt && (
+                                                    {eventReg.Event.startDateTime && (
                                                         <div className="flex justify-between">
                                                             <span>Date:</span>
-                                                            <span>{format(new Date(eventReg.Event.startsAt), 'MMM d, yyyy HH:mm')}</span>
+                                                            <span>{formatDateTimeShort(eventReg.Event.startDateTime)}</span>
                                                         </div>
                                                     )}
                                                     {eventReg.Order && (
                                                         <div className="flex justify-between border-t pt-2">
                                                             <span>Total Paid/Due:</span>
-                                                            <span>{eventReg.Order.totalCents / 100},-</span>
+                                                            <span>{formatPrice(eventReg.Order.totalCents)}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -243,7 +242,7 @@ export default async function ProfilePage() {
                                                 {reg.status}
                                             </Badge>
                                             <span className="text-sm text-muted-foreground">
-                                                {format(reg.createdAt, 'MMM d, yyyy')}
+                                                {formatDateShort(reg.createdAt)}
                                             </span>
                                         </div>
                                         <CardTitle>{reg.CourseTrack.title}</CardTitle>
@@ -270,7 +269,7 @@ export default async function ProfilePage() {
                                         <div>
                                             <h4 className="font-bold text-orange-800 dark:text-orange-400">Spot Offered!</h4>
                                             <p className="text-xs text-orange-700 dark:text-orange-500">
-                                                Expires {formatDistanceToNow(reg.WaitlistEntry.offeredUntil, { addSuffix: true })}
+                                                Expires {formatRelativeTime(reg.WaitlistEntry.offeredUntil)}
                                             </p>
                                         </div>
                                         <div className="flex gap-2">
@@ -323,12 +322,12 @@ export default async function ProfilePage() {
                                                     </div>
                                                     <CardTitle className="text-lg">Pending Approval</CardTitle>
                                                     <CardDescription>
-                                                        {membership.organizer.name}
+                                                        {membership.Organizer.name}
                                                     </CardDescription>
                                                 </CardHeader>
                                                 <CardContent className="space-y-3">
                                                     <div className="text-sm text-center text-muted-foreground">
-                                                        Your <strong>{membership.tier.name}</strong> membership is waiting for validation from an administrator.
+                                                        Your <strong>{membership.MembershipTier.name}</strong> membership is waiting for validation from an administrator.
                                                     </div>
                                                     <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm">
                                                         <p className="text-yellow-800 dark:text-yellow-400">
@@ -347,11 +346,16 @@ export default async function ProfilePage() {
                                             membership={{
                                                 ...membership,
                                                 tier: {
-                                                    name: membership.tier.name,
-                                                    slug: membership.tier.slug
+                                                    name: membership.MembershipTier.name,
+                                                    slug: membership.MembershipTier.slug
                                                 },
                                                 organizer: {
-                                                    name: membership.organizer.name
+                                                    name: membership.Organizer.name
+                                                },
+                                                person: {
+                                                    firstName: membership.PersonProfile.firstName,
+                                                    lastName: membership.PersonProfile.lastName,
+                                                    photoUrl: membership.PersonProfile.photoUrl
                                                 }
                                             }} 
                                         />

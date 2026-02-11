@@ -1,10 +1,9 @@
 import { getOrganizerEvents } from '@/app/actions/organizers'
 import { notFound } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { format } from 'date-fns'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, MapPin, Clock } from 'lucide-react'
+import { ArrowLeft, CalendarX } from 'lucide-react'
+import { EventCard, EventGrid, EmptyState } from '@/components'
 
 type Params = Promise<{ slug: string }>
 
@@ -35,55 +34,23 @@ export default async function OrganizerEventsPage({ params }: { params: Params }
                 </div>
             </div>
 
-            {/* Events Grid */}
+            {/* Events Grid or Empty State */}
             {hasEvents ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <EventGrid>
                     {organizer.Event?.map((event) => (
-                        <Card key={event.id} className="flex flex-col h-full">
-                            <CardHeader>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                                    <Calendar className="h-4 w-4" />
-                                    {format(event.startDateTime, 'EEEE, MMMM d, yyyy')}
-                                </div>
-                                <CardTitle className="line-clamp-2">{event.title}</CardTitle>
-                                {event.locationName && (
-                                    <CardDescription className="flex items-center gap-1">
-                                        <MapPin className="h-3 w-3" />
-                                        {event.locationName}
-                                    </CardDescription>
-                                )}
-                            </CardHeader>
-                            <CardContent className="flex-1 space-y-3">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Clock className="h-4 w-4" />
-                                    {format(event.startDateTime, 'HH:mm')}
-                                    {event.endDateTime && ` - ${format(event.endDateTime, 'HH:mm')}`}
-                                </div>
-                                {event.shortDescription && (
-                                    <p className="text-sm text-muted-foreground line-clamp-3">
-                                        {event.shortDescription}
-                                    </p>
-                                )}
-                            </CardContent>
-                            <CardFooter className="flex justify-between items-center">
-                                <span className="font-semibold text-lg">
-                                    {(event.basePriceCents ?? 0) === 0 ? 'Free' : `${(event.basePriceCents ?? 0) / 100},-`}
-                                </span>
-                                <Button asChild>
-                                    <Link href={`/events/${event.id}`}>
-                                        View details
-                                    </Link>
-                                </Button>
-                            </CardFooter>
-                        </Card>
+                        <EventCard 
+                            key={event.id}
+                            event={event}
+                            href={`/org/${slug}/events/${event.slug}`}
+                        />
                     ))}
-                </div>
+                </EventGrid>
             ) : (
-                <Card>
-                    <CardContent className="py-12 text-center text-muted-foreground">
-                        No upcoming events scheduled yet.
-                    </CardContent>
-                </Card>
+                <EmptyState 
+                    icon={CalendarX}
+                    title="No Upcoming Events"
+                    description={`${organizer.name} has no upcoming events scheduled yet. Check back soon for new events!`}
+                />
             )}
         </main>
     )

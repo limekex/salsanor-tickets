@@ -14,6 +14,7 @@ import { PricingResult } from '@/lib/pricing/engine'
 import { useRouter } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Label } from '@/components/ui/label'
+import { formatPrice } from '@/lib/formatters'
 
 export default function CartPage() {
     const { items, removeItem, updateEventQuantity, clearCart, isLoaded, getCartOrganizerId, getCartOrganizerName } = useCart()
@@ -181,10 +182,10 @@ export default function CartPage() {
                                                             <div className="text-right">
                                                                 {line.discountCents > 0 && (
                                                                     <span className="line-through text-xs text-muted-foreground block">
-                                                                        {(line.basePriceCents / 100).toFixed(0)},-
+                                                                        {formatPrice(line.basePriceCents)}
                                                                     </span>
                                                                 )}
-                                                                <span>{(line.finalPriceCents / 100).toFixed(0)},-</span>
+                                                                <span>{formatPrice(line.finalPriceCents)}</span>
                                                             </div>
                                                         )
                                                     })()
@@ -251,13 +252,13 @@ export default function CartPage() {
                                                     </Button>
                                                 </div>
                                                 <span className="text-xs text-muted-foreground">
-                                                    @ {(item.pricePerTicket / 100).toFixed(0)},- each
+                                                    @ {formatPrice(item.pricePerTicket)} each
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <div className="font-mono text-right">
-                                                <span>{(totalPrice / 100).toFixed(0)},-</span>
+                                                <span>{formatPrice(totalPrice)}</span>
                                             </div>
                                             <Button variant="ghost" size="icon" onClick={() => removeItem(item.eventId)}>
                                                 <Trash2 className="h-4 w-4" />
@@ -315,15 +316,15 @@ export default function CartPage() {
                                     const eventTotal = items
                                         .filter(i => i.type === 'event')
                                         .reduce((sum, item) => sum + (item.pricePerTicket * item.quantity), 0)
-                                    return ((courseTotal + eventTotal) / 100).toFixed(0)
-                                })()},-
+                                    return formatPrice(courseTotal + eventTotal, { showZeroAsAmount: true })
+                                })()}
                             </span>
                         </div>
 
                         {pricing?.appliedRules.map(rule => (
                             <div key={rule.ruleId} className="flex justify-between text-sm text-green-600">
                                 <span>{rule.name}</span>
-                                <span>-{(rule.amountCents / 100).toFixed(0)},-</span>
+                                <span>-{formatPrice(rule.amountCents)}</span>
                             </div>
                         ))}
 
@@ -337,8 +338,8 @@ export default function CartPage() {
                                     const eventTotal = items
                                         .filter(i => i.type === 'event')
                                         .reduce((sum, item) => sum + (item.pricePerTicket * item.quantity), 0)
-                                    return ((courseTotal + eventTotal) / 100).toFixed(0)
-                                })()},-
+                                    return formatPrice(courseTotal + eventTotal, { showZeroAsAmount: true })
+                                })()}
                             </span>
                         </div>
 

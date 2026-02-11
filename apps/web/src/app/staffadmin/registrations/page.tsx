@@ -13,18 +13,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { format } from 'date-fns'
 import { CancelRegistrationButton } from '@/components/cancel-registration-button'
-
-const WEEKDAY_LABELS: Record<number, string> = {
-    1: 'Monday',
-    2: 'Tuesday', 
-    3: 'Wednesday',
-    4: 'Thursday',
-    5: 'Friday',
-    6: 'Saturday',
-    7: 'Sunday'
-}
+import { formatDateShort, formatPrice, formatWeekday } from '@/lib/formatters'
 
 function getStatusBadge(status: string) {
     const variants = {
@@ -176,7 +166,7 @@ export default async function StaffAdminRegistrationsPage() {
                         <CardTitle className="rn-meta text-rn-text-muted">Total Revenue</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="rn-h1">{(totalRevenue / 100).toFixed(0)} kr</div>
+                        <div className="rn-h1">{formatPrice(totalRevenue, { showZeroAsAmount: true })}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -218,7 +208,7 @@ export default async function StaffAdminRegistrationsPage() {
                                             <div>
                                                 <div className="font-medium">{reg.CourseTrack.title}</div>
                                                 <div className="text-xs text-muted-foreground">
-                                                    {WEEKDAY_LABELS[reg.CourseTrack.weekday]} {reg.CourseTrack.timeStart}
+                                                    {formatWeekday(reg.CourseTrack.weekday)} {reg.CourseTrack.timeStart}
                                                     {reg.CourseTrack.levelLabel && ` • ${reg.CourseTrack.levelLabel}`}
                                                 </div>
                                             </div>
@@ -230,7 +220,7 @@ export default async function StaffAdminRegistrationsPage() {
                                             {getStatusBadge(reg.status)}
                                             {reg.cancelledAt && (
                                                 <div className="text-xs text-muted-foreground mt-1">
-                                                    Cancelled {format(reg.cancelledAt, 'MMM d, yyyy')}
+                                                    Cancelled {formatDateShort(reg.cancelledAt)}
                                                 </div>
                                             )}
                                         </TableCell>
@@ -238,7 +228,7 @@ export default async function StaffAdminRegistrationsPage() {
                                             {reg.Order && (
                                                 <div>
                                                     <div className="text-sm font-medium">
-                                                        {(reg.Order.totalCents / 100).toFixed(0)} kr
+                                                        {formatPrice(reg.Order.totalCents)}
                                                     </div>
                                                     {reg.Order.orderNumber && (
                                                         <div className="text-xs text-muted-foreground">
@@ -249,7 +239,7 @@ export default async function StaffAdminRegistrationsPage() {
                                             )}
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
-                                            {format(reg.createdAt, 'MMM d, yyyy')}
+                                            {formatDateShort(reg.createdAt)}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">

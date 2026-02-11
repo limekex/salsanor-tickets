@@ -9,7 +9,7 @@ export default async function NewTagPage() {
     const userAccount = await requireOrgAdmin()
 
     // Get organizerId from user's first ORG_ADMIN role
-    const orgAdminRole = userAccount.roles.find(r => r.role === 'ORG_ADMIN')
+    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
     if (!orgAdminRole?.organizerId) {
         return <div>No organization found</div>
     }

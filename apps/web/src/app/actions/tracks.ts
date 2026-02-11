@@ -40,7 +40,7 @@ export async function createCourseTrack(prevState: any, formData: FormData) {
 
         await prisma.courseTrack.create({
             data: {
-                period: { connect: { id: result.data.periodId } },
+                CoursePeriod: { connect: { id: result.data.periodId } },
                 ...trackData
             }
         })
@@ -64,9 +64,9 @@ export async function getAllTracks() {
     await requireAdmin()
     return await prisma.courseTrack.findMany({
         include: {
-            period: {
+            CoursePeriod: {
                 include: {
-                    organizer: {
+                    Organizer: {
                         select: {
                             id: true,
                             name: true,
@@ -77,13 +77,13 @@ export async function getAllTracks() {
             },
             _count: {
                 select: {
-                    registrations: true
+                    Registration: true
                 }
             }
         },
         orderBy: [
-            { period: { organizer: { name: 'asc' } } },
-            { period: { startDate: 'desc' } },
+            { CoursePeriod: { Organizer: { name: 'asc' } } },
+            { CoursePeriod: { startDate: 'desc' } },
             { weekday: 'asc' }
         ]
     })

@@ -20,7 +20,7 @@ export default async function EditStaffTrackPage({
     const track = await prisma.courseTrack.findUnique({
         where: { id: trackId },
         include: {
-            period: {
+            CoursePeriod: {
                 select: { organizerId: true }
             }
         }
@@ -34,16 +34,16 @@ export default async function EditStaffTrackPage({
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN',
-                    organizerId: track.period.organizerId
+                    organizerId: track.CoursePeriod.organizerId
                 }
             }
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         throw new Error('Unauthorized: You do not have access to edit this track')
     }
 

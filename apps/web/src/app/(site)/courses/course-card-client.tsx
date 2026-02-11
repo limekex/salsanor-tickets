@@ -28,7 +28,7 @@ type Period = {
     salesOpenAt: Date
     salesCloseAt: Date
     organizerId: string
-    organizer: {
+    Organizer: {
         id: string
         name: string
         slug: string

@@ -11,8 +11,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { format } from 'date-fns'
 import Link from 'next/link'
+import { formatDateRange } from '@/lib/formatters'
 
 export default async function CoursePeriodsPage() {
     const periods = await getCoursePeriods()
@@ -47,10 +47,9 @@ export default async function CoursePeriodsPage() {
                                 <TableRow key={period.id}>
                                     <TableCell className="font-medium">{period.code}</TableCell>
                                     <TableCell>{period.name}</TableCell>
-                                    <TableCell className="text-muted-foreground">{period.organizer.name}</TableCell>
+                                    <TableCell className="text-muted-foreground">{period.Organizer.name}</TableCell>
                                     <TableCell>
-                                        {format(period.startDate, 'MMM d, yyyy')} -{' '}
-                                        {format(period.endDate, 'MMM d, yyyy')}
+                                        {formatDateRange(period.startDate, period.endDate)}
                                     </TableCell>
                                     <TableCell>
                                         {period.salesOpenAt < new Date() && period.salesCloseAt > new Date() ? (

@@ -1,15 +1,13 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Calendar, MapPin, Users, Clock, DollarSign, AlertCircle } from 'lucide-react'
-import { format } from 'date-fns'
-import { nb } from 'date-fns/locale'
+import { Calendar, MapPin, Users, DollarSign, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { RegisterButton } from './register-button'
 import { createClient } from '@/utils/supabase/server'
+import { formatEventDate, formatTime, formatDateShort, formatPrice } from '@/lib/formatters'
 
 type PageProps = {
     params: Promise<{ slug: string; eventSlug: string }>
@@ -130,8 +128,8 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                             key={idx}
                             variant="outline"
                             style={{ 
-                                borderColor: tag.color,
-                                color: tag.color
+                                borderColor: tag.color ?? undefined,
+                                color: tag.color ?? undefined
                             }}
                         >
                             {tag.name}
@@ -164,15 +162,15 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                                 <Calendar className="h-5 w-5 text-rn-text-muted mt-0.5" />
                                 <div>
                                     <div className="font-medium">
-                                        {format(new Date(event.startDateTime), 'EEEE, d. MMMM yyyy', { locale: nb })}
+                                        {formatEventDate(event.startDateTime)}
                                     </div>
                                     <div className="text-sm text-rn-text-muted">
-                                        {format(new Date(event.startDateTime), 'HH:mm')}
-                                        {event.endDateTime && ` - ${format(new Date(event.endDateTime), 'HH:mm')}`}
+                                        {formatTime(event.startDateTime)}
+                                        {event.endDateTime && ` - ${formatTime(event.endDateTime)}`}
                                     </div>
-                                    {event.eventType === 'RECURRING' && event._count.sessions > 0 && (
+                                    {event.eventType === 'RECURRING' && event._count.EventSession > 0 && (
                                         <div className="text-sm text-rn-text-muted mt-1">
-                                            Recurring event ({event._count.sessions} sessions)
+                                            Recurring event ({event._count.EventSession} sessions)
                                         </div>
                                     )}
                                 </div>
@@ -204,19 +202,19 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                                 </div>
                             </div>
 
-                            {(event.basePriceCents > 0 || event.memberPriceCents > 0) && (
+                            {(event.basePriceCents > 0 || (event.memberPriceCents ?? 0) > 0) && (
                                 <div className="flex items-start gap-3">
                                     <DollarSign className="h-5 w-5 text-rn-text-muted mt-0.5" />
                                     <div>
                                         <div className="font-medium">Price</div>
                                         {event.basePriceCents > 0 && (
                                             <div className="text-sm text-rn-text-muted">
-                                                Regular: {(event.basePriceCents / 100).toFixed(0)} NOK
+                                                Regular: {formatPrice(event.basePriceCents)}
                                             </div>
                                         )}
-                                        {event.memberPriceCents > 0 && (
+                                        {(event.memberPriceCents ?? 0) > 0 && (
                                             <div className="text-sm text-rn-text-muted">
-                                                Members: {(event.memberPriceCents / 100).toFixed(0)} NOK
+                                                Members: {formatPrice(event.memberPriceCents!)}
                                             </div>
                                         )}
                                     </div>
@@ -259,7 +257,7 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                                 <div className="text-center">
                                     <Badge variant="secondary" className="mb-2">Not Open Yet</Badge>
                                     <p className="text-sm text-rn-text-muted">
-                                        Sales open: {event.salesOpenAt && format(new Date(event.salesOpenAt), 'PPP', { locale: nb })}
+                                        Sales open: {event.salesOpenAt && formatDateShort(event.salesOpenAt)}
                                     </p>
                                 </div>
                             ) : salesClosed ? (

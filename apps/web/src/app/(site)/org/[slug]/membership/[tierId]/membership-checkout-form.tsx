@@ -13,6 +13,7 @@ import { CheckCircle2, AlertCircle } from 'lucide-react'
 import { createMembershipOrder } from '@/app/actions/memberships'
 import { createClient } from '@/utils/supabase/client'
 import { PhotoCapture } from '@/components/photo-capture'
+import { formatPrice } from '@/lib/formatters'
 
 interface MembershipCheckoutFormProps {
   organizerSlug: string
@@ -222,33 +223,18 @@ export function MembershipCheckoutForm({ organizerSlug, organizerName, organizer
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Membership ({tier.name})</span>
-              <span>
-                {(subtotalCents / 100).toLocaleString('nb-NO', {
-                  style: 'currency',
-                  currency: 'NOK',
-                })}
-              </span>
+              <span>{formatPrice(subtotalCents)}</span>
             </div>
             {mvaCents > 0 && (
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>MVA ({organizerMvaRate}%)</span>
-                <span>
-                  {(mvaCents / 100).toLocaleString('nb-NO', {
-                    style: 'currency',
-                    currency: 'NOK',
-                  })}
-                </span>
+                <span>{formatPrice(mvaCents)}</span>
               </div>
             )}
             <Separator />
             <div className="flex justify-between font-bold">
               <span>Total</span>
-              <span>
-                {(totalCents / 100).toLocaleString('nb-NO', {
-                  style: 'currency',
-                  currency: 'NOK',
-                })}
-              </span>
+              <span>{formatPrice(totalCents)}</span>
             </div>
           </div>
 

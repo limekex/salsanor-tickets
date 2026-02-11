@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle2, XCircle, Calendar, User, Building2 } from 'lucide-react'
-import { format } from 'date-fns'
+import { formatDateShort } from '@/lib/formatters'
 
 interface Props {
     params: Promise<{ token: string }>
@@ -160,7 +160,7 @@ export default async function VerifyMembershipPage({ params }: Props) {
                                 <div className="flex-1">
                                     <div className="text-sm text-muted-foreground">Validity Period</div>
                                     <div className="font-semibold">
-                                        {format(membership.validFrom, 'MMM dd, yyyy')} - {format(membership.validTo, 'MMM dd, yyyy')}
+                                        {formatDateShort(membership.validFrom)} - {formatDateShort(membership.validTo)}
                                     </div>
                                 </div>
                             </div>

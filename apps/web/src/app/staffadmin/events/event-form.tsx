@@ -16,7 +16,7 @@ type EventFormProps = {
     organizerId: string
     categories: Category[]
     tags: Tag[]
-    event?: Event & { categories: Category[]; tags: Tag[] }
+    event?: Event & { Category: Category[]; Tag: Tag[] }
 }
 
 export function EventForm({ organizerId, categories, tags, event }: EventFormProps) {
@@ -48,8 +48,8 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
         imageUrl: event?.imageUrl ?? '',
         metaTitle: event?.metaTitle ?? '',
         metaDescription: event?.metaDescription ?? '',
-        categoryIds: event?.categories.map(c => c.id) ?? [],
-        tagIds: event?.tags.map(t => t.id) ?? [],
+        categoryIds: event?.Category.map(c => c.id) ?? [],
+        tagIds: event?.Tag.map(t => t.id) ?? [],
         recurrenceRule: event?.recurrenceRule ?? '',
         recurringUntil: event?.recurringUntil ? event.recurringUntil.toISOString().slice(0, 10) : '',
         featured: event?.featured ?? false,
@@ -76,11 +76,13 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
 
         setIsCreatingTag(true)
         try {
-            const result = await createTag({
-                organizerId,
-                name: newTagName.trim(),
-                color: newTagColor
-            })
+            const tagFormData = new FormData()
+            tagFormData.append('organizerId', organizerId)
+            tagFormData.append('name', newTagName.trim())
+            tagFormData.append('slug', newTagName.trim().toLowerCase().replace(/\s+/g, '-'))
+            tagFormData.append('color', newTagColor)
+            
+            const result = await createTag(tagFormData)
 
             if (result.success && result.tag) {
                 setAvailableTags(prev => [...prev, result.tag!])
@@ -107,35 +109,49 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
                 if (event) {
                     const result = await updateEvent(event.id, {
                         ...formData,
-                        startDateTime: new Date(formData.startDateTime),
-                        endDateTime: formData.endDateTime ? new Date(formData.endDateTime) : null,
-                        salesOpenAt: formData.salesOpenAt ? new Date(formData.salesOpenAt) : null,
-                        salesCloseAt: formData.salesCloseAt ? new Date(formData.salesCloseAt) : null,
-                        recurringUntil: formData.recurringUntil ? new Date(formData.recurringUntil) : null,
+                        // Convert datetime-local format to ISO string
+                        startDateTime: formData.startDateTime ? new Date(formData.startDateTime).toISOString() : '',
+                        endDateTime: formData.endDateTime ? new Date(formData.endDateTime).toISOString() : undefined,
+                        salesOpenAt: formData.salesOpenAt ? new Date(formData.salesOpenAt).toISOString() : undefined,
+                        salesCloseAt: formData.salesCloseAt ? new Date(formData.salesCloseAt).toISOString() : undefined,
+                        recurringUntil: formData.recurringUntil ? new Date(formData.recurringUntil).toISOString() : undefined,
                     })
                     if (result.success) {
                         toast.success('Event updated successfully')
                         router.push('/staffadmin/events')
                         router.refresh()
                     } else {
-                        toast.error(result.error || 'Failed to update event')
+                        // Convert error object to readable string
+                        const errorMessage = result.error && typeof result.error === 'object'
+                            ? Object.entries(result.error).map(([field, messages]) => 
+                                `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
+                              ).join('; ')
+                            : 'Failed to update event'
+                        toast.error(errorMessage)
                     }
                 } else {
                     const result = await createEvent({
                         ...formData,
                         organizerId,
-                        startDateTime: new Date(formData.startDateTime),
-                        endDateTime: formData.endDateTime ? new Date(formData.endDateTime) : null,
-                        salesOpenAt: formData.salesOpenAt ? new Date(formData.salesOpenAt) : null,
-                        salesCloseAt: formData.salesCloseAt ? new Date(formData.salesCloseAt) : null,
-                        recurringUntil: formData.recurringUntil ? new Date(formData.recurringUntil) : null,
+                        // Convert datetime-local format to ISO string
+                        startDateTime: formData.startDateTime ? new Date(formData.startDateTime).toISOString() : '',
+                        endDateTime: formData.endDateTime ? new Date(formData.endDateTime).toISOString() : undefined,
+                        salesOpenAt: formData.salesOpenAt ? new Date(formData.salesOpenAt).toISOString() : undefined,
+                        salesCloseAt: formData.salesCloseAt ? new Date(formData.salesCloseAt).toISOString() : undefined,
+                        recurringUntil: formData.recurringUntil ? new Date(formData.recurringUntil).toISOString() : undefined,
                     })
                     if (result.success) {
                         toast.success('Event created successfully')
                         router.push('/staffadmin/events')
                         router.refresh()
                     } else {
-                        toast.error(result.error || 'Failed to create event')
+                        // Convert error object to readable string
+                        const errorMessage = result.error && typeof result.error === 'object'
+                            ? Object.entries(result.error).map(([field, messages]) => 
+                                `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
+                              ).join('; ')
+                            : 'Failed to create event'
+                        toast.error(errorMessage)
                     }
                 }
             } catch (error) {
@@ -424,7 +440,7 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
                                 />
                                 <span 
                                     className="inline-block w-4 h-4 rounded" 
-                                    style={{ backgroundColor: tag.color }}
+                                    style={{ backgroundColor: tag.color || undefined }}
                                 />
                                 <span>{tag.name}</span>
                             </label>

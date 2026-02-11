@@ -24,6 +24,12 @@ export async function GET(request: NextRequest) {
       if (!error) {
         redirectTo.searchParams.delete('next')
         
+        // Check if this is a password recovery flow
+        if (type === 'recovery') {
+          redirectTo.pathname = '/auth/update-password'
+          return NextResponse.redirect(redirectTo)
+        }
+        
         // After successful verification, check if user needs onboarding
         const { data: { user } } = await supabase.auth.getUser()
         if (user?.email) {
@@ -61,6 +67,17 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(redirectTo)
       } else {
         console.error('Auth error during code exchange:', error)
+        
+        // Special handling for PKCE errors - these happen when the link is opened
+        // in a different browser/device than where it was requested
+        if (error.message?.includes('PKCE') || error.message?.includes('code verifier')) {
+          const errorUrl = request.nextUrl.clone()
+          errorUrl.pathname = '/auth/auth-code-error'
+          errorUrl.searchParams.set('error', 'pkce_error')
+          errorUrl.searchParams.set('error_description', 
+            'This link must be opened in the same browser where you requested the password reset. Please request a new link or copy the URL to the correct browser.')
+          return NextResponse.redirect(errorUrl)
+        }
       }
     }
 

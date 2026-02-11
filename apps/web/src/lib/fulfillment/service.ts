@@ -176,7 +176,7 @@ export async function fulfillOrder(orderId: string, providerRef: string, stripeC
             for (const eventReg of order.EventRegistration) {
                 // Generate quantity number of tickets, each with unique QR code
                 for (let i = 0; i < eventReg.quantity; i++) {
-                    const qrToken = generateQRToken('EVENT', eventReg.eventId, order.purchaserPersonId, randomUUID())
+                    const qrToken = generateQRToken('EVENT', eventReg.eventId, order.purchaserPersonId)
 
                     await tx.eventTicket.create({
                         data: {

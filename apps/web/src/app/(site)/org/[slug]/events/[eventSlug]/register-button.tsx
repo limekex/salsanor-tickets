@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, ShoppingCart, Plus, Minus } from 'lucide-react'
+import { formatPrice } from '@/lib/formatters'
 
 interface RegisterButtonProps {
     event: {
@@ -44,7 +45,7 @@ export function RegisterButton({ event, isMember, disabled, className }: Registe
 
     const cartOrganizerId = getCartOrganizerId()
     const cartOrganizerName = getCartOrganizerName()
-    const isDifferentOrganizer = cartOrganizerId && cartOrganizerId !== event.organizerId
+    const isDifferentOrganizer = !!(cartOrganizerId && cartOrganizerId !== event.organizerId)
     
     // Check if event is already in cart
     const existingCartItem = items.find(i => i.type === 'event' && i.eventId === event.id)
@@ -158,11 +159,11 @@ export function RegisterButton({ event, isMember, disabled, className }: Registe
                 <div>
                     <Label className="text-sm text-muted-foreground">Price per ticket</Label>
                     <div className="text-2xl font-bold mt-1">
-                        {(pricePerTicket / 100).toFixed(0)},-
+                        {formatPrice(pricePerTicket)}
                     </div>
                     {isMember && event.memberPriceSingleCents && (
                         <div className="text-xs text-muted-foreground line-through">
-                            {(event.priceSingleCents / 100).toFixed(0)},-
+                            {formatPrice(event.priceSingleCents)}
                         </div>
                     )}
                 </div>
@@ -171,7 +172,7 @@ export function RegisterButton({ event, isMember, disabled, className }: Registe
             <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <span className="font-medium">Total</span>
                 <span className="text-2xl font-bold">
-                    {((pricePerTicket * quantity) / 100).toFixed(0)},-
+                    {formatPrice(pricePerTicket * quantity)}
                 </span>
             </div>
 

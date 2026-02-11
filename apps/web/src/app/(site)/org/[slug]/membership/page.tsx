@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { CheckCircle2, ArrowLeft } from 'lucide-react'
+import { formatPrice } from '@/lib/formatters'
 
 type Params = Promise<{ slug: string }>
 
@@ -110,12 +111,7 @@ export default async function MembershipPage({ params }: { params: Params }) {
                 </div>
                 <div className="mt-4">
                   <div className="text-3xl font-bold">
-                    {(tier.priceCents / 100).toLocaleString('nb-NO', {
-                      style: 'currency',
-                      currency: 'NOK',
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
-                    })}
+                    {formatPrice(tier.priceCents)}
                   </div>
                   <div className="text-sm text-muted-foreground">per year</div>
                 </div>

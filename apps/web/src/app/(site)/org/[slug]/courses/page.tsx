@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { format } from 'date-fns'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, GraduationCap } from 'lucide-react'
+import { formatDateRange, formatPrice } from '@/lib/formatters'
+import { EmptyState } from '@/components/empty-state'
 
 type Params = Promise<{ slug: string }>
 
@@ -14,10 +15,6 @@ export default async function OrganizerCoursesPage({ params }: { params: Params 
     const organizer = await getOrganizerCourses(slug)
 
     if (!organizer) return notFound()
-
-    const weekDayName = (n: number) => {
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][n - 1] || '?'
-    }
 
     const hasCourses = organizer.CoursePeriod && organizer.CoursePeriod.length > 0
 
@@ -48,19 +45,20 @@ export default async function OrganizerCoursesPage({ params }: { params: Params 
                             <div className="border-b pb-2">
                                 <h2 className="text-xl font-semibold">{period.name}</h2>
                                 <p className="text-muted-foreground">
-                                    {format(period.startDate, 'MMMM d')} - {format(period.endDate, 'MMMM d, yyyy')} • {period.city}
+                                    {formatDateRange(period.startDate, period.endDate)} • {period.city}
                                 </p>
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                 {period.CourseTrack.map((track) => {
                                     const isSalesOpen = period.salesOpenAt < new Date() && period.salesCloseAt > new Date()
+                                    const weekDayLabel = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][track.weekday - 1] || '?'
 
                                     return (
                                         <Card key={track.id} className="flex flex-col h-full">
                                             <CardHeader>
                                                 <div className="flex justify-between items-start">
-                                                    <Badge variant="outline">{weekDayName(track.weekday)}</Badge>
+                                                    <Badge variant="outline">{weekDayLabel}</Badge>
                                                     {track.levelLabel && <Badge>{track.levelLabel}</Badge>}
                                                 </div>
                                                 <CardTitle className="pt-2">{track.title}</CardTitle>
@@ -71,12 +69,12 @@ export default async function OrganizerCoursesPage({ params }: { params: Params 
                                             <CardContent className="flex-1 space-y-2 text-sm">
                                                 <div className="flex justify-between">
                                                     <span>Single:</span>
-                                                    <span className="font-semibold">{track.priceSingleCents / 100},-</span>
+                                                    <span className="font-semibold">{formatPrice(track.priceSingleCents)}</span>
                                                 </div>
                                                 {track.pricePairCents && (
                                                     <div className="flex justify-between">
                                                         <span>Couple:</span>
-                                                        <span className="font-semibold text-green-600">{track.pricePairCents / 100},-</span>
+                                                        <span className="font-semibold text-green-600">{formatPrice(track.pricePairCents)}</span>
                                                     </div>
                                                 )}
                                             </CardContent>
@@ -99,11 +97,11 @@ export default async function OrganizerCoursesPage({ params }: { params: Params 
                     ))}
                 </div>
             ) : (
-                <Card>
-                    <CardContent className="py-12 text-center text-muted-foreground">
-                        No upcoming courses scheduled yet.
-                    </CardContent>
-                </Card>
+                <EmptyState 
+                    icon={GraduationCap}
+                    title="No Courses Yet"
+                    description={`${organizer.name} doesn't have any upcoming courses scheduled.`}
+                />
             )}
         </main>
     )

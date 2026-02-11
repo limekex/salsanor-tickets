@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { format } from 'date-fns'
+import { formatDateNumeric } from '@/lib/formatters'
 import { Download, Wallet, Maximize2, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import QRCode from 'qrcode'
@@ -182,11 +182,11 @@ export function MembershipCard({ membership }: MembershipCardProps) {
                     <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                             <div className="text-xs opacity-80">ACTIVATED</div>
-                            <div className="font-semibold">{format(membership.validFrom, 'dd.MM.yyyy')}</div>
+                            <div className="font-semibold">{formatDateNumeric(membership.validFrom)}</div>
                         </div>
                         <div>
                             <div className="text-xs opacity-80">VALID UNTIL</div>
-                            <div className="font-semibold">{format(membership.validTo, 'dd.MM.yyyy')}</div>
+                            <div className="font-semibold">{formatDateNumeric(membership.validTo)}</div>
                         </div>
                         {qrCodeDataUrl && (
                             <div className="flex justify-end">
@@ -303,11 +303,11 @@ export function MembershipCard({ membership }: MembershipCardProps) {
                         <div className="flex justify-between text-base">
                             <div>
                                 <div className="text-xs opacity-80 mb-1">ACTIVATED</div>
-                                <div className="font-semibold">{format(membership.validFrom, 'dd.MM.yyyy')}</div>
+                                <div className="font-semibold">{formatDateNumeric(membership.validFrom)}</div>
                             </div>
                             <div className="text-right">
                                 <div className="text-xs opacity-80 mb-1">VALID UNTIL</div>
-                                <div className="font-semibold">{format(membership.validTo, 'dd.MM.yyyy')}</div>
+                                <div className="font-semibold">{formatDateNumeric(membership.validTo)}</div>
                             </div>
                         </div>
                     </div>

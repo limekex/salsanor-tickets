@@ -11,16 +11,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-
-const WEEKDAY_LABELS: Record<number, string> = {
-    1: 'Monday',
-    2: 'Tuesday',
-    3: 'Wednesday',
-    4: 'Thursday',
-    5: 'Friday',
-    6: 'Saturday',
-    7: 'Sunday'
-}
+import { formatWeekday, formatPrice } from '@/lib/formatters'
 
 export default async function AllTracksPage() {
     const tracks = await getAllTracks()
@@ -53,7 +44,7 @@ export default async function AllTracksPage() {
                         </TableHeader>
                         <TableBody>
                             {tracks.map((track) => {
-                                const enrolledCount = track._count?.registrations || 0
+                                const enrolledCount = track._count?.Registration || 0
                                 const capacityPercent = Math.round((enrolledCount / track.capacityTotal) * 100)
                                 
                                 return (
@@ -66,16 +57,16 @@ export default async function AllTracksPage() {
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{track.period.organizer.name}</TableCell>
+                                        <TableCell>{track.CoursePeriod.Organizer.name}</TableCell>
                                         <TableCell>
                                             <div className="text-sm">
-                                                <div>{track.period.name}</div>
-                                                <div className="text-muted-foreground">{track.period.code}</div>
+                                                <div>{track.CoursePeriod.name}</div>
+                                                <div className="text-muted-foreground">{track.CoursePeriod.code}</div>
                                             </div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="text-sm">
-                                                <div>{WEEKDAY_LABELS[track.weekday]}</div>
+                                                <div>{formatWeekday(track.weekday)}</div>
                                                 <div className="text-muted-foreground">
                                                     {track.timeStart} - {track.timeEnd}
                                                 </div>
@@ -100,10 +91,10 @@ export default async function AllTracksPage() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="text-sm">
-                                                {Math.floor(track.priceSingleCents / 100)} kr
+                                                {formatPrice(track.priceSingleCents)}
                                                 {track.pricePairCents && (
                                                     <div className="text-muted-foreground">
-                                                        Pair: {Math.floor(track.pricePairCents / 100)} kr
+                                                        Pair: {formatPrice(track.pricePairCents)}
                                                     </div>
                                                 )}
                                             </div>

@@ -1931,6 +1931,7 @@ export interface MultiTicketOrderData {
     vat?: VatBreakdown
     unitPriceCents: number
     platform?: PlatformInfo
+    footerText?: string
 }
 
 /**

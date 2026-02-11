@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import Link from 'next/link'
 import { ArrowLeft, Plus } from 'lucide-react'
-import { format } from 'date-fns'
+import { formatDateRange, formatPrice, formatWeekday } from '@/lib/formatters'
 
 export default async function StaffAdminTracksPage({ 
     params 
@@ -33,12 +33,12 @@ export default async function StaffAdminTracksPage({
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN'
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
@@ -54,12 +54,12 @@ export default async function StaffAdminTracksPage({
     const period = await prisma.coursePeriod.findUnique({
         where: { id: periodId },
         include: {
-            organizer: true,
-            tracks: {
+            Organizer: true,
+            CourseTrack: {
                 include: {
                     _count: {
                         select: {
-                            registrations: true
+                            Registration: true
                         }
                     }
                 },
@@ -79,24 +79,6 @@ export default async function StaffAdminTracksPage({
         throw new Error('Unauthorized: You do not have access to this period')
     }
 
-    const LEVEL_LABELS: Record<string, string> = {
-        BEGINNER: 'Beginner',
-        NOVICE: 'Novice',
-        INTERMEDIATE: 'Intermediate',
-        ADVANCED: 'Advanced',
-        MIXED: 'Mixed'
-    }
-
-    const WEEKDAY_LABELS: Record<number, string> = {
-        1: 'Monday',
-        2: 'Tuesday',
-        3: 'Wednesday',
-        4: 'Thursday',
-        5: 'Friday',
-        6: 'Saturday',
-        7: 'Sunday'
-    }
-
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
@@ -107,7 +89,7 @@ export default async function StaffAdminTracksPage({
                 </Button>
                 <div className="flex-1">
                     <h2 className="text-3xl font-bold tracking-tight">{period.name} - Tracks</h2>
-                    <p className="text-muted-foreground">{period.organizer.name} • {period.code}</p>
+                    <p className="text-muted-foreground">{period.Organizer.name} • {period.code}</p>
                 </div>
                 <Button asChild>
                     <Link href={`/staffadmin/tracks/new?periodId=${periodId}`}>
@@ -121,7 +103,7 @@ export default async function StaffAdminTracksPage({
                 <CardHeader>
                     <CardTitle>Period Information</CardTitle>
                     <CardDescription>
-                        {format(period.startDate, 'MMM d, yyyy')} - {format(period.endDate, 'MMM d, yyyy')}
+                        {formatDateRange(period.startDate, period.endDate)}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -149,7 +131,7 @@ export default async function StaffAdminTracksPage({
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                        <CardTitle>Course Tracks ({period.tracks.length})</CardTitle>
+                        <CardTitle>Course Tracks ({period.CourseTrack.length})</CardTitle>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -167,8 +149,6 @@ export default async function StaffAdminTracksPage({
                         </TableHeader>
                         <TableBody>
                             {period.CourseTrack.map((track) => {
-                                const priceNOK = Math.floor(track.priceSingleCents / 100)
-                                
                                 return (
                                     <TableRow key={track.id}>
                                         <TableCell className="font-medium">{track.title}</TableCell>
@@ -178,17 +158,17 @@ export default async function StaffAdminTracksPage({
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-sm">
-                                            {WEEKDAY_LABELS[track.weekday]} {track.timeStart.slice(0, 5)}
+                                            {formatWeekday(track.weekday)} {track.timeStart.slice(0, 5)}
                                         </TableCell>
-                                        <TableCell>{priceNOK} kr</TableCell>
+                                        <TableCell>{formatPrice(track.priceSingleCents)}</TableCell>
                                         <TableCell>
                                             {track.capacityLeaders && track.capacityFollowers 
                                                 ? `${track.capacityLeaders}/${track.capacityFollowers}` 
                                                 : track.capacityTotal}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={track._count.registrations >= track.capacityTotal ? 'destructive' : 'secondary'}>
-                                                {track._count.registrations}
+                                            <Badge variant={track._count.Registration >= track.capacityTotal ? 'destructive' : 'secondary'}>
+                                                {track._count.Registration}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">

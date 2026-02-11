@@ -63,7 +63,17 @@ export default function LoginPage() {
                                     <Input id="email" name="email" type="email" placeholder="m@example.com" required />
                                 </div>
                                 <div className="space-y-rn-1">
-                                    <Label htmlFor="password">Password</Label>
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="password">Password</Label>
+                                        <Button
+                                            type="button"
+                                            variant="link"
+                                            className="h-auto p-0 text-xs text-muted-foreground hover:text-primary"
+                                            onClick={() => router.push('/auth/forgot-password')}
+                                        >
+                                            Forgot password?
+                                        </Button>
+                                    </div>
                                     <Input id="password" name="password" type="password" required />
                                 </div>
                                 {error && <p className="rn-caption text-rn-danger">{error}</p>}

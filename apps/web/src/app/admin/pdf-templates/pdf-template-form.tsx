@@ -21,6 +21,7 @@ const templateTypeLabels: Record<PdfTemplateType, string> = {
     ORDER_RECEIPT: 'Ordrekvittering',
     MEMBERSHIP_CARD: 'Medlemskort',
     CREDIT_NOTE: 'Kreditnota',
+    INVOICE: 'Faktura',
 }
 
 interface PdfTemplateFormProps {
@@ -145,7 +146,7 @@ export function PdfTemplateForm({ template, defaultType }: PdfTemplateFormProps)
                             <Switch 
                                 id="isDefault"
                                 checked={watch('isDefault')}
-                                onCheckedChange={(checked) => setValue('isDefault', checked)}
+                                onCheckedChange={(checked: boolean) => setValue('isDefault', checked)}
                             />
                             <Label htmlFor="isDefault">Standard mal for denne typen</Label>
                         </div>
@@ -154,7 +155,7 @@ export function PdfTemplateForm({ template, defaultType }: PdfTemplateFormProps)
                             <Switch 
                                 id="isActive"
                                 checked={watch('isActive')}
-                                onCheckedChange={(checked) => setValue('isActive', checked)}
+                                onCheckedChange={(checked: boolean) => setValue('isActive', checked)}
                             />
                             <Label htmlFor="isActive">Aktiv</Label>
                         </div>
@@ -186,7 +187,7 @@ export function PdfTemplateForm({ template, defaultType }: PdfTemplateFormProps)
                             <Switch 
                                 id="includeSellerInfo"
                                 checked={watch('includeSellerInfo')}
-                                onCheckedChange={(checked) => setValue('includeSellerInfo', checked)}
+                                onCheckedChange={(checked: boolean) => setValue('includeSellerInfo', checked)}
                             />
                         </div>
 
@@ -201,7 +202,7 @@ export function PdfTemplateForm({ template, defaultType }: PdfTemplateFormProps)
                             <Switch 
                                 id="includePlatformInfo"
                                 checked={watch('includePlatformInfo')}
-                                onCheckedChange={(checked) => setValue('includePlatformInfo', checked)}
+                                onCheckedChange={(checked: boolean) => setValue('includePlatformInfo', checked)}
                             />
                         </div>
 
@@ -216,7 +217,7 @@ export function PdfTemplateForm({ template, defaultType }: PdfTemplateFormProps)
                             <Switch 
                                 id="includeBuyerInfo"
                                 checked={watch('includeBuyerInfo')}
-                                onCheckedChange={(checked) => setValue('includeBuyerInfo', checked)}
+                                onCheckedChange={(checked: boolean) => setValue('includeBuyerInfo', checked)}
                             />
                         </div>
 
@@ -231,7 +232,7 @@ export function PdfTemplateForm({ template, defaultType }: PdfTemplateFormProps)
                             <Switch 
                                 id="includeVatBreakdown"
                                 checked={watch('includeVatBreakdown')}
-                                onCheckedChange={(checked) => setValue('includeVatBreakdown', checked)}
+                                onCheckedChange={(checked: boolean) => setValue('includeVatBreakdown', checked)}
                             />
                         </div>
 
@@ -246,7 +247,7 @@ export function PdfTemplateForm({ template, defaultType }: PdfTemplateFormProps)
                             <Switch 
                                 id="includePaymentInfo"
                                 checked={watch('includePaymentInfo')}
-                                onCheckedChange={(checked) => setValue('includePaymentInfo', checked)}
+                                onCheckedChange={(checked: boolean) => setValue('includePaymentInfo', checked)}
                             />
                         </div>
 
@@ -261,7 +262,7 @@ export function PdfTemplateForm({ template, defaultType }: PdfTemplateFormProps)
                             <Switch 
                                 id="includeTerms"
                                 checked={watch('includeTerms')}
-                                onCheckedChange={(checked) => setValue('includeTerms', checked)}
+                                onCheckedChange={(checked: boolean) => setValue('includeTerms', checked)}
                             />
                         </div>
                     </div>

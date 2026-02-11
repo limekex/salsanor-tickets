@@ -202,6 +202,63 @@ export async function addEmailPdfAttachment(
   return { success: true }
 }
 
+export async function createEmailTemplate(data: {
+  slug: string
+  name: string
+  category: 'TRANSACTIONAL' | 'NOTIFICATION' | 'MARKETING' | 'SYSTEM'
+  language?: string
+  subject: string
+  preheader?: string
+  htmlContent: string
+  textContent?: string
+  variables?: Record<string, string>
+  organizerId?: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('Not authenticated')
+  }
+
+  // Verify admin access
+  const userAccount = await prisma.userAccount.findUnique({
+    where: { supabaseUid: user.id },
+    include: {
+      UserAccountRole: {
+        where: {
+          OR: [
+            { role: 'ADMIN' },
+            { role: 'ORG_ADMIN' }
+          ]
+        }
+      }
+    }
+  })
+
+  if (!userAccount || userAccount.UserAccountRole.length === 0) {
+    throw new Error('Unauthorized: Admin access required')
+  }
+
+  const template = await prisma.emailTemplate.create({
+    data: {
+      slug: data.slug,
+      name: data.name,
+      category: data.category,
+      language: data.language || 'no',
+      subject: data.subject,
+      preheader: data.preheader,
+      htmlContent: data.htmlContent,
+      textContent: data.textContent,
+      variables: data.variables || {},
+      organizerId: data.organizerId || null
+    }
+  })
+
+  revalidatePath('/admin/email/templates')
+  return template
+}
+
 export async function updateEmailPdfAttachment(
   attachmentId: string,
   data: {

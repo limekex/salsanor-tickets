@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { requireOrgAdminForOrganizer } from '@/utils/auth-org-admin'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { getEventsByOrganizer } from '@/lib/queries'
 
 const eventSchema = z.object({
     organizerId: z.string().uuid(),
@@ -35,56 +36,40 @@ const eventSchema = z.object({
     tagIds: z.array(z.string()).optional(),
 })
 
-export async function createEvent(formData: FormData) {
-    const organizerId = formData.get('organizerId') as string
+export async function createEvent(inputData: any) {
+    const organizerId = inputData.organizerId as string
     await requireOrgAdminForOrganizer(organizerId)
 
     const data = {
-        organizerId,
-        slug: formData.get('slug'),
-        title: formData.get('title'),
-        shortDescription: formData.get('shortDescription') || undefined,
-        longDescription: formData.get('longDescription') || undefined,
-        eventType: formData.get('eventType'),
-        startDateTime: formData.get('startDateTime'),
-        endDateTime: formData.get('endDateTime') || undefined,
-        timezone: formData.get('timezone') || 'Europe/Oslo',
-        recurrenceRule: formData.get('recurrenceRule') || undefined,
-        recurrenceExceptions: formData.get('recurrenceExceptions') || undefined,
-        recurringUntil: formData.get('recurringUntil') || undefined,
-        locationName: formData.get('locationName') || undefined,
-        locationAddress: formData.get('locationAddress') || undefined,
-        city: formData.get('city') || undefined,
-        salesOpenAt: formData.get('salesOpenAt'),
-        salesCloseAt: formData.get('salesCloseAt'),
-        capacityTotal: formData.get('capacityTotal'),
-        requiresRole: formData.get('requiresRole') === 'true',
-        basePriceCents: formData.get('basePriceCents'),
-        memberPriceCents: formData.get('memberPriceCents') || undefined,
-        imageUrl: formData.get('imageUrl') || undefined,
-        featured: formData.get('featured') === 'true',
-        metaTitle: formData.get('metaTitle') || undefined,
-        metaDescription: formData.get('metaDescription') || undefined,
-        categoryIds: formData.get('categoryIds') ? JSON.parse(formData.get('categoryIds') as string) : [],
-        tagIds: formData.get('tagIds') ? JSON.parse(formData.get('tagIds') as string) : [],
+        ...inputData
     }
 
     const result = eventSchema.safeParse(data)
 
     if (!result.success) {
-        return { error: result.error.flatten().fieldErrors }
+        const errors = result.error.flatten().fieldErrors
+        const serializedErrors: Record<string, string[]> = {}
+        for (const [key, value] of Object.entries(errors)) {
+            if (value) serializedErrors[key] = value.map(String)
+        }
+        return { error: serializedErrors }
     }
 
     try {
         const event = await prisma.event.create({
             data: {
                 ...result.data,
+                startDateTime: new Date(result.data.startDateTime),
+                endDateTime: result.data.endDateTime ? new Date(result.data.endDateTime) : null,
+                salesOpenAt: new Date(result.data.salesOpenAt),
+                salesCloseAt: new Date(result.data.salesCloseAt),
+                recurringUntil: result.data.recurringUntil ? new Date(result.data.recurringUntil) : null,
                 imageUrl: result.data.imageUrl || null,
                 memberPriceCents: result.data.memberPriceCents || null,
-                categories: result.data.categoryIds && result.data.categoryIds.length > 0 
+                Category: result.data.categoryIds && result.data.categoryIds.length > 0 
                     ? { connect: result.data.categoryIds.map(id => ({ id })) }
                     : undefined,
-                tags: result.data.tagIds && result.data.tagIds.length > 0
+                Tag: result.data.tagIds && result.data.tagIds.length > 0
                     ? { connect: result.data.tagIds.map(id => ({ id })) }
                     : undefined,
             }
@@ -100,7 +85,7 @@ export async function createEvent(formData: FormData) {
     }
 }
 
-export async function updateEvent(id: string, formData: FormData) {
+export async function updateEvent(id: string, inputData: any) {
     // First get the event to check ownership
     const event = await prisma.event.findUnique({
         where: { id },
@@ -115,38 +100,18 @@ export async function updateEvent(id: string, formData: FormData) {
 
     const data = {
         organizerId: event.organizerId,
-        slug: formData.get('slug'),
-        title: formData.get('title'),
-        shortDescription: formData.get('shortDescription') || undefined,
-        longDescription: formData.get('longDescription') || undefined,
-        eventType: formData.get('eventType'),
-        startDateTime: formData.get('startDateTime'),
-        endDateTime: formData.get('endDateTime') || undefined,
-        timezone: formData.get('timezone') || 'Europe/Oslo',
-        recurrenceRule: formData.get('recurrenceRule') || undefined,
-        recurrenceExceptions: formData.get('recurrenceExceptions') || undefined,
-        recurringUntil: formData.get('recurringUntil') || undefined,
-        locationName: formData.get('locationName') || undefined,
-        locationAddress: formData.get('locationAddress') || undefined,
-        city: formData.get('city') || undefined,
-        salesOpenAt: formData.get('salesOpenAt'),
-        salesCloseAt: formData.get('salesCloseAt'),
-        capacityTotal: formData.get('capacityTotal'),
-        requiresRole: formData.get('requiresRole') === 'true',
-        basePriceCents: formData.get('basePriceCents'),
-        memberPriceCents: formData.get('memberPriceCents') || undefined,
-        imageUrl: formData.get('imageUrl') || undefined,
-        featured: formData.get('featured') === 'true',
-        metaTitle: formData.get('metaTitle') || undefined,
-        metaDescription: formData.get('metaDescription') || undefined,
-        categoryIds: formData.get('categoryIds') ? JSON.parse(formData.get('categoryIds') as string) : [],
-        tagIds: formData.get('tagIds') ? JSON.parse(formData.get('tagIds') as string) : [],
+        ...inputData
     }
 
     const result = eventSchema.safeParse(data)
 
     if (!result.success) {
-        return { error: result.error.flatten().fieldErrors }
+        const errors = result.error.flatten().fieldErrors
+        const serializedErrors: Record<string, string[]> = {}
+        for (const [key, value] of Object.entries(errors)) {
+            if (value) serializedErrors[key] = value.map(String)
+        }
+        return { error: serializedErrors }
     }
 
     try {
@@ -158,17 +123,17 @@ export async function updateEvent(id: string, formData: FormData) {
                 shortDescription: result.data.shortDescription,
                 longDescription: result.data.longDescription,
                 eventType: result.data.eventType,
-                startDateTime: result.data.startDateTime,
-                endDateTime: result.data.endDateTime,
+                startDateTime: new Date(result.data.startDateTime),
+                endDateTime: result.data.endDateTime ? new Date(result.data.endDateTime) : null,
                 timezone: result.data.timezone,
                 recurrenceRule: result.data.recurrenceRule,
                 recurrenceExceptions: result.data.recurrenceExceptions,
-                recurringUntil: result.data.recurringUntil,
+                recurringUntil: result.data.recurringUntil ? new Date(result.data.recurringUntil) : null,
                 locationName: result.data.locationName,
                 locationAddress: result.data.locationAddress,
                 city: result.data.city,
-                salesOpenAt: result.data.salesOpenAt,
-                salesCloseAt: result.data.salesCloseAt,
+                salesOpenAt: new Date(result.data.salesOpenAt),
+                salesCloseAt: new Date(result.data.salesCloseAt),
                 capacityTotal: result.data.capacityTotal,
                 requiresRole: result.data.requiresRole,
                 basePriceCents: result.data.basePriceCents,
@@ -177,10 +142,10 @@ export async function updateEvent(id: string, formData: FormData) {
                 featured: result.data.featured,
                 metaTitle: result.data.metaTitle,
                 metaDescription: result.data.metaDescription,
-                categories: {
+                Category: {
                     set: result.data.categoryIds ? result.data.categoryIds.map(id => ({ id })) : []
                 },
-                tags: {
+                Tag: {
                     set: result.data.tagIds ? result.data.tagIds.map(id => ({ id })) : []
                 },
             }
@@ -265,7 +230,7 @@ export async function registerForEvent(eventId: string) {
         include: { 
             PersonProfile: {
                 include: {
-                    memberships: {
+                    Membership: {
                         where: {
                             validTo: { gt: new Date() }
                         },
@@ -290,10 +255,10 @@ export async function registerForEvent(eventId: string) {
     const event = await prisma.event.findUnique({
         where: { id: eventId },
         include: {
-            organizer: true,
+            Organizer: true,
             _count: {
                 select: {
-                    registrations: { where: { status: { in: ['PENDING_PAYMENT', 'ACTIVE'] } } }
+                    EventRegistration: { where: { status: { in: ['PENDING_PAYMENT', 'ACTIVE'] } } }
                 }
             }
         }
@@ -308,7 +273,7 @@ export async function registerForEvent(eventId: string) {
     }
 
     // Check capacity
-    if (event._count.registrations >= event.capacityTotal) {
+    if (event._count.EventRegistration >= event.capacityTotal) {
         return { success: false, error: 'This event is full' }
     }
 
@@ -400,36 +365,5 @@ export async function registerForEvent(eventId: string) {
 
 export async function getOrgEvents(organizerId: string) {
     await requireOrgAdminForOrganizer(organizerId)
-
-    return await prisma.event.findMany({
-        where: { organizerId },
-        orderBy: { startDateTime: 'desc' },
-        include: {
-            organizer: {
-                select: {
-                    slug: true
-                }
-            },
-            _count: {
-                select: {
-                    registrations: true,
-                    sessions: true
-                }
-            },
-            categories: {
-                select: {
-                    id: true,
-                    name: true,
-                    icon: true
-                }
-            },
-            tags: {
-                select: {
-                    id: true,
-                    name: true,
-                    color: true
-                }
-            }
-        }
-    })
+    return await getEventsByOrganizer(organizerId)
 }

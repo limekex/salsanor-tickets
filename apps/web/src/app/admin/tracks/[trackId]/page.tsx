@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { promoteToOffered } from '@/app/actions/waitlist'
-import { formatDistanceToNow } from 'date-fns'
+import { formatRelativeTime } from '@/lib/formatters'
 
 /* 
   NOTE: This is a Server Component. 
@@ -44,7 +44,7 @@ export default async function TrackDetailPage({ params }: { params: Params }) {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-rn-4">
                 <div>
                     <h2 className="rn-h2">{track.title}</h2>
-                    <p className="rn-meta text-rn-text-muted">{track.period.name} • {track.weekday} {track.timeStart}</p>
+                    <p className="rn-meta text-rn-text-muted">{track.CoursePeriod.name} • {track.weekday} {track.timeStart}</p>
                 </div>
                 <div className="flex gap-rn-2">
                     <Button variant="outline" disabled>Edit Track</Button>
@@ -101,7 +101,7 @@ export default async function TrackDetailPage({ params }: { params: Params }) {
                                             <div className="text-sm">
                                                 {reg.WaitlistEntry.status === 'OFFERED' && (
                                                     <span className="text-orange-600 font-semibold">
-                                                        Expires {formatDistanceToNow(reg.WaitlistEntry.offeredUntil!, { addSuffix: true })}
+                                                        Expires {formatRelativeTime(reg.WaitlistEntry.offeredUntil!)}
                                                     </span>
                                                 )}
                                                 {reg.WaitlistEntry.status === 'EXPIRED' && <span className="text-red-500">Expired</span>}

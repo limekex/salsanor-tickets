@@ -557,6 +557,7 @@ model Organizer {
   Order                    Order[]
   Tag                      Tag[]
   UserAccountRole          UserAccountRole[]
+  UserInvitation           UserInvitation[]
 
   @@index([slug])
 }
@@ -713,6 +714,7 @@ model UserAccount {
   CheckIn         CheckIn[]
   PersonProfile   PersonProfile?
   UserAccountRole UserAccountRole[]
+  UserInvitation  UserInvitation[]  // Invitations sent by this user
 }
 
 model UserAccountRole {
@@ -726,6 +728,30 @@ model UserAccountRole {
 
   @@unique([userId, role, organizerId])
   @@index([organizerId])
+}
+
+model UserInvitation {
+  id          String           @id @default(uuid())
+  email       String
+  role        UserRole
+  organizerId String
+  token       String           @unique
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  invitedById String
+  emailSent   Boolean          @default(false)
+  emailSentAt DateTime?
+  acceptedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  Organizer   Organizer   @relation(fields: [organizerId], references: [id])
+  InvitedBy   UserAccount @relation(fields: [invitedById], references: [id])
+
+  @@unique([email, organizerId])
+  @@index([token])
+  @@index([organizerId, status])
+  @@index([expiresAt])
 }
 
 model WaitlistEntry {
@@ -760,6 +786,13 @@ enum CreditNoteStatus {
   ISSUED
   SENT
   VOIDED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
 }
 
 enum RefundType {

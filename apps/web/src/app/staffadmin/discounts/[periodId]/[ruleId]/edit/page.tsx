@@ -22,13 +22,13 @@ export default async function EditDiscountRulePage({ params }: { params: Params 
   const userAccount = await prisma.userAccount.findUnique({
     where: { supabaseUid: user.id },
     include: {
-      roles: {
+      UserAccountRole: {
         where: { role: 'ORG_ADMIN' }
       }
     }
   })
 
-  const organizerId = userAccount?.roles?.[0]?.organizerId
+  const organizerId = userAccount?.UserAccountRole?.[0]?.organizerId
 
   if (!organizerId) {
     redirect('/staffadmin')

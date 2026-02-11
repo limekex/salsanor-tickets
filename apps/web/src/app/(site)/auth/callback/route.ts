@@ -4,14 +4,34 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 
 export async function GET(request: Request) {
-    const { searchParams, origin } = new URL(request.url)
+    const { searchParams, origin, hash } = new URL(request.url)
     const code = searchParams.get('code')
     const next = searchParams.get('next') ?? '/'
+    const type = searchParams.get('type')
+    
+    // Check for errors in query params or hash (Supabase sends errors as hash fragments)
+    const error = searchParams.get('error')
+    const errorDescription = searchParams.get('error_description')
+    
+    if (error) {
+        // Redirect to error page with error details
+        const errorUrl = new URL('/auth/auth-code-error', origin)
+        errorUrl.searchParams.set('error', error)
+        if (errorDescription) {
+            errorUrl.searchParams.set('error_description', errorDescription)
+        }
+        return NextResponse.redirect(errorUrl.toString())
+    }
 
     if (code) {
         const supabase = await createClient()
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (!error) {
+            // If this is a password recovery/reset, redirect to update-password page
+            if (type === 'recovery' || type === 'magiclink') {
+                return NextResponse.redirect(`${origin}/auth/update-password`)
+            }
+
             // Check if user needs onboarding
             const { data: { user } } = await supabase.auth.getUser()
             

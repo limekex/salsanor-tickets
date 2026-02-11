@@ -234,7 +234,7 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
                                     <Label htmlFor={`companyType-${organizer.id}`}>Company Type</Label>
                                     <Select 
                                         value={formData.companyType} 
-                                        onValueChange={(value) => setFormData({ ...formData, companyType: value })}
+                                        onValueChange={(value: string) => setFormData({ ...formData, companyType: value })}
                                         disabled={!isEditing || isPending}
                                     >
                                         <SelectTrigger id={`companyType-${organizer.id}`}>
@@ -333,7 +333,7 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
                                 <Checkbox 
                                     id={`vatRegistered-${organizer.id}`}
                                     checked={formData.vatRegistered}
-                                    onCheckedChange={(checked) => setFormData({ ...formData, vatRegistered: checked as boolean })}
+                                    onCheckedChange={(checked: boolean) => setFormData({ ...formData, vatRegistered: checked })}
                                     disabled={!isEditing || isPending}
                                 />
                                 <div className="space-y-1 leading-none">
@@ -351,7 +351,7 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
                                     <Label htmlFor={`mvaRate-${organizer.id}`}>MVA Rate (%)</Label>
                                     <Select 
                                         value={formData.mvaRate.toString()} 
-                                        onValueChange={(value) => setFormData({ ...formData, mvaRate: Number(value) })}
+                                        onValueChange={(value: string) => setFormData({ ...formData, mvaRate: Number(value) })}
                                         disabled={!isEditing || isPending}
                                     >
                                         <SelectTrigger id={`mvaRate-${organizer.id}`}>

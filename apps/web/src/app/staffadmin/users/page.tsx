@@ -13,8 +13,10 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import Link from 'next/link'
-import { format } from 'date-fns'
+import { formatDateShort } from '@/lib/formatters'
 import { StaffAddUserRoleDialog } from './staff-add-user-role-dialog'
+import { StaffInviteUserDialog } from './staff-invite-user-dialog'
+import { PendingInvitationsList } from './pending-invitations-list'
 
 export default async function StaffAdminUsersPage() {
     const supabase = await createClient()
@@ -46,6 +48,9 @@ export default async function StaffAdminUsersPage() {
     }
 
     const adminOrganizers = userAccount?.UserAccountRole.map(r => r.Organizer) || []
+    
+    // Current user's account ID for "Me" badge
+    const currentUserId = userAccount?.id
 
     // Get all users with roles in these organizations
     const usersWithRoles = await prisma.userAccount.findMany({
@@ -100,13 +105,20 @@ export default async function StaffAdminUsersPage() {
                 }
 
                 return (
-                    <Card key={org.id}>
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <CardTitle>{org.name} Users ({orgUsers.length})</CardTitle>
-                                <StaffAddUserRoleDialog organizer={serializedOrg} />
-                            </div>
-                        </CardHeader>
+                    <div key={org.id} className="space-y-4">
+                        <PendingInvitationsList 
+                            organizerId={org.id}
+                        />
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center justify-between">
+                                    <CardTitle>{org.name} Users ({orgUsers.length})</CardTitle>
+                                    <div className="flex gap-2">
+                                        <StaffInviteUserDialog organizer={serializedOrg} />
+                                        <StaffAddUserRoleDialog organizer={serializedOrg} />
+                                    </div>
+                                </div>
+                            </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
@@ -119,18 +131,26 @@ export default async function StaffAdminUsersPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {orgUsers.map((user) => {
-                                        const orgRoles = user.UserAccountRole.filter(r => r.organizerId === org.id)
+                                    {orgUsers.map((orgUser) => {
+                                        const orgRoles = orgUser.UserAccountRole.filter(r => r.organizerId === org.id)
+                                        const isCurrentUser = orgUser.id === currentUserId
                                         
                                         return (
-                                            <TableRow key={user.id}>
+                                            <TableRow key={orgUser.id}>
                                                 <TableCell className="font-medium">
-                                                    {user.PersonProfile ? 
-                                                        `${user.PersonProfile.firstName} ${user.PersonProfile.lastName}` :
-                                                        'No profile'
-                                                    }
+                                                    <div className="flex items-center gap-2">
+                                                        {orgUser.PersonProfile ? 
+                                                            `${orgUser.PersonProfile.firstName} ${orgUser.PersonProfile.lastName}` :
+                                                            'No profile'
+                                                        }
+                                                        {isCurrentUser && (
+                                                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                                                                Me
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
-                                                <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                                                <TableCell className="text-muted-foreground">{orgUser.email}</TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-1 flex-wrap">
                                                         {orgRoles.map(role => (
@@ -141,11 +161,11 @@ export default async function StaffAdminUsersPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-sm text-muted-foreground">
-                                                    {format(user.createdAt, 'MMM d, yyyy')}
+                                                    {formatDateShort(orgUser.createdAt)}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button asChild variant="ghost" size="sm">
-                                                        <Link href={`/staffadmin/users/${user.id}`}>View</Link>
+                                                        <Link href={`/staffadmin/users/${orgUser.id}`}>View</Link>
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -162,6 +182,7 @@ export default async function StaffAdminUsersPage() {
                             </Table>
                         </CardContent>
                     </Card>
+                    </div>
                 )
             })}
         </div>

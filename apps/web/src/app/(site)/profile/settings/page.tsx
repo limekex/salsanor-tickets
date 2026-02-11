@@ -26,7 +26,7 @@ export default async function ProfileSettingsPage() {
     }
 
     // Check if user needs to update consent
-    if (!userAccount.personProfile.gdprConsentAt || !userAccount.personProfile.touConsentAt) {
+    if (!userAccount.PersonProfile.gdprConsentAt || !userAccount.PersonProfile.touConsentAt) {
         redirect('/onboarding')
     }
 

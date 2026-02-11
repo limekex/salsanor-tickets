@@ -15,7 +15,7 @@ export async function GET() {
         const userAccount = await prisma.userAccount.findUnique({
             where: { supabaseUid: user.id },
             include: {
-                roles: {
+                UserAccountRole: {
                     where: {
                         OR: [
                             { role: 'ADMIN' },
@@ -24,21 +24,21 @@ export async function GET() {
                         ]
                     },
                     include: {
-                        organizer: true
+                        Organizer: true
                     }
                 }
             }
         })
 
-        if (!userAccount || userAccount.roles.length === 0) {
+        if (!userAccount || userAccount.UserAccountRole.length === 0) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
 
         // Check if global admin
-        const isGlobalAdmin = userAccount.roles.some(r => r.role === 'ADMIN')
+        const isGlobalAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN')
         
         // Get organizer IDs for org-specific roles
-        const organizerIds = userAccount.roles
+        const organizerIds = userAccount.UserAccountRole
             .filter(r => r.organizerId)
             .map(r => r.organizerId!)
 
@@ -47,12 +47,12 @@ export async function GET() {
         const now = new Date()
         const whereClause = isGlobalAdmin 
             ? {
-                period: {
+                CoursePeriod: {
                     endDate: { gte: now } // Period hasn't ended yet
                 }
             }
             : {
-                period: {
+                CoursePeriod: {
                     endDate: { gte: now },
                     organizerId: { in: organizerIds }
                 }
@@ -61,11 +61,11 @@ export async function GET() {
         const tracks = await prisma.courseTrack.findMany({
             where: whereClause,
             include: {
-                period: {
+                CoursePeriod: {
                     select: {
                         name: true,
                         organizerId: true,
-                        organizer: {
+                        Organizer: {
                             select: {
                                 name: true
                             }
@@ -74,7 +74,7 @@ export async function GET() {
                 }
             },
             orderBy: [
-                { period: { startDate: 'desc' } },
+                { CoursePeriod: { startDate: 'desc' } },
                 { title: 'asc' }
             ]
         })
@@ -83,8 +83,8 @@ export async function GET() {
             tracks: tracks.map(track => ({
                 id: track.id,
                 title: track.title,
-                periodName: `${track.period.organizer.name} - ${track.period.name}`,
-                organizerId: track.period.organizerId
+                periodName: `${track.CoursePeriod.Organizer.name} - ${track.CoursePeriod.name}`,
+                organizerId: track.CoursePeriod.organizerId
             }))
         })
     } catch (error) {

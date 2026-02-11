@@ -33,21 +33,16 @@ export default async function RootLayout({
 }>) {
   // Check if user needs onboarding and get user data
   let needsOnboarding = false
-  let user = null
-  let hasStaffRoles = false
-  let isAdmin = false
   
   try {
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
-    user = authUser
     
-    if (user) {
+    if (authUser) {
       const userAccount = await prisma.userAccount.findUnique({
-        where: { supabaseUid: user.id },
+        where: { supabaseUid: authUser.id },
         include: {
           PersonProfile: true,
-          UserAccountRole: true
         }
       })
 
@@ -57,11 +52,6 @@ export default async function RootLayout({
         !userAccount.PersonProfile.gdprConsentAt || 
         !userAccount.PersonProfile.touConsentAt
       )
-      
-      if (userAccount?.UserAccountRole) {
-        isAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN' || r.role === 'ORGANIZER')
-        hasStaffRoles = userAccount.UserAccountRole.length > 0
-      }
     }
   } catch (error) {
     console.error('Error checking onboarding status:', error)
@@ -75,7 +65,7 @@ export default async function RootLayout({
       >
         <CartProvider>
           <OnboardingCheck needsOnboarding={needsOnboarding} />
-          <PublicNav user={user} hasStaffRoles={hasStaffRoles} isAdmin={isAdmin} />
+          <PublicNav />
           {children}
           <Toaster position="top-right" richColors />
         </CartProvider>

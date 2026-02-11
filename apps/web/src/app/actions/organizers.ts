@@ -67,6 +67,12 @@ export async function getOrganizerBySlug(slug: string) {
                     startDateTime: { gte: new Date() },
                     status: 'PUBLISHED'
                 },
+                include: {
+                    Category: true,
+                    Tag: true,
+                    Organizer: { select: { id: true, name: true, slug: true, logoUrl: true } },
+                    EventRegistration: { select: { quantity: true } }
+                },
                 orderBy: { startDateTime: 'asc' },
                 take: 3
             }
@@ -91,6 +97,12 @@ export async function getOrganizerEvents(slug: string) {
                 where: {
                     startDateTime: { gte: new Date() },
                     status: 'PUBLISHED'
+                },
+                include: {
+                    Category: true,
+                    Tag: true,
+                    Organizer: { select: { id: true, name: true, slug: true, logoUrl: true } },
+                    EventRegistration: { select: { quantity: true } }
                 },
                 orderBy: { startDateTime: 'asc' }
             }
@@ -152,7 +164,7 @@ export async function getAllOrganizers() {
     return organizers.map(org => ({
         ...org,
         platformFeePercent: org.platformFeePercent ? org.platformFeePercent.toNumber() : null,
-        platformFeeFixed: org.platformFeeFixed ? org.platformFeeFixed.toNumber() : null
+        platformFeeFixed: org.platformFeeFixed
     }))
 }
 
@@ -171,11 +183,11 @@ export async function getOrganizer(id: string) {
         mvaRate: organizer.mvaRate ? organizer.mvaRate.toNumber() : null,
         stripeFeePercentage: organizer.stripeFeePercentage ? organizer.stripeFeePercentage.toNumber() : null,
         platformFeePercent: organizer.platformFeePercent ? organizer.platformFeePercent.toNumber() : null,
-        platformFeeFixed: organizer.platformFeeFixed ? organizer.platformFeeFixed.toNumber() : null,
+        platformFeeFixed: organizer.platformFeeFixed,
     }
 }
 
-export async function createOrganizer(prevState: any, formData: FormData): Promise<{ error?: ActionError } | undefined> {
+export async function createOrganizer(prevState: any, formData: FormData): Promise<{ error?: ActionError; success?: boolean } | undefined> {
     await requireAdmin()
 
     const raw = {
@@ -245,7 +257,7 @@ export async function createOrganizer(prevState: any, formData: FormData): Promi
 
         revalidatePath('/admin/organizers')
         // Return success (no redirect, let client handle dialog)
-        return
+        return { success: true }
     } catch (e: any) {
         if (e.code === 'P2002') {
             return { error: { slug: ['Slug must be unique'] } }
@@ -254,7 +266,7 @@ export async function createOrganizer(prevState: any, formData: FormData): Promi
     }
 }
 
-export async function updateOrganizer(organizerId: string, prevState: any, formData: FormData): Promise<{ error?: ActionError } | undefined> {
+export async function updateOrganizer(organizerId: string, prevState: any, formData: FormData): Promise<{ error?: ActionError; success?: boolean } | undefined> {
     await requireAdmin()
 
     const raw = {

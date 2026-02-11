@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { MembershipImporter } from './membership-importer'
-import { format, addDays } from 'date-fns'
+import { addDays } from 'date-fns'
 import { AlertCircle, CheckCircle2, Clock, ArrowLeft, Settings2, Layers } from 'lucide-react'
 import Link from 'next/link'
+import { formatDateTimeShort, formatDateShort } from '@/lib/formatters'
 import { ApproveMembershipButton, RejectMembershipButton, DeleteMembershipButton } from './membership-action-buttons'
 import { MembershipTableControls } from './membership-table-controls'
 import { MembershipStatusSelect } from './membership-status-select'
@@ -54,7 +55,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
     )
   }
 
-  const organizer = userAccount.roles[0].organizer
+  const organizer = userAccount.UserAccountRole[0].Organizer
 
   // Fetch enabled tiers for import
   const tiers = await prisma.membershipTier.findMany({
@@ -77,7 +78,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
       status: 'PENDING_PAYMENT'
     },
     include: {
-      person: {
+      PersonProfile: {
         select: {
           id: true,
           firstName: true,
@@ -86,7 +87,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
           phone: true
         }
       },
-      tier: {
+      MembershipTier: {
         select: {
           id: true,
           name: true,
@@ -108,7 +109,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
     status?: { not: string } | string
     OR?: Array<{
       memberNumber?: { contains: string; mode: 'insensitive' }
-      person?: {
+      PersonProfile?: {
         firstName?: { contains: string; mode: 'insensitive' }
         lastName?: { contains: string; mode: 'insensitive' }
         email?: { contains: string; mode: 'insensitive' }
@@ -297,18 +298,18 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
                     {pendingMemberships.map((membership) => (
                       <TableRow key={membership.id}>
                         <TableCell className="font-medium">
-                          {membership.person.firstName} {membership.person.lastName}
+                          {membership.PersonProfile.firstName} {membership.PersonProfile.lastName}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {membership.person.email}
+                          {membership.PersonProfile.email}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {membership.tier.name}
+                            {membership.MembershipTier.name}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">
-                          {format(membership.createdAt, 'MMM d, yyyy HH:mm')}
+                          {formatDateTimeShort(membership.createdAt)}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
@@ -365,24 +366,24 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
                     memberships.map((membership) => (
                       <TableRow key={membership.id}>
                         <TableCell className="font-medium">
-                          {membership.person.firstName} {membership.person.lastName}
+                          {membership.PersonProfile.firstName} {membership.PersonProfile.lastName}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {membership.person.email}
+                          {membership.PersonProfile.email}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {membership.tier.name}
+                            {membership.MembershipTier.name}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
                           {membership.memberNumber || '-'}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {format(membership.validFrom, 'MMM d, yyyy')}
+                          {formatDateShort(membership.validFrom)}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {format(membership.validTo, 'MMM d, yyyy')}
+                          {formatDateShort(membership.validTo)}
                         </TableCell>
                         <TableCell>
                           <MembershipStatusSelect 

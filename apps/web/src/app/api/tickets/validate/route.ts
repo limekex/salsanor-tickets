@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     OR: [
                         { role: 'ADMIN' },
@@ -24,13 +24,13 @@ export async function POST(req: Request) {
                     ]
                 },
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
     })
 
-    if (!userAccount || userAccount.roles.length === 0) {
+    if (!userAccount || userAccount.UserAccountRole.length === 0) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -41,10 +41,10 @@ export async function POST(req: Request) {
     }
 
     // Check if global admin
-    const isGlobalAdmin = userAccount.roles.some(r => r.role === 'ADMIN')
+    const isGlobalAdmin = userAccount.UserAccountRole.some(r => r.role === 'ADMIN')
     
     // Get organizer IDs for org-specific roles
-    const organizerIds = userAccount.roles
+    const organizerIds = userAccount.UserAccountRole
         .filter(r => r.organizerId)
         .map(r => r.organizerId!)
 
@@ -52,19 +52,19 @@ export async function POST(req: Request) {
     const ticket = await prisma.ticket.findFirst({
         where: { qrTokenHash: token },
         include: {
-            person: {
+            PersonProfile: {
                 include: {
-                    registrations: {
+                    Registration: {
                         where: { 
                             status: 'ACTIVE',
                             trackId: trackId // Only get registration for this specific track
                         },
                         include: { 
-                            track: {
+                            CourseTrack: {
                                 include: {
-                                    period: {
+                                    CoursePeriod: {
                                         include: {
-                                            organizer: true
+                                            Organizer: true
                                         }
                                     }
                                 }
@@ -73,9 +73,9 @@ export async function POST(req: Request) {
                     }
                 }
             },
-            period: {
+            CoursePeriod: {
                 include: {
-                    organizer: true
+                    Organizer: true
                 }
             }
         }
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     }
 
     // Check organization access for non-global admins
-    if (!isGlobalAdmin && !organizerIds.includes(ticket.period.organizerId)) {
+    if (!isGlobalAdmin && !organizerIds.includes(ticket.CoursePeriod.organizerId)) {
         return NextResponse.json({ 
             valid: false, 
             message: 'Ticket is for a different organization' 
@@ -98,21 +98,21 @@ export async function POST(req: Request) {
     }
 
     // Check if person is registered for the scanned track
-    const registration = ticket.person.registrations.find(r => r.trackId === trackId)
+    const registration = ticket.PersonProfile.Registration.find(r => r.trackId === trackId)
 
     if (!registration) {
         return NextResponse.json({ 
             valid: false, 
-            message: `Not registered for this track. Please check ${ticket.period.organizer.name} - ${ticket.period.name}` 
+            message: `Not registered for this track. Please check ${ticket.CoursePeriod.Organizer.name} - ${ticket.CoursePeriod.name}` 
         })
     }
 
     // Valid ticket for the correct track
     return NextResponse.json({
         valid: true,
-        personName: `${ticket.person.firstName} ${ticket.person.lastName}`,
-        course: `${registration.track.title} (${registration.chosenRole})`,
-        periodName: ticket.period.name,
+        personName: `${ticket.PersonProfile.firstName} ${ticket.PersonProfile.lastName}`,
+        course: `${registration.CourseTrack.title} (${registration.chosenRole})`,
+        periodName: ticket.CoursePeriod.name,
         ticketId: ticket.id
     })
 }

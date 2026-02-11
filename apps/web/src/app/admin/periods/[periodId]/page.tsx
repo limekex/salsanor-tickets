@@ -13,8 +13,8 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { format } from 'date-fns'
 import Link from 'next/link'
+import { formatDateRange } from '@/lib/formatters'
 import { notFound } from 'next/navigation'
 
 type Params = Promise<{ periodId: string }>
@@ -55,7 +55,7 @@ export default async function PeriodDetailPage({ params }: { params: Params }) {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Date Range</CardTitle></CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{format(period.startDate, 'MMM d')} - {format(period.endDate, 'MMM d')}</div></CardContent>
+                    <CardContent><div className="text-2xl font-bold">{formatDateRange(period.startDate, period.endDate)}</div></CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Sales Status</CardTitle></CardHeader>

@@ -18,7 +18,7 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN',
                     organizerId: organizerId
@@ -27,7 +27,7 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         throw new Error('Unauthorized: You do not have access to edit this organization')
     }
 
@@ -124,7 +124,7 @@ export async function addUserRoleStaff(userId: string, role: string, organizerId
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN',
                     organizerId: organizerId
@@ -133,7 +133,7 @@ export async function addUserRoleStaff(userId: string, role: string, organizerId
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         throw new Error('Unauthorized: You do not have access to manage roles for this organization')
     }
 
@@ -190,7 +190,7 @@ export async function removeUserRoleStaff(roleId: string) {
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN',
                     organizerId: role.organizerId
@@ -199,7 +199,7 @@ export async function removeUserRoleStaff(roleId: string) {
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         throw new Error('Unauthorized: You do not have access to manage roles for this organization')
     }
 
@@ -223,7 +223,7 @@ export async function searchUserByEmailStaff(email: string, organizerId: string)
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     role: 'ORG_ADMIN',
                     organizerId: organizerId
@@ -232,19 +232,19 @@ export async function searchUserByEmailStaff(email: string, organizerId: string)
         }
     })
 
-    if (!userAccount?.roles.length) {
+    if (!userAccount?.UserAccountRole.length) {
         throw new Error('Unauthorized')
     }
 
     return await prisma.userAccount.findUnique({
         where: { email },
         include: {
-            roles: {
+            UserAccountRole: {
                 where: {
                     organizerId: organizerId
                 },
                 include: {
-                    organizer: {
+                    Organizer: {
                         select: {
                             id: true,
                             name: true,

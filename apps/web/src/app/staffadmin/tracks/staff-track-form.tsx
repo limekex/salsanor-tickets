@@ -104,7 +104,18 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
                 : await createCourseTrackStaff(null, formData)
                 
             if (result?.error) {
-                console.error(result.error)
+                // Log full error for debugging
+                console.error('Track form error:', JSON.stringify(result.error, null, 2))
+                
+                // Set form errors for specific fields
+                if (result.error._form) {
+                    form.setError('root', { message: result.error._form.join(', ') })
+                }
+                Object.entries(result.error).forEach(([key, messages]) => {
+                    if (key !== '_form' && Array.isArray(messages)) {
+                        form.setError(key as any, { message: messages.join(', ') })
+                    }
+                })
             }
         })
     }
