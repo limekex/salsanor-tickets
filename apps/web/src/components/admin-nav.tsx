@@ -30,7 +30,6 @@ const navItems = [
 ]
 
 const platformItems = [
-    { href: '/admin/organizers', label: 'Organizers', icon: Building2, globalOnly: true },
     { href: '/admin/categories', label: 'Categories', icon: Layers, globalOnly: true },
     { href: '/admin/pdf-templates', label: 'PDF Templates', icon: FileText, globalOnly: true },
     { href: '/admin/periods', label: 'Periods', icon: null, requiresOrg: true },
@@ -47,6 +46,7 @@ const paymentItems = [
 ]
 
 const crmItems = [
+    { href: '/admin/organizers', label: 'Organizers', icon: Building2, globalOnly: true },
     { href: '/admin/users', label: 'User Management', icon: UserCog },
 ]
 

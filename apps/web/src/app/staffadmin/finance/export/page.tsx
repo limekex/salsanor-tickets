@@ -40,21 +40,29 @@ export default async function ExportPage() {
                 </CardHeader>
                 <CardContent className="space-y-rn-4">
                     <div className="space-y-rn-2">
-                        <h4 className="font-medium">Included Fields:</h4>
+                        <h4 className="font-medium">Included Fields (21 columns):</h4>
                         <ul className="list-disc list-inside text-sm text-rn-text-muted space-y-rn-1">
-                            <li>Order ID</li>
-                            <li>Organization name and number</li>
-                            <li>Period name and code</li>
-                            <li>Subtotal (NOK)</li>
-                            <li>Discount amount (NOK)</li>
-                            <li>Subtotal after discount (NOK)</li>
-                            <li>MVA rate (%)</li>
-                            <li>MVA amount (NOK)</li>
-                            <li>Total amount (NOK)</li>
-                            <li>Currency</li>
-                            <li>Registration count</li>
-                            <li>Payment provider and status</li>
-                            <li>Created and updated timestamps</li>
+                            <li><strong>Order ID</strong> - Unique order identifier (UUID)</li>
+                            <li><strong>Order Number</strong> - Sequential number with org prefix (e.g., "OSLO-2024-001")</li>
+                            <li><strong>Organization</strong> - Organization name</li>
+                            <li><strong>Org.nr</strong> - Norwegian organization number</li>
+                            <li><strong>Product Name</strong> - Course period/event/membership name (includes track names for periods)</li>
+                            <li><strong>Product Code</strong> - Product code (includes track codes for periods)</li>
+                            <li><strong>Order Type</strong> - COURSE_PERIOD, EVENT, or MEMBERSHIP</li>
+                            <li><strong>Subtotal (NOK)</strong> - Amount before discount and MVA</li>
+                            <li><strong>Discount (NOK)</strong> - Discount amount applied</li>
+                            <li><strong>Subtotal After Discount (NOK)</strong> - Amount after discount, before MVA</li>
+                            <li><strong>MVA Rate (%)</strong> - Norwegian VAT rate (usually 25% or 0%)</li>
+                            <li><strong>MVA Amount (NOK)</strong> - VAT amount</li>
+                            <li><strong>Total (NOK)</strong> - Final amount including MVA</li>
+                            <li><strong>Currency</strong> - Currency code (NOK)</li>
+                            <li><strong>Registration Count</strong> - Number of registrations in order</li>
+                            <li><strong>Payment Provider</strong> - Payment gateway used (e.g., Stripe, Vipps)</li>
+                            <li><strong>Payment Status</strong> - Payment transaction status</li>
+                            <li><strong>Payment Reference</strong> - Stripe payment intent ID for reconciliation</li>
+                            <li><strong>Invoice Number</strong> - Document tracking number (e.g., "INV-1768423851212-782016A8")</li>
+                            <li><strong>Created At</strong> - Order creation timestamp</li>
+                            <li><strong>Updated At</strong> - Order last update timestamp</li>
                         </ul>
                     </div>
 

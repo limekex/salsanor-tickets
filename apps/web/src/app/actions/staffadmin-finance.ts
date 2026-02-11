@@ -293,8 +293,21 @@ export async function exportOrgFinancialData(organizerId: string) {
         let productCode = ''
         
         if (order.orderType === 'COURSE_PERIOD' && order.CoursePeriod) {
-            productName = order.CoursePeriod.name
-            productCode = order.CoursePeriod.code
+            // Get unique track names from registrations
+            const trackNames = [...new Set(
+                order.Registration
+                    .map(reg => reg.CourseTrack?.title)
+                    .filter(Boolean)
+            )]
+            
+            // Format: "Period Name - Track1, Track2"
+            if (trackNames.length > 0) {
+                productName = `${order.CoursePeriod.name} - ${trackNames.join(', ')}`
+                productCode = `${order.CoursePeriod.code} - ${trackNames.map(t => t?.toLowerCase().replace(/\s+/g, '-')).join(', ')}`
+            } else {
+                productName = order.CoursePeriod.name
+                productCode = order.CoursePeriod.code
+            }
         } else if (order.orderType === 'EVENT' && order.EventRegistration.length > 0) {
             const event = order.EventRegistration[0]?.Event
             productName = event?.title || 'Event'
@@ -324,7 +337,7 @@ export async function exportOrgFinancialData(organizerId: string) {
             paymentProvider: order.Payment[0]?.provider || null,
             paymentStatus: order.Payment[0]?.status || null,
             providerPaymentRef: order.Payment[0]?.providerPaymentRef || null,
-            invoiceNumber: order.Invoice && order.Invoice.length > 0 ? order.Invoice[0].invoiceNumber : null,
+            invoiceNumber: order.Invoice?.invoiceNumber || null,
             createdAt: order.createdAt.toISOString(),
             updatedAt: order.updatedAt.toISOString()
         }
