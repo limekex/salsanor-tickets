@@ -1,4 +1,4 @@
-import { requireOrgFinance } from '@/utils/auth-org-finance'
+import { getSelectedOrganizerForFinance } from '@/utils/auth-org-finance'
 import { getOrgPaymentStatus } from '@/app/actions/staffadmin-finance'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -10,15 +10,8 @@ import { formatNOK } from '@/lib/tickets/legal-requirements'
 import { formatDateNumeric } from '@/lib/formatters'
 
 export default async function PaymentStatusPage() {
-    const userAccount = await requireOrgFinance()
-    
-    // Get first organization with finance access
-    const firstOrgRole = userAccount.UserAccountRole[0]
-    if (!firstOrgRole?.organizerId) {
-        throw new Error('No organization access found')
-    }
-    
-    const organizerId = firstOrgRole.organizerId
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForFinance()
     
     const payments = await getOrgPaymentStatus(organizerId)
 

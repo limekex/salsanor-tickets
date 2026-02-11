@@ -1,20 +1,21 @@
-import { requireOrgFinance } from '@/utils/auth-org-finance'
+import { getSelectedOrganizerForFinance } from '@/utils/auth-org-finance'
+import { prisma } from '@/lib/db'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowLeftIcon, DownloadIcon } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function ExportPage() {
-    const userAccount = await requireOrgFinance()
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForFinance()
     
-    // Get first organization with finance access
-    const firstOrgRole = userAccount.UserAccountRole[0]
-    if (!firstOrgRole?.organizerId) {
-        throw new Error('No organization access found')
-    }
+    // Get organizer details
+    const organizer = await prisma.organizer.findUnique({
+        where: { id: organizerId },
+        select: { name: true }
+    })
     
-    const organizerId = firstOrgRole.organizerId
-    const organizerName = firstOrgRole.Organizer?.name || 'Unknown Organization'
+    const organizerName = organizer?.name || 'Unknown Organization'
 
     return (
         <div className="space-y-rn-6">
