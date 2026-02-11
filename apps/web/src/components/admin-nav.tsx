@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, Settings, Users, LayoutDashboard, UserCog, Mail, Home, Menu, Layers, FileText, Package } from 'lucide-react'
+import { Settings, LayoutDashboard, Home, Menu, Package, Users, Building2, Mail, CreditCard, Layers, FileText, UserCog } from 'lucide-react'
 import { OrgSelector } from './org-selector'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
@@ -12,6 +12,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -23,20 +25,29 @@ import {
 } from '@/components/ui/sheet'
 
 const navItems = [
-    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, globalOnly: false },
-    { href: '/admin/organizers', label: 'Organizers', icon: Users, globalOnly: true },
-    { href: '/admin/periods', label: 'Periods', icon: Calendar, globalOnly: false, requiresOrg: true },
-    { href: '/admin/orders', label: 'Orders', icon: Package, globalOnly: false, requiresOrg: false },
-    { href: '/admin/categories', label: 'Categories', icon: Layers, globalOnly: true },
+    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/orders', label: 'Orders', icon: Package },
 ]
 
-const settingsItems = [
-    { href: '/admin/users', label: 'User Management', icon: UserCog, globalOnly: false },
-    { href: '/admin/email', label: 'Email Settings', icon: Mail, globalOnly: true },
-    { href: '/admin/email/templates', label: 'Email Templates', icon: Mail, globalOnly: true },
-    { href: '/admin/email/logs', label: 'Email Logs', icon: Mail, globalOnly: true },
+const platformItems = [
+    { href: '/admin/organizers', label: 'Organizers', icon: Building2, globalOnly: true },
+    { href: '/admin/categories', label: 'Categories', icon: Layers, globalOnly: true },
     { href: '/admin/pdf-templates', label: 'PDF Templates', icon: FileText, globalOnly: true },
-    { href: '/admin/settings/payments', label: 'Payments', icon: Settings, globalOnly: false },
+    { href: '/admin/periods', label: 'Periods', icon: null, requiresOrg: true },
+]
+
+const emailItems = [
+    { href: '/admin/email', label: 'Email Settings', icon: Mail, globalOnly: true },
+    { href: '/admin/email/templates', label: 'Email Templates', icon: FileText, globalOnly: true },
+    { href: '/admin/email/logs', label: 'Email Logs', icon: FileText, globalOnly: true },
+]
+
+const paymentItems = [
+    { href: '/admin/settings/payments', label: 'Payment Settings', icon: CreditCard },
+]
+
+const crmItems = [
+    { href: '/admin/users', label: 'User Management', icon: UserCog },
 ]
 
 interface AdminNavProps {
@@ -60,21 +71,31 @@ export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange 
         setMounted(true)
     }, [])
 
-    // Filter main nav items
-    const filteredNavItems = navItems.filter(item => {
-        if (item.globalOnly && !isGlobalAdmin) return false
-        if (item.requiresOrg && !currentOrgId && isGlobalAdmin) return false
-        return true
-    })
+    // Filter items
+    const filterItems = (items: any[]) => {
+        return items.filter((item: any) => {
+            if (item.globalOnly && !isGlobalAdmin) return false
+            if (item.requiresOrg && !currentOrgId && isGlobalAdmin) return false
+            return true
+        })
+    }
 
-    // Filter settings items
-    const filteredSettingsItems = settingsItems.filter(item => {
-        if (item.globalOnly && !isGlobalAdmin) return false
-        return true
-    })
+    const filteredPlatformItems = filterItems(platformItems)
+    const filteredEmailItems = filterItems(emailItems)
+    const filteredPaymentItems = filterItems(paymentItems)
+    const filteredCrmItems = filterItems(crmItems)
 
-    // Check if any settings page is active
-    const isSettingsActive = settingsItems.some(item => 
+    // Check if dropdown sections are active
+    const isPlatformActive = filteredPlatformItems.some(item => 
+        pathname === item.href || pathname.startsWith(item.href + '/')
+    )
+    const isEmailActive = filteredEmailItems.some(item => 
+        pathname === item.href || pathname.startsWith(item.href + '/')
+    )
+    const isPaymentActive = filteredPaymentItems.some(item => 
+        pathname === item.href || pathname.startsWith(item.href + '/')
+    )
+    const isCrmActive = filteredCrmItems.some(item => 
         pathname === item.href || pathname.startsWith(item.href + '/')
     )
 
@@ -105,7 +126,7 @@ export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange 
                     
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex gap-rn-1 ml-auto">
-                        {filteredNavItems.map((item) => {
+                        {navItems.map((item) => {
                             const Icon = item.icon
                             const isActive = pathname === item.href ||
                                 (item.href !== '/admin' && pathname.startsWith(item.href))
@@ -127,25 +148,143 @@ export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange 
                             )
                         })}
 
-                        {/* Settings Dropdown (Icon Only) */}
-                        {mounted && (
+                        {/* Platform Settings Dropdown */}
+                        {mounted && filteredPlatformItems.length > 0 && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger 
                                     className={cn(
-                                        "flex items-center justify-center p-2 rounded-rn-1 text-sm font-medium transition-colors",
-                                        isSettingsActive
+                                        "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                        isPlatformActive
                                             ? "bg-rn-primary text-white"
                                             : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
                                     )}
-                                    title="Settings"
                                 >
                                     <Settings className="h-4 w-4" />
+                                    Platform
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    {filteredSettingsItems.map((item) => {
+                                    <DropdownMenuLabel>Platform Settings</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {filteredPlatformItems.map((item) => {
                                         const Icon = item.icon
                                         const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                        return (
+                                            <DropdownMenuItem key={item.href} asChild>
+                                                <Link
+                                                    href={item.href}
+                                                    className={cn(
+                                                        "flex items-center gap-rn-2 cursor-pointer",
+                                                        isActive && "bg-rn-surface-2"
+                                                    )}
+                                                >
+                                                    {Icon && <Icon className="h-4 w-4" />}
+                                                    {item.label}
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )
+                                    })}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
 
+                        {/* Email Dropdown */}
+                        {mounted && filteredEmailItems.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger 
+                                    className={cn(
+                                        "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                        isEmailActive
+                                            ? "bg-rn-primary text-white"
+                                            : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
+                                    )}
+                                >
+                                    <Mail className="h-4 w-4" />
+                                    Email
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Email Management</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {filteredEmailItems.map((item) => {
+                                        const Icon = item.icon
+                                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                        return (
+                                            <DropdownMenuItem key={item.href} asChild>
+                                                <Link
+                                                    href={item.href}
+                                                    className={cn(
+                                                        "flex items-center gap-rn-2 cursor-pointer",
+                                                        isActive && "bg-rn-surface-2"
+                                                    )}
+                                                >
+                                                    <Icon className="h-4 w-4" />
+                                                    {item.label}
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )
+                                    })}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+
+                        {/* Payments Dropdown */}
+                        {mounted && filteredPaymentItems.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger 
+                                    className={cn(
+                                        "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                        isPaymentActive
+                                            ? "bg-rn-primary text-white"
+                                            : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
+                                    )}
+                                >
+                                    <CreditCard className="h-4 w-4" />
+                                    Payments
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Payment Management</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {filteredPaymentItems.map((item) => {
+                                        const Icon = item.icon
+                                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                        return (
+                                            <DropdownMenuItem key={item.href} asChild>
+                                                <Link
+                                                    href={item.href}
+                                                    className={cn(
+                                                        "flex items-center gap-rn-2 cursor-pointer",
+                                                        isActive && "bg-rn-surface-2"
+                                                    )}
+                                                >
+                                                    <Icon className="h-4 w-4" />
+                                                    {item.label}
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )
+                                    })}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+
+                        {/* CRM Dropdown */}
+                        {mounted && filteredCrmItems.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger 
+                                    className={cn(
+                                        "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                        isCrmActive
+                                            ? "bg-rn-primary text-white"
+                                            : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
+                                    )}
+                                >
+                                    <Users className="h-4 w-4" />
+                                    CRM
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Customer Management</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {filteredCrmItems.map((item) => {
+                                        const Icon = item.icon
+                                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
                                         return (
                                             <DropdownMenuItem key={item.href} asChild>
                                                 <Link
@@ -202,7 +341,7 @@ export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange 
                                     )}
 
                                     {/* Main Nav Items */}
-                                    {filteredNavItems.map((item) => {
+                                    {navItems.map((item) => {
                                         const Icon = item.icon
                                         const isActive = pathname === item.href ||
                                             (item.href !== '/admin' && pathname.startsWith(item.href))
@@ -225,31 +364,113 @@ export function AdminNav({ isGlobalAdmin, organizers, currentOrgId, onOrgChange 
                                         )
                                     })}
 
-                                    {/* Settings Section */}
-                                    <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
-                                        <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Settings</p>
-                                        {filteredSettingsItems.map((item) => {
-                                            const Icon = item.icon
-                                            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                    {/* Platform Settings Section */}
+                                    {filteredPlatformItems.length > 0 && (
+                                        <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
+                                            <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Platform Settings</p>
+                                            {filteredPlatformItems.map((item) => {
+                                                const Icon = item.icon
+                                                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        onClick={() => setMobileMenuOpen(false)}
+                                                        className={cn(
+                                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                            isActive
+                                                                ? "bg-rn-primary text-white"
+                                                                : "text-rn-text hover:bg-rn-surface-2"
+                                                        )}
+                                                    >
+                                                        {Icon && <Icon className="h-5 w-5" />}
+                                                        {item.label}
+                                                    </Link>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
 
-                                            return (
-                                                <Link
-                                                    key={item.href}
-                                                    href={item.href}
-                                                    onClick={() => setMobileMenuOpen(false)}
-                                                    className={cn(
-                                                        "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
-                                                        isActive
-                                                            ? "bg-rn-primary text-white"
-                                                            : "text-rn-text hover:bg-rn-surface-2"
-                                                    )}
-                                                >
-                                                    <Icon className="h-5 w-5" />
-                                                    {item.label}
-                                                </Link>
-                                            )
-                                        })}
-                                    </div>
+                                    {/* Email Section */}
+                                    {filteredEmailItems.length > 0 && (
+                                        <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
+                                            <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Email Management</p>
+                                            {filteredEmailItems.map((item) => {
+                                                const Icon = item.icon
+                                                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        onClick={() => setMobileMenuOpen(false)}
+                                                        className={cn(
+                                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                            isActive
+                                                                ? "bg-rn-primary text-white"
+                                                                : "text-rn-text hover:bg-rn-surface-2"
+                                                        )}
+                                                    >
+                                                        <Icon className="h-5 w-5" />
+                                                        {item.label}
+                                                    </Link>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Payments Section */}
+                                    {filteredPaymentItems.length > 0 && (
+                                        <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
+                                            <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Payment Management</p>
+                                            {filteredPaymentItems.map((item) => {
+                                                const Icon = item.icon
+                                                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        onClick={() => setMobileMenuOpen(false)}
+                                                        className={cn(
+                                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                            isActive
+                                                                ? "bg-rn-primary text-white"
+                                                                : "text-rn-text hover:bg-rn-surface-2"
+                                                        )}
+                                                    >
+                                                        <Icon className="h-5 w-5" />
+                                                        {item.label}
+                                                    </Link>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* CRM Section */}
+                                    {filteredCrmItems.length > 0 && (
+                                        <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
+                                            <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Customer Management</p>
+                                            {filteredCrmItems.map((item) => {
+                                                const Icon = item.icon
+                                                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        onClick={() => setMobileMenuOpen(false)}
+                                                        className={cn(
+                                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                            isActive
+                                                                ? "bg-rn-primary text-white"
+                                                                : "text-rn-text hover:bg-rn-surface-2"
+                                                        )}
+                                                    >
+                                                        <Icon className="h-5 w-5" />
+                                                        {item.label}
+                                                    </Link>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
 
                                     {/* Back to Site */}
                                     <Link
