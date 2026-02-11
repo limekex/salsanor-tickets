@@ -90,16 +90,16 @@ export default async function StaffFinancePage() {
                 </Card>
             </div>
 
-            {/* Revenue by Period */}
+            {/* Revenue by Product */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Revenue by Period</CardTitle>
+                    <CardTitle>Revenue by Product</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Period</TableHead>
+                                <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Orders</TableHead>
                                 <TableHead className="text-right">Registrations</TableHead>
                                 <TableHead className="text-right">Revenue</TableHead>
@@ -133,23 +133,36 @@ export default async function StaffFinancePage() {
                             <TableRow>
                                 <TableHead>Order ID</TableHead>
                                 <TableHead>Date</TableHead>
-                                <TableHead>Period</TableHead>
+                                <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 <TableHead>Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {recentOrders.map((order) => (
-                                <TableRow key={order.id}>
-                                    <TableCell className="font-mono text-sm">{order.id.slice(0, 8)}</TableCell>
-                                    <TableCell>{formatDateNumeric(order.createdAt)}</TableCell>
-                                    <TableCell>{order.CoursePeriod?.name}</TableCell>
-                                    <TableCell className="text-right font-medium">{formatNOK(order.totalCents)}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="default">Paid</Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            {recentOrders.map((order) => {
+                                let productName = ''
+                                if (order.orderType === 'COURSE_PERIOD' && order.CoursePeriod) {
+                                    productName = order.CoursePeriod.name
+                                } else if (order.orderType === 'EVENT' && order.EventRegistration && order.EventRegistration.length > 0) {
+                                    productName = order.EventRegistration[0]?.Event?.title || 'Event'
+                                } else if (order.orderType === 'MEMBERSHIP' && order.Membership && order.Membership.length > 0) {
+                                    productName = `Membership: ${order.Membership[0]?.MembershipTier?.name || 'Unknown'}`
+                                } else {
+                                    productName = 'Other'
+                                }
+                                
+                                return (
+                                    <TableRow key={order.id}>
+                                        <TableCell className="font-mono text-sm">{order.id.slice(0, 8)}</TableCell>
+                                        <TableCell>{formatDateNumeric(order.createdAt)}</TableCell>
+                                        <TableCell>{productName}</TableCell>
+                                        <TableCell className="text-right font-medium">{formatNOK(order.totalCents)}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="default">Paid</Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
                         </TableBody>
                     </Table>
                 </CardContent>

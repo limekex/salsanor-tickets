@@ -77,7 +77,7 @@ export default async function RevenueReportsPage() {
             {/* MVA Breakdown Table - MANDATORY for Norwegian Legal Compliance */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Revenue by Period - MVA Breakdown</CardTitle>
+                    <CardTitle>Revenue by Product - MVA Breakdown</CardTitle>
                     <p className="text-sm text-rn-text-muted mt-rn-2">
                         Norwegian VAT (MVA) breakdown as required by Bokføringsloven
                     </p>
@@ -86,7 +86,7 @@ export default async function RevenueReportsPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Period</TableHead>
+                                <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Orders</TableHead>
                                 <TableHead className="text-right">Gross Revenue<br/>(inkl. MVA)</TableHead>
                                 <TableHead className="text-right">Net Revenue<br/>(grunnlag for MVA)</TableHead>
@@ -121,16 +121,16 @@ export default async function RevenueReportsPage() {
                 </CardContent>
             </Card>
 
-            {/* Revenue by Period (Simple View) */}
+            {/* Revenue by Product (Simple View) */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Revenue by Period</CardTitle>
+                    <CardTitle>Revenue by Product</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Period</TableHead>
+                                <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Orders</TableHead>
                                 <TableHead className="text-right">Registrations</TableHead>
                                 <TableHead className="text-right">Total Revenue</TableHead>

@@ -12,12 +12,12 @@ export async function getOrgFinancialSummary(organizerId: string) {
     const orders = await prisma.order.findMany({
         where: {
             status: 'PAID',
-            CoursePeriod: {
-                organizerId: organizerId
-            }
+            organizerId: organizerId
         },
         include: {
             Registration: true,
+            EventRegistration: true,
+            Membership: true,
             Payment: {
                 where: { status: 'SUCCEEDED' }
             }
@@ -26,14 +26,15 @@ export async function getOrgFinancialSummary(organizerId: string) {
 
     const totalRevenue = orders.reduce((sum, order) => sum + order.totalCents, 0)
     const totalOrders = orders.length
-    const totalRegistrations = orders.reduce((sum, order) => sum + order.Registration.length, 0)
+    const totalRegistrations = orders.reduce((sum, order) => 
+        sum + order.Registration.length + order.EventRegistration.length + order.Membership.length, 0)
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
     
     // Pending payments
     const pendingOrders = await prisma.order.count({
         where: {
             status: 'PENDING',
-            CoursePeriod: { organizerId }
+            organizerId: organizerId
         }
     })
 
@@ -51,7 +52,7 @@ export async function getOrgFinancialSummary(organizerId: string) {
 }
 
 /**
- * Get revenue breakdown by period
+ * Get revenue breakdown by period/event/membership
  */
 export async function getOrgRevenueByPeriod(organizerId: string) {
     await requireOrgFinanceForOrganizer(organizerId)
@@ -59,38 +60,77 @@ export async function getOrgRevenueByPeriod(organizerId: string) {
     const orders = await prisma.order.findMany({
         where: {
             status: 'PAID',
-            CoursePeriod: {
-                organizerId
-            }
+            organizerId: organizerId
         },
         include: {
             CoursePeriod: true,
-            Registration: true
+            Registration: true,
+            EventRegistration: {
+                include: {
+                    Event: {
+                        select: {
+                            title: true,
+                            slug: true
+                        }
+                    }
+                }
+            },
+            Membership: {
+                include: {
+                    MembershipTier: {
+                        select: {
+                            name: true
+                        }
+                    }
+                }
+            }
         }
     })
 
-    const revenueByPeriod = orders.reduce((acc, order) => {
-        if (!order.CoursePeriod) return acc
+    const revenueByProduct = orders.reduce((acc, order) => {
+        let productKey: string
+        let productName: string
+        let productCode: string
         
-        const periodId = order.CoursePeriod.id
-        if (!acc[periodId]) {
-            acc[periodId] = {
-                periodName: order.CoursePeriod.name,
-                periodCode: order.CoursePeriod.code,
+        if (order.orderType === 'COURSE_PERIOD' && order.CoursePeriod) {
+            productKey = `period-${order.CoursePeriod.id}`
+            productName = order.CoursePeriod.name
+            productCode = order.CoursePeriod.code
+        } else if (order.orderType === 'EVENT' && order.EventRegistration.length > 0) {
+            const event = order.EventRegistration[0]?.Event
+            productKey = `event-${event?.slug || 'unknown'}`
+            productName = event?.title || 'Event'
+            productCode = event?.slug || 'unknown'
+        } else if (order.orderType === 'MEMBERSHIP' && order.Membership.length > 0) {
+            const tier = order.Membership[0]?.MembershipTier
+            productKey = `membership-${tier?.name || 'unknown'}`
+            productName = `Membership: ${tier?.name || 'Unknown'}`
+            productCode = tier?.name || 'unknown'
+        } else {
+            // Fallback for orders without proper associations
+            productKey = `other-${order.id}`
+            productName = 'Other'
+            productCode = 'other'
+        }
+        
+        if (!acc[productKey]) {
+            acc[productKey] = {
+                periodName: productName,
+                periodCode: productCode,
                 totalRevenue: 0,
                 orderCount: 0,
                 registrationCount: 0
             }
         }
         
-        acc[periodId].totalRevenue += order.totalCents
-        acc[periodId].orderCount += 1
-        acc[periodId].registrationCount += order.Registration.length
+        acc[productKey].totalRevenue += order.totalCents
+        acc[productKey].orderCount += 1
+        acc[productKey].registrationCount += order.Registration.length + order.EventRegistration.length + order.Membership.length
         
         return acc
     }, {} as Record<string, any>)
 
-    return Object.values(revenueByPeriod)
+    return Object.values(revenueByProduct)
 }
 
 /**
@@ -102,7 +142,7 @@ export async function getOrgPaymentStatus(organizerId: string) {
     const payments = await prisma.payment.findMany({
         where: {
             Order: {
-                CoursePeriod: { organizerId }
+                organizerId: organizerId
             }
         },
         include: {
@@ -130,7 +170,7 @@ export async function getOrgPaidRegistrations(organizerId: string, limit = 50) {
     const orders = await prisma.order.findMany({
         where: {
             status: 'PAID',
-            CoursePeriod: { organizerId }
+            organizerId: organizerId
         },
         include: {
             CoursePeriod: {
@@ -150,6 +190,37 @@ export async function getOrgPaidRegistrations(organizerId: string, limit = 50) {
                     CourseTrack: {
                         select: {
                             title: true
+                        }
+                    }
+                }
+            },
+            EventRegistration: {
+                include: {
+                    Event: {
+                        select: {
+                            title: true,
+                            slug: true
+                        }
+                    },
+                    PersonProfile: {
+                        select: {
+                            firstName: true,
+                            lastName: true
+                        }
+                    }
+                }
+            },
+            Membership: {
+                include: {
+                    MembershipTier: {
+                        select: {
+                            name: true
+                        }
+                    },
+                    PersonProfile: {
+                        select: {
+                            firstName: true,
+                            lastName: true
                         }
                     }
                 }
@@ -176,7 +247,7 @@ export async function exportOrgFinancialData(organizerId: string) {
     const orders = await prisma.order.findMany({
         where: {
             status: 'PAID',
-            CoursePeriod: { organizerId }
+            organizerId: organizerId
         },
         include: {
             CoursePeriod: {
@@ -184,11 +255,24 @@ export async function exportOrgFinancialData(organizerId: string) {
                     Organizer: true
                 }
             },
+            Organizer: true,
             Payment: true,
             Registration: {
                 include: {
                     PersonProfile: true,
                     CourseTrack: true
+                }
+            },
+            EventRegistration: {
+                include: {
+                    Event: true,
+                    PersonProfile: true
+                }
+            },
+            Membership: {
+                include: {
+                    MembershipTier: true,
+                    PersonProfile: true
                 }
             }
         },
@@ -197,25 +281,44 @@ export async function exportOrgFinancialData(organizerId: string) {
         }
     })
 
-    return orders.map(order => ({
-        orderId: order.id,
-        organizerName: order.CoursePeriod?.Organizer.name || '',
-        organizerOrgNr: order.CoursePeriod?.Organizer.organizationNumber || '',
-        periodName: order.CoursePeriod?.name || '',
-        periodCode: order.CoursePeriod?.code || '',
-        subtotalCents: order.subtotalCents,
-        discountCents: order.discountCents || 0,
-        subtotalAfterDiscountCents: order.subtotalAfterDiscountCents,
-        mvaRate: Number(order.mvaRate),
-        mvaCents: order.mvaCents,
-        totalCents: order.totalCents,
-        currency: order.currency,
-        registrationCount: order.Registration.length,
-        paymentProvider: order.Payment[0]?.provider || null,
-        paymentStatus: order.Payment[0]?.status || null,
-        createdAt: order.createdAt.toISOString(),
-        updatedAt: order.updatedAt.toISOString()
-    }))
+    return orders.map(order => {
+        let productName = ''
+        let productCode = ''
+        
+        if (order.orderType === 'COURSE_PERIOD' && order.CoursePeriod) {
+            productName = order.CoursePeriod.name
+            productCode = order.CoursePeriod.code
+        } else if (order.orderType === 'EVENT' && order.EventRegistration.length > 0) {
+            const event = order.EventRegistration[0]?.Event
+            productName = event?.title || 'Event'
+            productCode = event?.slug || 'event'
+        } else if (order.orderType === 'MEMBERSHIP' && order.Membership.length > 0) {
+            const tier = order.Membership[0]?.MembershipTier
+            productName = `Membership: ${tier?.name || 'Unknown'}`
+            productCode = tier?.name || 'membership'
+        }
+        
+        return {
+            orderId: order.id,
+            organizerName: order.Organizer.name,
+            organizerOrgNr: order.Organizer.organizationNumber || '',
+            periodName: productName,
+            periodCode: productCode,
+            orderType: order.orderType,
+            subtotalCents: order.subtotalCents,
+            discountCents: order.discountCents || 0,
+            subtotalAfterDiscountCents: order.subtotalAfterDiscountCents,
+            mvaRate: Number(order.mvaRate),
+            mvaCents: order.mvaCents,
+            totalCents: order.totalCents,
+            currency: order.currency,
+            registrationCount: order.Registration.length + order.EventRegistration.length + order.Membership.length,
+            paymentProvider: order.Payment[0]?.provider || null,
+            paymentStatus: order.Payment[0]?.status || null,
+            createdAt: order.createdAt.toISOString(),
+            updatedAt: order.updatedAt.toISOString()
+        }
+    })
 }
 
 /**
@@ -227,23 +330,61 @@ export async function getOrgRevenueWithMVA(organizerId: string) {
     const orders = await prisma.order.findMany({
         where: {
             status: 'PAID',
-            CoursePeriod: {
-                organizerId
-            }
+            organizerId: organizerId
         },
         include: {
-            CoursePeriod: true
+            CoursePeriod: true,
+            EventRegistration: {
+                include: {
+                    Event: {
+                        select: {
+                            title: true,
+                            slug: true
+                        }
+                    }
+                }
+            },
+            Membership: {
+                include: {
+                    MembershipTier: {
+                        select: {
+                            name: true
+                        }
+                    }
+                }
+            }
         }
     })
 
-    const revenueByPeriod = orders.reduce((acc, order) => {
-        if (!order.CoursePeriod) return acc
+    const revenueByProduct = orders.reduce((acc, order) => {
+        let productKey: string
+        let productName: string
+        let productCode: string
         
-        const periodId = order.CoursePeriod.id
-        if (!acc[periodId]) {
-            acc[periodId] = {
-                periodName: order.CoursePeriod.name,
-                periodCode: order.CoursePeriod.code,
+        if (order.orderType === 'COURSE_PERIOD' && order.CoursePeriod) {
+            productKey = `period-${order.CoursePeriod.id}`
+            productName = order.CoursePeriod.name
+            productCode = order.CoursePeriod.code
+        } else if (order.orderType === 'EVENT' && order.EventRegistration.length > 0) {
+            const event = order.EventRegistration[0]?.Event
+            productKey = `event-${event?.slug || 'unknown'}`
+            productName = event?.title || 'Event'
+            productCode = event?.slug || 'unknown'
+        } else if (order.orderType === 'MEMBERSHIP' && order.Membership.length > 0) {
+            const tier = order.Membership[0]?.MembershipTier
+            productKey = `membership-${tier?.name || 'unknown'}`
+            productName = `Membership: ${tier?.name || 'Unknown'}`
+            productCode = tier?.name || 'unknown'
+        } else {
+            productKey = `other-${order.id}`
+            productName = 'Other'
+            productCode = 'other'
+        }
+        
+        if (!acc[productKey]) {
+            acc[productKey] = {
+                periodName: productName,
+                periodCode: productCode,
                 grossRevenue: 0,
                 netRevenue: 0,
                 mvaAmount: 0,
@@ -252,13 +393,13 @@ export async function getOrgRevenueWithMVA(organizerId: string) {
             }
         }
         
-        acc[periodId].grossRevenue += order.totalCents
-        acc[periodId].netRevenue += order.subtotalAfterDiscountCents
-        acc[periodId].mvaAmount += order.mvaCents
-        acc[periodId].orderCount += 1
+        acc[productKey].grossRevenue += order.totalCents
+        acc[productKey].netRevenue += order.subtotalAfterDiscountCents
+        acc[productKey].mvaAmount += order.mvaCents
+        acc[productKey].orderCount += 1
         
         return acc
     }, {} as Record<string, any>)
 
-    return Object.values(revenueByPeriod)
+    return Object.values(revenueByProduct)
 }
