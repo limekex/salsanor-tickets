@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays } from 'lucide-react'
+import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from './ui/button'
 import {
@@ -26,6 +26,7 @@ const navItems = [
     { href: '/staffadmin/users', label: 'Users', icon: Users },
     { href: '/staffadmin/registrations', label: 'Registrations', icon: ClipboardList },
     { href: '/staffadmin/orders', label: 'Orders', icon: Package },
+    { href: '/staffadmin/finance', label: 'Finance', icon: Coins },
 ]
 
 const productItems = [

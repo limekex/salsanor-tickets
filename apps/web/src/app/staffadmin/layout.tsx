@@ -49,10 +49,12 @@ export default async function StaffAdminLayout({
         }
     })
 
-    const hasOrgAdminRole = userAccount?.UserAccountRole.some(r => r.role === 'ORG_ADMIN')
+    const hasOrgAdminRole = userAccount?.UserAccountRole.some(
+        r => r.role === 'ORG_ADMIN' || r.role === 'ORG_FINANCE'
+    )
     
     if (!hasOrgAdminRole) {
-        throw new Error('Unauthorized: Organization admin access required')
+        throw new Error('Unauthorized: Organization admin or finance access required')
     }
 
     return (
