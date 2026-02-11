@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins } from 'lucide-react'
+import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins, Download } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import {
@@ -27,8 +27,14 @@ const navItems = [
     { href: '/staffadmin', label: 'Dashboard', icon: LayoutDashboard, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/users', label: 'Users', icon: Users, roles: ['ORG_ADMIN'] },
     { href: '/staffadmin/registrations', label: 'Registrations', icon: ClipboardList, roles: ['ORG_ADMIN'] },
+]
+
+const financeItems = [
+    { href: '/staffadmin/finance', label: 'Finance Dashboard', icon: LayoutDashboard, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
+    { href: '/staffadmin/finance/revenue', label: 'Revenue Reports', icon: Tag, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
+    { href: '/staffadmin/finance/payments', label: 'Payment Status', icon: CreditCard, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
+    { href: '/staffadmin/finance/export', label: 'Export Data', icon: Download, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/orders', label: 'Orders', icon: Package, roles: ['ORG_ADMIN'] },
-    { href: '/staffadmin/finance', label: 'Finance', icon: Coins, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
 ]
 
 const productItems = [
@@ -64,12 +70,21 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
         item.roles.some(role => roles.includes(role))
     )
     
+    const visibleFinanceItems = financeItems.filter(item =>
+        item.roles.some(role => roles.includes(role))
+    )
+    
     const visibleProductItems = productItems.filter(item =>
         item.roles.some(role => roles.includes(role))
     )
     
     // Check if any product page is active
     const isProductsActive = visibleProductItems.some(item => 
+        pathname === item.href || pathname.startsWith(item.href + '/')
+    )
+    
+    // Check if any finance page is active
+    const isFinanceActive = visibleFinanceItems.some(item => 
         pathname === item.href || pathname.startsWith(item.href + '/')
     )
     
@@ -124,6 +139,44 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                                 </Link>
                             )
                         })}
+
+                        {/* Finance Dropdown - only show if there are visible finance items */}
+                        {mounted && visibleFinanceItems.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger 
+                                    className={cn(
+                                        "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                        isFinanceActive
+                                            ? "bg-rn-primary text-white"
+                                            : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
+                                    )}
+                                >
+                                    <Coins className="h-4 w-4" />
+                                    Finance
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    {visibleFinanceItems.map((item) => {
+                                        const Icon = item.icon
+                                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+                                        return (
+                                            <DropdownMenuItem key={item.href} asChild>
+                                                <Link
+                                                    href={item.href}
+                                                    className={cn(
+                                                        "flex items-center gap-rn-2 cursor-pointer",
+                                                        isActive && "bg-rn-surface-2"
+                                                    )}
+                                                >
+                                                    <Icon className="h-4 w-4" />
+                                                    {item.label}
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )
+                                    })}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
 
                         {/* Products Dropdown - only show if there are visible product items */}
                         {mounted && visibleProductItems.length > 0 && (
@@ -238,6 +291,34 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                                             </Link>
                                         )
                                     })}
+
+                                    {/* Finance Section - only show if there are visible finance items */}
+                                    {visibleFinanceItems.length > 0 && (
+                                        <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
+                                            <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Finance</p>
+                                            {visibleFinanceItems.map((item) => {
+                                                const Icon = item.icon
+                                                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        onClick={() => setMobileMenuOpen(false)}
+                                                        className={cn(
+                                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                            isActive
+                                                                ? "bg-rn-primary text-white"
+                                                                : "text-rn-text hover:bg-rn-surface-2"
+                                                        )}
+                                                    >
+                                                        <Icon className="h-5 w-5" />
+                                                        {item.label}
+                                                    </Link>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
 
                                     {/* Products Section - only show if there are visible product items */}
                                     {visibleProductItems.length > 0 && (

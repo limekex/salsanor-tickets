@@ -1,10 +1,10 @@
-import { getSelectedOrganizerForFinance } from '@/utils/auth-org-finance'
+import { getSelectedOrganizerForFinance, requireOrgFinance } from '@/utils/auth-org-finance'
 import { getOrgFinancialSummary, getOrgRevenueByPeriod, getOrgPaidRegistrations } from '@/app/actions/staffadmin-finance'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DownloadIcon } from 'lucide-react'
+import { DownloadIcon, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { formatNOK } from '@/lib/tickets/legal-requirements'
 import { formatDateNumeric } from '@/lib/formatters'
@@ -12,6 +12,12 @@ import { formatDateNumeric } from '@/lib/formatters'
 export default async function StaffFinancePage() {
     // Get selected organization (from cookie or first available)
     const organizerId = await getSelectedOrganizerForFinance()
+    
+    // Check if user has ORG_ADMIN role for showing order details button
+    const userAccount = await requireOrgFinance()
+    const isOrgAdmin = userAccount.UserAccountRole.some(role => 
+        role.role === 'ORG_ADMIN' && role.organizerId === organizerId
+    )
     
     const summary = await getOrgFinancialSummary(organizerId)
     const revenueByPeriod = await getOrgRevenueByPeriod(organizerId)
@@ -124,11 +130,13 @@ export default async function StaffFinancePage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Order ID</TableHead>
+                                <TableHead>Order Number</TableHead>
+                                <TableHead>Order Type</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 <TableHead>Status</TableHead>
+                                {isOrgAdmin && <TableHead>Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -144,15 +152,36 @@ export default async function StaffFinancePage() {
                                     productName = 'Other'
                                 }
                                 
+                                // Format order type for display
+                                const orderTypeDisplay = order.orderType === 'COURSE_PERIOD' 
+                                    ? 'Period' 
+                                    : order.orderType === 'EVENT' 
+                                    ? 'Event' 
+                                    : 'Membership'
+                                
                                 return (
                                     <TableRow key={order.id}>
-                                        <TableCell className="font-mono text-sm">{order.id.slice(0, 8)}</TableCell>
+                                        <TableCell className="font-mono text-sm font-medium">
+                                            {order.orderNumber || order.id.slice(0, 8)}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">{orderTypeDisplay}</Badge>
+                                        </TableCell>
                                         <TableCell>{formatDateNumeric(order.createdAt)}</TableCell>
                                         <TableCell>{productName}</TableCell>
                                         <TableCell className="text-right font-medium">{formatNOK(order.totalCents)}</TableCell>
                                         <TableCell>
                                             <Badge variant="default">Paid</Badge>
                                         </TableCell>
+                                        {isOrgAdmin && (
+                                            <TableCell>
+                                                <Button asChild variant="ghost" size="sm">
+                                                    <Link href={`/staffadmin/orders/${order.id}`}>
+                                                        <ExternalLink className="h-4 w-4" />
+                                                    </Link>
+                                                </Button>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 )
                             })}
