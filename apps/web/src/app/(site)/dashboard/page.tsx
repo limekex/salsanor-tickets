@@ -320,7 +320,7 @@ export default async function DashboardPage() {
                                         )}
                                         {role === 'ORG_FINANCE' && (
                                             <Button asChild className="w-full" variant="outline">
-                                                <Link href={`/admin`}>View Reports</Link>
+                                                <Link href={`/staffadmin/finance`}>View Reports</Link>
                                             </Button>
                                         )}
                                         {role === 'INSTRUCTOR' && (
