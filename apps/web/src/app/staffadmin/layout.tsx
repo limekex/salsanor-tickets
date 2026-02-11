@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { StaffAdminNav } from '@/components/staff-admin-nav'
+import { OrgAutoSelector } from '@/components/org-auto-selector'
 import { Toaster } from "sonner";
 import { getStaffAdminSelectedOrg, setStaffAdminSelectedOrg } from '@/utils/staff-admin-org-context'
 
@@ -80,15 +81,18 @@ export default async function StaffAdminLayout({
             index === self.findIndex(o => o.id === org.id)
         )
 
-    // Get or set current organization
+    // Get current organization from cookie (don't set it here)
     let currentOrgId = await getStaffAdminSelectedOrg()
     
-    // If no org selected or selected org not in user's orgs, use first org
-    if (!currentOrgId || !organizers.some(org => org.id === currentOrgId)) {
-        if (organizers.length > 0) {
-            currentOrgId = organizers[0].id
-            await setStaffAdminSelectedOrg(currentOrgId)
-        }
+    // Validate that selected org is in user's orgs
+    if (currentOrgId && !organizers.some(org => org.id === currentOrgId)) {
+        currentOrgId = null
+    }
+    
+    // If no org selected and only one org available, use it as default
+    // Otherwise, let the user select from the dropdown
+    if (!currentOrgId && organizers.length === 1) {
+        currentOrgId = organizers[0].id
     }
 
     return (
@@ -101,6 +105,11 @@ export default async function StaffAdminLayout({
                     <StaffAdminNav 
                         organizers={organizers}
                         currentOrgId={currentOrgId}
+                        onOrgChange={handleOrgChange}
+                    />
+                    <OrgAutoSelector 
+                        currentOrgId={currentOrgId}
+                        organizers={organizers}
                         onOrgChange={handleOrgChange}
                     />
                     <main className="container mx-auto py-6">
