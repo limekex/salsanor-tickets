@@ -233,6 +233,15 @@ npm start
 # Development server
 npm run dev
 
+# Development server (with clean build cache)
+npm run dev:clean
+
+# Development server (using webpack instead of turbopack)
+npm run dev:webpack
+
+# Clean build cache
+npm run clean
+
 # Build for production
 npm run build
 
@@ -256,8 +265,17 @@ npx prisma studio
 ## 📚 Documentation
 
 - **[Technical Specification](docs/spec.md)**: Comprehensive system design and requirements
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)**: Solutions for common development issues
 - **[Prisma Schema](packages/database/prisma/schema.prisma)**: Database schema documentation
 - **[API Documentation]**: Coming soon
+
+### Common Issues
+
+Having problems with the development server? Check the [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for solutions to:
+- Turbopack corruption errors
+- Build cache issues
+- Database connection problems
+- TypeScript errors
 
 ## 🤝 Contributing
 
