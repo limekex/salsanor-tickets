@@ -251,6 +251,10 @@ export async function exportFinancialData(format: 'csv' | 'json' = 'csv') {
         mvaRate: Number(order.mvaRate),
         mvaCents: order.mvaCents,
         totalCents: order.totalCents,
+        // Fee data from payment
+        stripeFeeCents: order.Payment[0]?.stripeFeeCents || null,
+        platformFeeCents: order.Payment[0]?.platformFeeCents || null,
+        netAmountCents: order.Payment[0]?.netAmountCents || null,
         currency: order.currency,
         status: order.status,
         registrationCount: order.Registration.length,
@@ -280,6 +284,9 @@ export async function exportFinancialData(format: 'csv' | 'json' = 'csv') {
         'MVA Rate (%)',
         'MVA Amount (NOK)',
         'Total (NOK)',
+        'Stripe Fee (NOK)',
+        'Platform Fee (NOK)',
+        'Net Amount (NOK)',
         'Status',
         'Registrations',
         'Payment Provider',
@@ -289,24 +296,38 @@ export async function exportFinancialData(format: 'csv' | 'json' = 'csv') {
 
     const csvRows = [
         headers.join(','),
-        ...exportData.map(row => [
-            row.orderId,
-            `"${row.organizerName}"`,
-            row.organizerOrgNr,
-            `"${row.periodName}"`,
-            row.periodCode,
-            (row.subtotalCents / 100).toFixed(2),
-            (row.discountCents / 100).toFixed(2),
-            (row.subtotalAfterDiscountCents / 100).toFixed(2),
-            row.mvaRate.toFixed(2),
-            (row.mvaCents / 100).toFixed(2),
-            (row.totalCents / 100).toFixed(2),
-            row.status,
-            row.registrationCount,
-            row.paymentProvider || '',
-            row.paymentStatus || '',
-            row.createdAt
-        ].join(','))
+        ...exportData.map(row => {
+            // Import escapeCSV dynamically to avoid import at top level for server action
+            const escapeCSV = (value: string | number | null | undefined): string => {
+                if (value === null || value === undefined) return ''
+                const str = String(value)
+                if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+                    return `"${str.replace(/"/g, '""')}"`
+                }
+                return str
+            }
+            return [
+                escapeCSV(row.orderId),
+                escapeCSV(row.organizerName),
+                escapeCSV(row.organizerOrgNr),
+                escapeCSV(row.periodName),
+                escapeCSV(row.periodCode),
+                (row.subtotalCents / 100).toFixed(2),
+                (row.discountCents / 100).toFixed(2),
+                (row.subtotalAfterDiscountCents / 100).toFixed(2),
+                row.mvaRate.toFixed(2),
+                (row.mvaCents / 100).toFixed(2),
+                (row.totalCents / 100).toFixed(2),
+                row.stripeFeeCents ? (row.stripeFeeCents / 100).toFixed(2) : '',
+                row.platformFeeCents ? (row.platformFeeCents / 100).toFixed(2) : '',
+                row.netAmountCents ? (row.netAmountCents / 100).toFixed(2) : '',
+                escapeCSV(row.status),
+                row.registrationCount,
+                escapeCSV(row.paymentProvider),
+                escapeCSV(row.paymentStatus),
+                escapeCSV(row.createdAt)
+            ].join(',')
+        })
     ]
 
     return {

@@ -1,4 +1,4 @@
-import { getFinancialOverview } from '@/app/actions/finance'
+import { getFilteredFinancialOverview } from '@/app/actions/admin-finance'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
     Table,
@@ -9,9 +9,10 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { DownloadIcon } from 'lucide-react'
-import Link from 'next/link'
+import { DateRangeFilter } from '@/components/finance/date-range-filter'
+import { Suspense } from 'react'
+
+type SearchParams = Promise<{ from?: string; to?: string; preset?: string }>
 
 function formatCurrency(cents: number) {
     return new Intl.NumberFormat('nb-NO', {
@@ -22,31 +23,13 @@ function formatCurrency(cents: number) {
     }).format(cents / 100)
 }
 
-export default async function FinancePage() {
-    const data = await getFinancialOverview()
+async function OverviewContent({ filter }: { filter: { from?: string; to?: string } }) {
+    const data = await getFilteredFinancialOverview(filter)
 
     return (
         <div className="space-y-rn-6">
-            <div className="flex items-center justify-between">
-                <h2 className="rn-h2">Financial Reports</h2>
-                <div className="flex gap-rn-2">
-                    <Button asChild variant="outline" size="sm">
-                        <Link href="/api/admin/export/finance?format=csv">
-                            <DownloadIcon className="mr-2 h-4 w-4" />
-                            Export CSV
-                        </Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm">
-                        <Link href="/api/admin/export/finance?format=json">
-                            <DownloadIcon className="mr-2 h-4 w-4" />
-                            Export JSON
-                        </Link>
-                    </Button>
-                </div>
-            </div>
-
             {/* Overview Cards */}
-            <div className="grid gap-rn-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-rn-4 md:grid-cols-2 lg:grid-cols-5">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-rn-2">
                         <CardTitle className="rn-meta">Total Revenue</CardTitle>
@@ -94,11 +77,25 @@ export default async function FinancePage() {
                         <CardTitle className="text-sm font-medium">Discounts Given</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {formatCurrency(data.overview.totalDiscountsGiven)}
+                        <div className="text-2xl font-bold text-rn-warning">
+                            {formatCurrency(data.overview.totalDiscounts)}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            In {data.discounts.orderCount} orders
+                            Total discounts
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">VAT</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-rn-primary">
+                            {formatCurrency(data.overview.totalMva)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Output VAT collected
                         </p>
                     </CardContent>
                 </Card>
@@ -238,24 +235,45 @@ export default async function FinancePage() {
                         <div className="grid grid-cols-3 gap-4">
                             <div>
                                 <p className="text-sm text-muted-foreground">Total Discounts</p>
-                                <p className="text-2xl font-bold">
-                                    {formatCurrency(data.discounts.totalGiven)}
+                                <p className="text-2xl font-bold text-rn-warning">
+                                    {formatCurrency(data.overview.totalDiscounts)}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Orders with Discount</p>
-                                <p className="text-2xl font-bold">{data.discounts.orderCount}</p>
+                                <p className="text-sm text-muted-foreground">Total Orders</p>
+                                <p className="text-2xl font-bold">{data.overview.totalOrders}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Average Discount</p>
+                                <p className="text-sm text-muted-foreground">Average Order Value</p>
                                 <p className="text-2xl font-bold">
-                                    {formatCurrency(data.discounts.averageDiscount)}
+                                    {formatCurrency(data.overview.averageOrderValue)}
                                 </p>
                             </div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
+        </div>
+    )
+}
+
+export default async function FinancePage({ searchParams }: { searchParams: SearchParams }) {
+    const params = await searchParams
+    const filter = {
+        from: params.from,
+        to: params.to
+    }
+
+    return (
+        <div className="space-y-rn-6">
+            {/* Date Filter */}
+            <Suspense fallback={<div className="h-10" />}>
+                <DateRangeFilter />
+            </Suspense>
+
+            <Suspense fallback={<div className="text-center py-8 text-muted-foreground">Loading financial data...</div>}>
+                <OverviewContent filter={filter} />
+            </Suspense>
         </div>
     )
 }

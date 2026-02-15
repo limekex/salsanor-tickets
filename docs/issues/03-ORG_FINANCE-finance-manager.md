@@ -1,8 +1,8 @@
 # Role Implementation: ORG_FINANCE (Finance Manager)
 
-**Status**: 🟡 IN PROGRESS  
+**Status**: � MVP COMPLETE  
 **Priority**: 🔥 HIGH - Required for MVP  
-**Last Updated**: February 11, 2026
+**Last Updated**: February 16, 2026
 
 ## 🎯 Overview
 
@@ -39,10 +39,10 @@ The Finance Manager role provides read-only access to financial data, reports, a
 ### Phase 1: Core Finance Portal (Required for MVP)
 
 #### 1.1 Navigation & Access
-- [ ] Add "Finance" menu item in `staff-admin-nav.tsx` for ORG_FINANCE role
-- [ ] Create `/staffadmin/finance` route with layout
-- [ ] Create auth utility `requireOrgFinance()` in `/utils/auth-org-finance.ts`
-- [ ] Ensure ORG_ADMIN also has access to finance views
+- [x] Add "Finance" menu item in `staff-admin-nav.tsx` for ORG_FINANCE role
+- [x] Create `/staffadmin/finance` route with layout
+- [x] Create auth utility `requireOrgFinance()` in `/utils/auth-org-finance.ts`
+- [x] Ensure ORG_ADMIN also has access to finance views
 
 #### 1.2 Server Actions - Create `/app/actions/staffadmin-finance.ts`
 
@@ -87,11 +87,11 @@ All functions MUST:
 ### Phase 2: Detailed Reports (Required for MVP)
 
 #### 2.1 Revenue Reports - `/staffadmin/finance/revenue/page.tsx`
-- [ ] Revenue by date range (with date picker)
-- [ ] Revenue by course period
-- [ ] Revenue by track/course
-- [ ] Revenue by payment method (Stripe)
-- [ ] MVA (VAT) breakdown table
+- [x] Revenue by date range (with date picker)
+- [x] Revenue by course period
+- [x] Revenue by track/course
+- [x] Revenue by payment method (Stripe)
+- [x] MVA (VAT) breakdown table
 
 **MVA Breakdown Table (MANDATORY for Norwegian law):**
 | Column | Description |
@@ -103,26 +103,26 @@ All functions MUST:
 | MVA Amount | Calculated VAT |
 
 #### 2.2 Payment Status - `/staffadmin/finance/payments/page.tsx`
-- [ ] List all payments with status filter
-- [ ] Filter: SUCCEEDED, PENDING, FAILED, REFUNDED
-- [ ] Show Stripe payment ID for reference
-- [ ] Show payment date and amount
+- [x] List all payments with status filter
+- [x] Filter: SUCCEEDED, PENDING, FAILED, REFUNDED
+- [x] Show Stripe payment ID for reference
+- [x] Show payment date and amount
 
 #### 2.3 Registration Payments - `/staffadmin/finance/registrations/page.tsx`
-- [ ] List paid registrations
-- [ ] Filter by period, track, date range
-- [ ] Show: participant name, track, amount, payment date
-- [ ] Link to full order details
+- [x] List paid registrations
+- [x] Filter by period, track, date range
+- [x] Show: participant name, track, amount, payment date
+- [x] Link to full order details
 
 ---
 
 ### Phase 3: Export & Compliance (Required for MVP)
 
 #### 3.1 Data Export - `/staffadmin/finance/export/page.tsx`
-- [ ] Export button with format selection (CSV/Excel)
-- [ ] Date range filter for export
-- [ ] Period/track filter for export
-- [ ] Generate compliant export file
+- [x] Export button with format selection (CSV/Excel)
+- [x] Date range filter for export
+- [x] Period/track filter for export
+- [x] Generate compliant export file
 
 **Export File MUST Include (Norwegian Bokføringsloven):**
 ```
@@ -133,10 +133,10 @@ Total (NOK), Payment Method, Payment Date, Stripe ID
 ```
 
 #### 3.2 API Route for Export - `/api/staffadmin/export/finance/route.ts`
-- [ ] Validate ORG_FINANCE or ORG_ADMIN role
-- [ ] Support CSV and JSON formats
-- [ ] Include all legally required fields
-- [ ] Set correct Content-Type and filename headers
+- [x] Validate ORG_FINANCE or ORG_ADMIN role
+- [x] Support CSV and JSON formats
+- [x] Include all legally required fields
+- [x] Set correct Content-Type and filename headers
 
 ---
 
@@ -294,16 +294,16 @@ User (ORG_FINANCE)
 
 ## ✅ Definition of Done
 
-- [ ] All routes accessible with ORG_FINANCE role
-- [ ] All routes ALSO accessible with ORG_ADMIN role
-- [ ] Data filtered to only user's organization
-- [ ] All monetary values use `formatNOK()`
-- [ ] All dates use `formatDateNO()`
-- [ ] MVA breakdown table shows correct VAT calculations
-- [ ] Export includes all legally required fields
+- [x] All routes accessible with ORG_FINANCE role
+- [x] All routes ALSO accessible with ORG_ADMIN role
+- [x] Data filtered to only user's organization
+- [x] All monetary values use `formatNOK()`
+- [x] All dates use `formatDateNO()`
+- [x] MVA breakdown table shows correct VAT calculations
+- [x] Export includes all legally required fields
 - [ ] TypeScript compiles without errors (`npx tsc --noEmit`)
 - [ ] Test user `finance@salsanor.no` can access all features
-- [ ] Read-only: no create/edit/delete operations available
+- [x] Read-only: no create/edit/delete operations available
 
 ---
 

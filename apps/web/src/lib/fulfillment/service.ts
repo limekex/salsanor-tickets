@@ -3,7 +3,24 @@ import { prisma } from '@/lib/db'
 import { randomUUID } from 'crypto'
 import { generateQRToken } from '@/lib/tickets/qr-generator'
 
-export async function fulfillOrder(orderId: string, providerRef: string, stripeChargeId?: string, stripeTransactionId?: string) {
+export interface StripePaymentDetails {
+    paymentIntentId?: string
+    paymentMethodId?: string
+    paymentMethodType?: string
+    cardBrand?: string
+    cardLast4?: string
+    cardFingerprint?: string
+    customerId?: string
+}
+
+export async function fulfillOrder(
+    orderId: string, 
+    providerRef: string, 
+    stripeChargeId?: string, 
+    stripeTransactionId?: string,
+    platformFeeCents?: number,
+    stripeDetails?: StripePaymentDetails
+) {
     const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: { 
@@ -42,7 +59,7 @@ export async function fulfillOrder(orderId: string, providerRef: string, stripeC
             })
         }
         
-        // 2. Create Payment record
+        // 2. Create Payment record with platform fee and Stripe details
         await tx.payment.create({
             data: {
                 id: randomUUID(),
@@ -51,7 +68,15 @@ export async function fulfillOrder(orderId: string, providerRef: string, stripeC
                 providerPaymentRef: providerRef,
                 amountCents: order.totalCents,
                 status: 'SUCCEEDED',
-                rawPayload: {}, // could store webhook body if passed
+                rawPayload: {},
+                platformFeeCents: platformFeeCents || null,
+                stripePaymentIntentId: stripeDetails?.paymentIntentId || null,
+                stripePaymentMethodId: stripeDetails?.paymentMethodId || null,
+                stripePaymentMethodType: stripeDetails?.paymentMethodType || null,
+                stripeCardBrand: stripeDetails?.cardBrand || null,
+                stripeCardLast4: stripeDetails?.cardLast4 || null,
+                stripeCardFingerprint: stripeDetails?.cardFingerprint || null,
+                stripeCustomerId: stripeDetails?.customerId || null,
             }
         })
         

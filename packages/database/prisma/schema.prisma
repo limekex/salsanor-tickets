@@ -574,18 +574,32 @@ model PairGroup {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Payment {
-  id                 String          @id @default(uuid())
-  orderId            String
-  provider           PaymentProvider
-  providerPaymentRef String
-  status             PaymentStatus
-  amountCents        Int
-  currency           String          @default("NOK")
-  rawPayload         Json
-  createdAt          DateTime        @default(now())
-  Order              Order           @relation(fields: [orderId], references: [id])
+  id                         String          @id @default(uuid())
+  orderId                    String
+  provider                   PaymentProvider
+  providerPaymentRef         String
+  status                     PaymentStatus
+  amountCents                Int
+  currency                   String          @default("NOK")
+  rawPayload                 Json
+  createdAt                  DateTime        @default(now())
+  // Platform fee tracking for Stripe Connect
+  platformFeeCents           Int?            // Application fee collected by platform
+  stripeFeeCents             Int?            // Stripe processing fee (from balance transaction)
+  netAmountCents             Int?            // Amount transferred to connected account
+  stripeBalanceTransactionId String?         // For reconciliation with Stripe
+  // Stripe payment method details
+  stripePaymentIntentId      String?         // pi_xxx
+  stripePaymentMethodId      String?         // pm_xxx  
+  stripePaymentMethodType    String?         // card, klarna, vipps, etc.
+  stripeCardBrand            String?         // visa, mastercard, etc.
+  stripeCardLast4            String?         // Last 4 digits
+  stripeCardFingerprint      String?         // Card fingerprint for fraud detection
+  stripeCustomerId           String?         // cus_xxx - Stripe customer ID
+  Order                      Order           @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
+  @@index([createdAt])
 }
 
 model PaymentConfig {

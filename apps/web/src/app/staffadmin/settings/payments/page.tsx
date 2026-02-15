@@ -84,11 +84,13 @@ export default async function StaffAdminPaymentsPage() {
         select: {
             useStripeConnect: true,
             enabled: true,
-            publishableKey: true,
         }
     })
 
     const isStripeConnectEnabled = paymentConfig?.enabled && paymentConfig?.useStripeConnect
+    
+    // Use environment variable for publishable key (not stored in database)
+    const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 
     return (
         <div className="space-y-6">
@@ -261,7 +263,7 @@ export default async function StaffAdminPaymentsPage() {
                         </Card>
 
                         {/* Embedded Stripe Connect Components */}
-                        {paymentConfig.publishableKey && (
+                        {stripePublishableKey && (
                             <Card>
                                 <CardHeader>
                                     <CardTitle>
@@ -277,12 +279,12 @@ export default async function StaffAdminPaymentsPage() {
                                     {hasStripeAccount && isOnboardingComplete ? (
                                         <StripeEmbeddedManagement 
                                             organizerId={organizer.id}
-                                            publishableKey={paymentConfig.publishableKey}
+                                            publishableKey={stripePublishableKey}
                                         />
                                     ) : (
                                         <StripeEmbeddedOnboarding 
                                             organizerId={organizer.id}
-                                            publishableKey={paymentConfig.publishableKey}
+                                            publishableKey={stripePublishableKey}
                                         />
                                     )}
                                 </CardContent>

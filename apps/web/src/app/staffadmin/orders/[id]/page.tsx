@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { ArrowLeft, Package, User, Calendar, CreditCard, FileText } from 'lucide-react'
+import { ArrowLeft, Package, Calendar, CreditCard, FileText, Download } from 'lucide-react'
 import { notFound } from 'next/navigation'
-import { formatDateNO, formatDateTimeNO, formatNOK } from '@/lib/tickets/legal-requirements'
+import { formatDateTimeNO, formatNOK } from '@/lib/tickets/legal-requirements'
 import { SendOrderEmails } from '../send-order-emails'
-import { getAdminSelectedOrg } from '@/utils/admin-org-context'
+import { getStaffAdminSelectedOrg } from '@/utils/staff-admin-org-context'
+import { SyncStripeFeesButton } from './sync-stripe-fees-button'
 
 const statusColors = {
     DRAFT: 'bg-gray-500',
@@ -34,8 +35,8 @@ export default async function StaffAdminOrderDetailPage({ params }: OrderDetailP
     const userAccount = await requireOrgAdmin()
     const { id } = await params
     
-    // For ORG_ADMIN, automatically use their organization
-    let organizerId = await getAdminSelectedOrg()
+    // Get selected org from staffadmin context (cookie)
+    let organizerId = await getStaffAdminSelectedOrg()
     
     if (!organizerId && userAccount.UserAccountRole.length > 0) {
         organizerId = userAccount.UserAccountRole[0].organizerId
@@ -52,7 +53,7 @@ export default async function StaffAdminOrderDetailPage({ params }: OrderDetailP
     const order = await prisma.order.findUnique({
         where: { 
             id,
-            organizerId, // Ensure the order belongs to the selected org
+            organizerId,
         },
         include: {
             PersonProfile: {
@@ -108,246 +109,312 @@ export default async function StaffAdminOrderDetailPage({ params }: OrderDetailP
         notFound()
     }
 
-    function getStatusBadge(status: string) {
-        return (
-            <Badge className={statusColors[status as keyof typeof statusColors]}>
-                {statusLabels[status as keyof typeof statusLabels]}
-            </Badge>
-        )
-    }
+    const purchaserEmail = order.PersonProfile.UserAccount?.email || order.PersonProfile.email
 
     return (
         <div className="space-y-rn-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-rn-4">
-                    <Button asChild variant="ghost" size="icon">
-                        <Link href="/staffadmin/orders">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Link>
-                    </Button>
-                    <div>
-                        <div className="flex items-center gap-rn-3">
-                            <Package className="h-6 w-6 text-rn-primary" />
-                            <h1 className="rn-h2">Order #{order.orderNumber || order.id.slice(0, 8)}</h1>
-                        </div>
-                        <p className="rn-meta text-rn-text-muted mt-1">
-                            {formatDateNO(order.createdAt)} • {order.Organizer.name}
-                        </p>
-                    </div>
+            {/* Header */}
+            <div className="flex items-center gap-rn-4">
+                <Button asChild variant="ghost" size="sm">
+                    <Link href="/staffadmin/orders">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back
+                    </Link>
+                </Button>
+                <div className="flex-1">
+                    <h1 className="rn-h2">Order {order.orderNumber || order.id.slice(0, 8)}</h1>
+                    <p className="rn-meta text-rn-text-muted">
+                        Created {formatDateTimeNO(order.createdAt)}
+                    </p>
                 </div>
+                <Badge className={`${statusColors[order.status as keyof typeof statusColors]} text-base px-4 py-1`}>
+                    {statusLabels[order.status as keyof typeof statusLabels]}
+                </Badge>
             </div>
 
-            {/* Order Info and Customer Info */}
-            <div className="grid gap-rn-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center gap-rn-2">
-                            <Package className="h-5 w-5 text-rn-text-muted" />
-                            <CardTitle>Order Information</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-rn-4">
-                        <div>
-                            <p className="text-sm text-rn-text-muted mb-rn-1">Status</p>
-                            {getStatusBadge(order.status)}
-                        </div>
-                        <div>
-                            <p className="text-sm text-rn-text-muted mb-rn-1">Total Amount</p>
-                            <p className="rn-h3">{formatNOK(order.totalCents)}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-rn-text-muted mb-rn-1">Created</p>
-                            <p className="font-medium">{formatDateTimeNO(order.createdAt)}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-rn-text-muted mb-rn-1">Updated</p>
-                            <p className="font-medium">{formatDateTimeNO(order.updatedAt)}</p>
-                        </div>
-                    </CardContent>
-                </Card>
+            {/* Send Documents Section */}
+            <SendOrderEmails
+                orderId={order.id}
+                orderStatus={order.status}
+                hasInvoice={!!order.Invoice}
+                hasCreditNote={order.CreditNote.length > 0}
+                hasRegistrations={order.Registration.length > 0}
+                hasEventRegistrations={order.EventRegistration.length > 0}
+                purchaserEmail={purchaserEmail || 'No email'}
+            />
 
+            {/* Row 1: Order Info + Buyer (1/2), Registrations (1/2) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-rn-4">
+                {/* Order & Buyer Information */}
                 <Card>
-                    <CardHeader>
-                        <div className="flex items-center gap-rn-2">
-                            <User className="h-5 w-5 text-rn-text-muted" />
-                            <CardTitle>Customer Information</CardTitle>
-                        </div>
+                    <CardHeader className="pb-rn-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Package className="h-4 w-4" />
+                            Order Details
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-rn-4">
-                        <div>
-                            <p className="text-sm text-rn-text-muted mb-rn-1">Name</p>
-                            <p className="font-medium">
-                                {order.PersonProfile.firstName} {order.PersonProfile.lastName}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-rn-text-muted mb-rn-1">Email</p>
-                            <p className="font-medium">
-                                {order.PersonProfile.UserAccount?.email ||
-                                    order.PersonProfile.email ||
-                                    'N/A'}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-rn-text-muted mb-rn-1">Phone</p>
-                            <p className="font-medium">{order.PersonProfile.phone || 'N/A'}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Send Emails */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-rn-2">
-                        <FileText className="h-5 w-5 text-rn-text-muted" />
-                        <CardTitle>Send Emails</CardTitle>
-                    </div>
-                    <CardDescription>
-                        Manually send order emails to the customer
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <SendOrderEmails
-                        orderId={order.id}
-                        orderStatus={order.status}
-                        hasInvoice={!!order.Invoice}
-                        hasCreditNote={order.CreditNote.length > 0}
-                    />
-                </CardContent>
-            </Card>
-
-            {/* Course Registrations */}
-            {order.Registration.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Course Registrations</CardTitle>
-                        <CardDescription>{order.Registration.length} registration(s)</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-rn-3">
-                            {order.Registration.map((reg) => (
-                                <div
-                                    key={reg.id}
-                                    className="flex items-center justify-between p-rn-4 border border-rn-border rounded-lg"
-                                >
-                                    <div>
-                                        <p className="font-medium">{reg.CourseTrack.title}</p>
-                                        <p className="text-sm text-rn-text-muted">
-                                            {reg.chosenRole} • Status: {reg.status}
-                                        </p>
-                                    </div>
-                                    <Badge>{reg.status}</Badge>
+                    <CardContent className="space-y-rn-3 text-sm">
+                        {/* Order info */}
+                        <div className="space-y-rn-2">
+                            <div className="flex justify-between">
+                                <span className="text-rn-text-muted">Order Number</span>
+                                <span className="font-medium">{order.orderNumber || 'Not assigned'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-rn-text-muted">Organizer</span>
+                                <span className="font-medium">{order.Organizer.name}</span>
+                            </div>
+                            {order.CoursePeriod && (
+                                <div className="flex justify-between">
+                                    <span className="text-rn-text-muted">Period</span>
+                                    <span className="font-medium">{order.CoursePeriod.name}</span>
                                 </div>
-                            ))}
+                            )}
+                        </div>
+
+                        {/* Buyer info */}
+                        <div className="pt-rn-2 border-t border-rn-border space-y-rn-2">
+                            <div className="flex justify-between">
+                                <span className="text-rn-text-muted">Buyer</span>
+                                <span className="font-medium">
+                                    {order.PersonProfile.firstName} {order.PersonProfile.lastName}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-rn-text-muted">Email</span>
+                                <span className="font-medium truncate max-w-[200px]" title={purchaserEmail || ''}>
+                                    {purchaserEmail}
+                                </span>
+                            </div>
+                            {order.PersonProfile.phone && (
+                                <div className="flex justify-between">
+                                    <span className="text-rn-text-muted">Phone</span>
+                                    <span className="font-medium">{order.PersonProfile.phone}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Totals */}
+                        <div className="pt-rn-2 border-t border-rn-border space-y-rn-1">
+                            <div className="flex justify-between">
+                                <span className="text-rn-text-muted">Subtotal</span>
+                                <span>{formatNOK(order.subtotalCents)}</span>
+                            </div>
+                            {order.discountCents > 0 && (
+                                <div className="flex justify-between text-green-600">
+                                    <span>Discount</span>
+                                    <span>-{formatNOK(order.discountCents)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-rn-text-muted">
+                                <span>VAT ({order.mvaRate.toString()}%)</span>
+                                <span>{formatNOK(order.mvaCents)}</span>
+                            </div>
+                            <div className="flex justify-between font-bold pt-rn-1 border-t border-rn-border">
+                                <span>Total</span>
+                                <span>{formatNOK(order.totalCents)}</span>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
-            )}
 
-            {/* Event Registrations */}
-            {order.EventRegistration.length > 0 && (
+                {/* Registrations */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Event Registrations</CardTitle>
+                    <CardHeader className="pb-rn-2">
+                        <CardTitle className="text-base">
+                            {order.Registration.length > 0 ? 'Course Registrations' : 'Event Registrations'}
+                        </CardTitle>
                         <CardDescription>
-                            {order.EventRegistration.length} registration(s)
+                            {order.Registration.length > 0 
+                                ? `${order.Registration.length} registration${order.Registration.length > 1 ? 's' : ''}`
+                                : order.EventRegistration.length > 0
+                                    ? `${order.EventRegistration.length} ticket${order.EventRegistration.length > 1 ? 's' : ''}`
+                                    : 'No registrations'
+                            }
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-rn-3">
-                            {order.EventRegistration.map((reg) => (
-                                <div
-                                    key={reg.id}
-                                    className="flex items-center justify-between p-rn-4 border border-rn-border rounded-lg"
-                                >
-                                    <div>
-                                        <p className="font-medium">{reg.Event.title}</p>
-                                        <p className="text-sm text-rn-text-muted">
-                                            {formatDateTimeNO(reg.Event.startDateTime)} •{' '}
-                                            {reg.Event.locationName || 'No location'}
-                                        </p>
-                                    </div>
-                                    <Badge>{reg.status}</Badge>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Payment History and Documents */}
-            <div className="grid gap-rn-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center gap-rn-2">
-                            <CreditCard className="h-5 w-5 text-rn-text-muted" />
-                            <CardTitle>Payment History</CardTitle>
-                        </div>
-                        <CardDescription>
-                            {order.Payment.length} payment(s)
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {order.Payment.length === 0 ? (
-                            <p className="text-sm text-rn-text-muted">No payments yet</p>
-                        ) : (
-                            <div className="space-y-rn-3">
-                                {order.Payment.map((payment) => (
-                                    <div
-                                        key={payment.id}
-                                        className="flex items-center justify-between p-rn-4 border border-rn-border rounded-lg"
-                                    >
+                        {(order.Registration.length > 0 || order.EventRegistration.length > 0) ? (
+                            <div className="grid gap-rn-2">
+                                {order.Registration.map((reg) => (
+                                    <div key={reg.id} className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg">
                                         <div>
-                                            <p className="font-medium">{formatNOK(payment.amountCents)}</p>
+                                            <p className="font-medium">{reg.CourseTrack.title}</p>
+                                            <p className="text-xs text-rn-text-muted">{reg.chosenRole}</p>
+                                        </div>
+                                        <Badge variant="outline">{reg.status}</Badge>
+                                    </div>
+                                ))}
+                                {order.EventRegistration.map((reg) => (
+                                    <div key={reg.id} className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg">
+                                        <div>
+                                            <p className="font-medium">{reg.Event.title}</p>
                                             <p className="text-sm text-rn-text-muted">
-                                                {formatDateTimeNO(payment.createdAt)}
+                                                <Calendar className="inline h-3 w-3 mr-1" />
+                                                {formatDateTimeNO(reg.Event.startDateTime)}
+                                                {reg.Event.locationName && ` • ${reg.Event.locationName}`}
                                             </p>
                                         </div>
-                                        <Badge>{payment.status}</Badge>
+                                        <Badge variant="outline">{reg.status}</Badge>
                                     </div>
                                 ))}
                             </div>
+                        ) : (
+                            <p className="text-sm text-rn-text-muted">No registrations found</p>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Row 2: Payments (1/2), Documents (1/2) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-rn-4">
+                {/* Payments */}
+                <Card>
+                    <CardHeader className="pb-rn-2">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <CreditCard className="h-4 w-4" />
+                                Payments
+                            </CardTitle>
+                            <SyncStripeFeesButton 
+                                orderId={order.id} 
+                                hasFees={order.Payment.some(p => p.stripeFeeCents !== null)} 
+                            />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {order.Payment.length > 0 ? (
+                            <div className="space-y-rn-3">
+                                {order.Payment.map((payment) => (
+                                    <div key={payment.id} className="p-rn-3 border border-rn-border rounded-lg space-y-rn-2">
+                                        {/* Header with amount and status */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium">{formatNOK(payment.amountCents)}</span>
+                                            <Badge variant="outline">{payment.status}</Badge>
+                                        </div>
+                                        
+                                        {/* Payment details */}
+                                        <div className="text-xs space-y-rn-1 text-rn-text-muted">
+                                            <div className="flex justify-between">
+                                                <span>Date</span>
+                                                <span>{formatDateTimeNO(payment.createdAt)}</span>
+                                            </div>
+                                            
+                                            {payment.stripePaymentIntentId && (
+                                                <div className="flex justify-between">
+                                                    <span>Payment ID</span>
+                                                    <span className="font-mono">{payment.stripePaymentIntentId}</span>
+                                                </div>
+                                            )}
+                                            
+                                            {payment.stripePaymentMethodType && (
+                                                <div className="flex justify-between">
+                                                    <span>Method</span>
+                                                    <span className="capitalize">{payment.stripePaymentMethodType}</span>
+                                                </div>
+                                            )}
+                                            
+                                            {payment.stripeCardLast4 && (
+                                                <div className="flex justify-between">
+                                                    <span>Card</span>
+                                                    <span className="capitalize">
+                                                        {payment.stripeCardBrand} •••• {payment.stripeCardLast4}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            
+                                            {!payment.stripePaymentIntentId && payment.providerPaymentRef && (
+                                                <div className="flex justify-between">
+                                                    <span>Ref</span>
+                                                    <span className="font-mono truncate max-w-[200px]">{payment.providerPaymentRef}</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Fee breakdown */}
+                                        {(payment.platformFeeCents || payment.stripeFeeCents) && (
+                                            <div className="pt-rn-2 border-t border-rn-border text-xs space-y-rn-1">
+                                                {payment.stripeFeeCents && (
+                                                    <div className="flex justify-between text-rn-text-muted">
+                                                        <span>Stripe Fee</span>
+                                                        <span>-{formatNOK(payment.stripeFeeCents)}</span>
+                                                    </div>
+                                                )}
+                                                {payment.platformFeeCents && (
+                                                    <div className="flex justify-between text-rn-text-muted">
+                                                        <span>Platform Fee</span>
+                                                        <span>-{formatNOK(payment.platformFeeCents)}</span>
+                                                    </div>
+                                                )}
+                                                {payment.netAmountCents && (
+                                                    <div className="flex justify-between font-medium text-rn-text">
+                                                        <span>Net to Organization</span>
+                                                        <span>{formatNOK(payment.netAmountCents)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-rn-text-muted text-center py-4">
+                                No payments recorded
+                            </p>
                         )}
                     </CardContent>
                 </Card>
 
+                {/* Documents */}
                 <Card>
-                    <CardHeader>
-                        <div className="flex items-center gap-rn-2">
-                            <FileText className="h-5 w-5 text-rn-text-muted" />
-                            <CardTitle>Documents</CardTitle>
-                        </div>
+                    <CardHeader className="pb-rn-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <FileText className="h-4 w-4" />
+                            Documents
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-rn-3">
+                        <div className="space-y-rn-2">
                             {order.Invoice && (
-                                <div className="flex items-center justify-between p-rn-4 border border-rn-border rounded-lg">
-                                    <div>
-                                        <p className="font-medium">Invoice</p>
-                                        <p className="text-sm text-rn-text-muted font-mono">
+                                <div className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg">
+                                    <div className="flex-1">
+                                        <p className="font-medium text-sm">Invoice</p>
+                                        <p className="text-xs text-rn-text-muted">
                                             {order.Invoice.invoiceNumber}
                                         </p>
                                     </div>
-                                    <Badge>Invoice</Badge>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-xs">{order.Invoice.status}</Badge>
+                                        <Button asChild size="sm" variant="outline">
+                                            <a href={`/api/invoices/${order.Invoice.id}/pdf`} target="_blank">
+                                                <Download className="h-3 w-3" />
+                                            </a>
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                             {order.CreditNote.map((cn) => (
-                                <div
-                                    key={cn.id}
-                                    className="flex items-center justify-between p-rn-4 border border-rn-border rounded-lg"
-                                >
-                                    <div>
-                                        <p className="font-medium">Credit Note</p>
-                                        <p className="text-sm text-rn-text-muted font-mono">
-                                            {cn.creditNumber}
+                                <div key={cn.id} className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg bg-red-50">
+                                    <div className="flex-1">
+                                        <p className="font-medium text-sm">Credit Note</p>
+                                        <p className="text-xs text-rn-text-muted">
+                                            {cn.creditNumber} • {formatNOK(cn.totalCents)}
                                         </p>
                                     </div>
-                                    <Badge variant="destructive">Credit Note</Badge>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-xs">Issued</Badge>
+                                        <Button asChild size="sm" variant="outline">
+                                            <a href={`/api/credit-notes/${cn.id}/pdf`} target="_blank">
+                                                <Download className="h-3 w-3" />
+                                            </a>
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                             {!order.Invoice && order.CreditNote.length === 0 && (
-                                <p className="text-sm text-rn-text-muted">No documents</p>
+                                <p className="text-sm text-rn-text-muted text-center py-4">
+                                    No documents created
+                                </p>
                             )}
                         </div>
                     </CardContent>

@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireOrgAdmin } from '@/utils/auth-org-admin'
 import { prisma } from '@/lib/db'
 import { emailService } from '@/lib/email/email-service'
-import { getAdminSelectedOrg } from '@/utils/admin-org-context'
+import { getStaffAdminSelectedOrg } from '@/utils/staff-admin-org-context'
 
 export async function POST(request: NextRequest) {
     try {
         const userAccount = await requireOrgAdmin()
         
-        // For ORG_ADMIN, automatically use their organization
-        let organizerId = await getAdminSelectedOrg()
+        // Get selected org from staffadmin context (cookie)
+        let organizerId = await getStaffAdminSelectedOrg()
         
         if (!organizerId && userAccount.UserAccountRole.length > 0) {
             organizerId = userAccount.UserAccountRole[0].organizerId

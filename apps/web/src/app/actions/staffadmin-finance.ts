@@ -244,16 +244,34 @@ export async function getOrgPaidRegistrations(organizerId: string, limit = 50) {
     return orders
 }
 
+export interface DateRangeFilter {
+    startDate?: string | null
+    endDate?: string | null
+}
+
 /**
  * Export financial data (for CSV generation)
  */
-export async function exportOrgFinancialData(organizerId: string) {
+export async function exportOrgFinancialData(organizerId: string, dateRange?: DateRangeFilter) {
     await requireOrgFinanceForOrganizer(organizerId)
+
+    // Build date filter
+    const dateFilter: { gte?: Date; lte?: Date } = {}
+    if (dateRange?.startDate) {
+        dateFilter.gte = new Date(dateRange.startDate)
+    }
+    if (dateRange?.endDate) {
+        // Set to end of day for end date
+        const endDate = new Date(dateRange.endDate)
+        endDate.setHours(23, 59, 59, 999)
+        dateFilter.lte = endDate
+    }
 
     const orders = await prisma.order.findMany({
         where: {
             status: 'PAID',
-            organizerId: organizerId
+            organizerId: organizerId,
+            ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter })
         },
         include: {
             CoursePeriod: {
@@ -332,6 +350,16 @@ export async function exportOrgFinancialData(organizerId: string) {
             mvaRate: Number(order.mvaRate),
             mvaCents: order.mvaCents,
             totalCents: order.totalCents,
+            // Fee data from payment
+            stripeFeeCents: order.Payment[0]?.stripeFeeCents || null,
+            platformFeeCents: order.Payment[0]?.platformFeeCents || null,
+            netAmountCents: order.Payment[0]?.netAmountCents || null,
+            // Payment details
+            stripePaymentIntentId: order.Payment[0]?.stripePaymentIntentId || null,
+            stripePaymentMethodType: order.Payment[0]?.stripePaymentMethodType || null,
+            stripeCardBrand: order.Payment[0]?.stripeCardBrand || null,
+            stripeCardLast4: order.Payment[0]?.stripeCardLast4 || null,
+            stripeCardFingerprint: order.Payment[0]?.stripeCardFingerprint || null,
             currency: order.currency,
             registrationCount: order.Registration.length + order.EventRegistration.length + order.Membership.length,
             paymentProvider: order.Payment[0]?.provider || null,

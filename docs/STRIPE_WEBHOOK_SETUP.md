@@ -21,6 +21,10 @@ Prod:   https://reginor.events/api/webhooks/stripe
 - `payment_intent.succeeded` - Betalingsintent success
 - `payment_intent.payment_failed` - Betaling feilet
 
+#### Charge Events (for fee tracking)
+- `charge.succeeded` - Charge completed, contains balance_transaction for actual fees
+- `charge.updated` - Charge updated (balance_transaction may be added here if not available immediately)
+
 #### Refund Events
 - `charge.refunded` - Når en refundering skjer
 - `payment_intent.refunded` - Payment intent refundert
@@ -57,6 +61,8 @@ Prod:   https://reginor.events/api/webhooks/stripe
    - `checkout.session.async_payment_failed`
    - `payment_intent.succeeded`
    - `payment_intent.payment_failed`
+   - `charge.succeeded` *(for actual Stripe fee tracking)*
+   - `charge.updated` *(for actual Stripe fee tracking)*
    - `charge.refunded`
    - `customer.created`
    - `customer.updated`

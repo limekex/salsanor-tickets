@@ -1,6 +1,6 @@
 # Code Inventory
 
-Last updated: February 9, 2026
+Last updated: February 16, 2026
 
 This document tracks existing reusable code to prevent duplication.
 
@@ -336,6 +336,27 @@ export async function getOrgEvents(organizerId: string) {
 | `tabs` | Tab navigation |
 | `textarea` | Multiline text input |
 
+### Finance Components (`/src/components/finance/`)
+
+| Component | Purpose | Props |
+|-----------|---------|-------|
+| `date-range-filter.tsx` | Date range picker with presets for finance reports | - |
+
+**DateRangeFilter** - Reusable date filtering component:
+- Preset buttons: Today, This Week, This Month, Year to Date, Last Year, All Time
+- Custom date range with from/to inputs
+- Updates URL search params for server-side filtering
+- Uses `useSearchParams()` - **must be wrapped in Suspense**
+
+```tsx
+import { DateRangeFilter } from '@/components/finance/date-range-filter'
+import { Suspense } from 'react'
+
+<Suspense fallback={<div className="h-10" />}>
+    <DateRangeFilter />
+</Suspense>
+```
+
 ---
 
 ## Server Actions (`/src/app/actions/`)
@@ -358,10 +379,13 @@ export async function getOrgEvents(organizerId: string) {
 | File | Key Functions |
 |------|---------------|
 | `admin/*.ts` | Various admin operations |
+| `admin-finance.ts` | getFilteredFinancialOverview, getFeesReport, getPlatformRevenueReport, getKasseoppgjor |
 | `dashboard.ts` | getDashboardStats |
 | `finance.ts` | getFinanceReport, getTransactions |
 | `invoices.ts` | createInvoice, getInvoice |
 | `staffadmin.ts` | Staff admin operations |
+| `staffadmin-finance.ts` | getOrgFinancialSummary, getOrgRevenueByPeriod, getOrgPaymentStatus, exportOrgFinancialData, syncStripeFees |
+| `sync-stripe-fees.ts` | syncStripeFees(orderId), syncAllMissingStripeFees(organizerId?) |
 | `settings.ts` | getSettings, updateSettings |
 
 ### Specialized Actions
@@ -377,6 +401,34 @@ export async function getOrgEvents(organizerId: string) {
 | `tags.ts` | Tag management |
 | `tracks.ts` | Course tracks |
 | `waitlist.ts` | Waitlist management |
+
+---
+
+## Auth Utilities (`/src/utils/`)
+
+Server-side authentication utilities for role-based access control.
+
+| File | Purpose | Key Functions |
+|------|---------|---------------|
+| `auth-org-admin.ts` | Org admin auth checks | `requireOrgAdmin()`, `requireOrgAdminForOrganizer(orgId)` |
+| `auth-org-finance.ts` | Finance role auth checks | `requireOrgFinance()`, `requireOrgFinanceForOrganizer(orgId)` |
+| `auth-org-checkin.ts` | Check-in role auth checks | `requireOrgCheckin()`, `requireOrgCheckinForOrganizer(orgId)` |
+
+**Usage Pattern:**
+```typescript
+import { requireOrgFinanceForOrganizer } from '@/utils/auth-org-finance'
+
+export async function getOrgFinancialData(organizerId: string) {
+    await requireOrgFinanceForOrganizer(organizerId)  // Throws if unauthorized
+    // ... fetch data
+}
+```
+
+**Notes:**
+- All utilities validate against Supabase auth + UserAccountRole table
+- `requireOrg*ForOrganizer()` - validates user has role for specific org
+- `requireOrg*()` - validates user has role for any org (returns organizerId)
+- Both ORG_ADMIN and role-specific users pass the check
 
 ---
 
@@ -419,7 +471,7 @@ Pages using new components and formatters:
 - ✅ `/cart` - Uses formatPrice for all price displays (eliminated 10+ inline calculations)
 - 🟡 `/` - Homepage (no refactoring needed - static content only)
 
-### StaffAdmin Pages (8/29 refactored) - 28% Complete
+### StaffAdmin Pages (13/29 refactored) - 45% Complete
 
 - ✅ `/staffadmin/events` - Uses formatDateTimeShort, EmptyState
 - ✅ `/staffadmin/memberships/tiers` - Uses formatPrice
@@ -429,18 +481,26 @@ Pages using new components and formatters:
 - ✅ `/staffadmin/tracks/detail/[trackId]` - Uses formatWeekday, formatPrice, formatDateShort (removed WEEKDAY_LABELS)
 - ✅ `/staffadmin/memberships` - Uses formatDateTimeShort, formatDateShort
 - ✅ `/staffadmin/users` - Uses formatDateShort
+- ✅ `/staffadmin/finance` - Finance dashboard with stats cards
+- ✅ `/staffadmin/finance/revenue` - Revenue reports with MVA breakdown
+- ✅ `/staffadmin/finance/payments` - Payment status list
+- ✅ `/staffadmin/finance/registrations` - Paid registrations by type
+- ✅ `/staffadmin/finance/export` - CSV export with DateRangeFilter
 
-### Admin Pages (4/8 refactored) - 50% Complete
+### Admin Pages (7/8 refactored) - 88% Complete
 
 - ✅ `/admin/tracks` - Uses formatWeekday, formatPrice (removed WEEKDAY_LABELS)
 - ✅ `/admin/registrations` - Uses formatDateShort
 - ✅ `/admin/periods` - Uses formatDateRange
 - ✅ `/admin/periods/[periodId]` - Uses formatDateRange
+- ✅ `/admin/finance` - Global finance overview with DateRangeFilter
+- ✅ `/admin/finance/fees` - Platform fees report with DateRangeFilter
+- ✅ `/admin/finance/kasseoppgjor` - Cash reconciliation with DateRangeFilter
 
 ### Remaining Public Pages (1)
 - `/courses/[periodId]/[trackId]/register` - Course registration page (already clean)
 
-### Remaining StaffAdmin Pages (21)
+### Remaining StaffAdmin Pages (16)
 - Most use `formatDateNO` and `formatNOK` from legal-requirements
 - Can be refactored incrementally as needed
 

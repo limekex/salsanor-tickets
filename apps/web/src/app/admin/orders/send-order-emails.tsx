@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Mail, Loader2, FileText, Receipt, FileX2, CheckCircle2 } from 'lucide-react'
+import { Mail, Loader2, FileText, Receipt, FileX2, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SendOrderEmailsProps {
@@ -23,7 +23,7 @@ export function SendOrderEmails({
     hasCreditNote,
     hasRegistrations,
     hasEventRegistrations,
-    purchaserEmail
+    purchaserEmail,
 }: SendOrderEmailsProps) {
     const [sending, setSending] = useState<string | null>(null)
 
@@ -41,12 +41,12 @@ export function SendOrderEmails({
 
             if (!response.ok) {
                 const data = await response.json()
-                throw new Error(data.error || 'Kunne ikke sende e-post')
+                throw new Error(data.error || 'Could not send email')
             }
 
-            toast.success(`E-post sendt til ${purchaserEmail}`)
+            toast.success(`Email sent to ${purchaserEmail}`)
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Kunne ikke sende e-post'
+            const message = error instanceof Error ? error.message : 'Could not send email'
             toast.error(message)
             console.error(error)
         } finally {
@@ -59,123 +59,178 @@ export function SendOrderEmails({
     const canSendInvoice = hasInvoice && (orderStatus === 'PAID' || orderStatus === 'PENDING_PAYMENT')
     const canSendCreditNote = hasCreditNote && (orderStatus === 'CANCELLED' || orderStatus === 'REFUNDED')
 
+    const ticketDescription = hasRegistrations && hasEventRegistrations
+        ? 'Course certificates and event tickets'
+        : hasRegistrations
+            ? 'Course certificates'
+            : hasEventRegistrations
+                ? 'Event tickets'
+                : 'No tickets available'
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Mail className="h-5 w-5" />
-                    Send e-post
-                </CardTitle>
-                <CardDescription>
-                    Send ordre-dokumenter til kjøper
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-rn-3">
-                {/* Send tickets */}
-                <div className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg">
-                    <div className="flex items-center gap-rn-3">
-                        <FileText className="h-5 w-5 text-rn-text-muted" />
-                        <div>
-                            <p className="font-medium">Billetter</p>
-                            <p className="text-sm text-rn-text-muted">
-                                {hasRegistrations && 'Kursbevis'}
-                                {hasRegistrations && hasEventRegistrations && ' og '}
-                                {hasEventRegistrations && 'Eventbilletter'}
-                            </p>
-                        </div>
-                    </div>
-                    <Button
-                        onClick={() => handleSendEmail('ticket')}
-                        disabled={!canSendTickets || sending !== null}
-                        size="sm"
-                    >
-                        {sending === 'ticket' ? (
-                            <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Sender...
-                            </>
-                        ) : (
-                            <>
-                                <Mail className="h-4 w-4 mr-2" />
-                                Send billetter
-                            </>
-                        )}
-                    </Button>
+        <div className="space-y-rn-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Mail className="h-5 w-5" />
+                        Send Documents
+                    </h3>
+                    <p className="text-sm text-rn-text-muted">
+                        Send order documents to <span className="font-medium">{purchaserEmail}</span>
+                    </p>
                 </div>
+            </div>
 
-                {/* Send invoice */}
-                <div className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg">
-                    <div className="flex items-center gap-rn-3">
-                        <Receipt className="h-5 w-5 text-rn-text-muted" />
-                        <div>
-                            <p className="font-medium">Kvittering</p>
-                            <p className="text-sm text-rn-text-muted">
-                                {hasInvoice ? 'Faktura opprettet' : 'Ingen faktura'}
-                            </p>
+            {/* Three columns */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-rn-4">
+                {/* Tickets */}
+                <Card className={canSendTickets ? 'border-rn-primary/50' : ''}>
+                    <CardHeader className="pb-rn-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <FileText className="h-4 w-4" />
+                            Tickets
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                            {ticketDescription}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-rn-3">
+                        <div className="flex items-center gap-2 text-sm">
+                            {canSendTickets ? (
+                                <>
+                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                    <span className="text-green-600">Ready to send</span>
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle className="h-4 w-4 text-rn-text-muted" />
+                                    <span className="text-rn-text-muted">
+                                        {!hasRegistrations && !hasEventRegistrations 
+                                            ? 'No registrations'
+                                            : 'Order not paid'
+                                        }
+                                    </span>
+                                </>
+                            )}
                         </div>
-                    </div>
-                    <Button
-                        onClick={() => handleSendEmail('invoice')}
-                        disabled={!canSendInvoice || sending !== null}
-                        size="sm"
-                        variant="outline"
-                    >
-                        {sending === 'invoice' ? (
-                            <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Sender...
-                            </>
-                        ) : (
-                            <>
-                                <Mail className="h-4 w-4 mr-2" />
-                                Send kvittering
-                            </>
-                        )}
-                    </Button>
-                </div>
+                        <Button
+                            onClick={() => handleSendEmail('ticket')}
+                            disabled={!canSendTickets || sending !== null}
+                            className="w-full"
+                            variant={canSendTickets ? 'default' : 'outline'}
+                        >
+                            {sending === 'ticket' ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Sending...
+                                </>
+                            ) : (
+                                <>
+                                    <Mail className="h-4 w-4 mr-2" />
+                                    Send Tickets
+                                </>
+                            )}
+                        </Button>
+                    </CardContent>
+                </Card>
 
-                {/* Send credit note */}
-                <div className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg">
-                    <div className="flex items-center gap-rn-3">
-                        <FileX2 className="h-5 w-5 text-rn-text-muted" />
-                        <div>
-                            <p className="font-medium">Kreditnota</p>
-                            <p className="text-sm text-rn-text-muted">
-                                {hasCreditNote ? 'Kreditnota opprettet' : 'Ingen kreditnota'}
-                            </p>
+                {/* Invoice */}
+                <Card className={canSendInvoice ? 'border-rn-primary/50' : ''}>
+                    <CardHeader className="pb-rn-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Receipt className="h-4 w-4" />
+                            Invoice
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                            Payment receipt for accounting
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-rn-3">
+                        <div className="flex items-center gap-2 text-sm">
+                            {canSendInvoice ? (
+                                <>
+                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                    <span className="text-green-600">Invoice available</span>
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle className="h-4 w-4 text-rn-text-muted" />
+                                    <span className="text-rn-text-muted">
+                                        {!hasInvoice ? 'No invoice created' : 'Order not paid'}
+                                    </span>
+                                </>
+                            )}
                         </div>
-                    </div>
-                    <Button
-                        onClick={() => handleSendEmail('credit-note')}
-                        disabled={!canSendCreditNote || sending !== null}
-                        size="sm"
-                        variant="outline"
-                    >
-                        {sending === 'credit-note' ? (
-                            <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Sender...
-                            </>
-                        ) : (
-                            <>
-                                <Mail className="h-4 w-4 mr-2" />
-                                Send kreditnota
-                            </>
-                        )}
-                    </Button>
-                </div>
+                        <Button
+                            onClick={() => handleSendEmail('invoice')}
+                            disabled={!canSendInvoice || sending !== null}
+                            className="w-full"
+                            variant={canSendInvoice ? 'default' : 'outline'}
+                        >
+                            {sending === 'invoice' ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Sending...
+                                </>
+                            ) : (
+                                <>
+                                    <Mail className="h-4 w-4 mr-2" />
+                                    Send Invoice
+                                </>
+                            )}
+                        </Button>
+                    </CardContent>
+                </Card>
 
-                {orderStatus === 'PAID' && (
-                    <div className="p-rn-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center gap-rn-2 text-green-800">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <p className="text-sm font-medium">
-                                Ordren er betalt - dokumenter kan sendes
-                            </p>
+                {/* Credit Note */}
+                <Card className={canSendCreditNote ? 'border-rn-primary/50' : ''}>
+                    <CardHeader className="pb-rn-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <FileX2 className="h-4 w-4" />
+                            Credit Note
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                            Refund confirmation document
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-rn-3">
+                        <div className="flex items-center gap-2 text-sm">
+                            {canSendCreditNote ? (
+                                <>
+                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                    <span className="text-green-600">Credit note available</span>
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle className="h-4 w-4 text-rn-text-muted" />
+                                    <span className="text-rn-text-muted">
+                                        {!hasCreditNote ? 'No credit note' : 'Order not refunded'}
+                                    </span>
+                                </>
+                            )}
                         </div>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                        <Button
+                            onClick={() => handleSendEmail('credit-note')}
+                            disabled={!canSendCreditNote || sending !== null}
+                            className="w-full"
+                            variant={canSendCreditNote ? 'default' : 'outline'}
+                        >
+                            {sending === 'credit-note' ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Sending...
+                                </>
+                            ) : (
+                                <>
+                                    <Mail className="h-4 w-4 mr-2" />
+                                    Send Credit Note
+                                </>
+                            )}
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
     )
 }

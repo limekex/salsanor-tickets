@@ -33,6 +33,7 @@ const financeItems = [
     { href: '/staffadmin/finance', label: 'Finance Dashboard', icon: LayoutDashboard, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/finance/revenue', label: 'Revenue Reports', icon: Tag, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/finance/payments', label: 'Payment Status', icon: CreditCard, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
+    { href: '/staffadmin/finance/registrations', label: 'Registrations', icon: ClipboardList, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/finance/export', label: 'Export Data', icon: Download, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/orders', label: 'Orders', icon: Package, roles: ['ORG_ADMIN'] },
 ]

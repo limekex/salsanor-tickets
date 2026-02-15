@@ -126,14 +126,80 @@ export async function POST(req: Request) {
         case 'checkout.session.completed': {
             const session = event.data.object as Stripe.Checkout.Session
             const orderId = session.metadata?.orderId
+            const organizerId = session.metadata?.organizerId
+            
+            // For Stripe Connect events, the connected account ID is in event.account
+            const connectedAccountId = event.account
 
             if (orderId) {
                 try {
                     // Extract Stripe references
                     const stripeChargeId = session.payment_intent ? (typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id) : undefined
-                    // Note: transaction_id is typically on the charge object, not session. We'll store what we have.
                     
-                    await fulfillOrder(orderId, session.id, stripeChargeId, undefined)
+                    // Extract platform fee and payment method details from the payment intent
+                    let platformFeeCents: number | undefined = undefined
+                    let stripeDetails: {
+                        paymentIntentId?: string
+                        paymentMethodId?: string
+                        paymentMethodType?: string
+                        cardBrand?: string
+                        cardLast4?: string
+                        cardFingerprint?: string
+                        customerId?: string
+                    } = {}
+                    
+                    if (stripeChargeId) {
+                        try {
+                            const config = await prisma.paymentConfig.findUnique({ where: { provider: 'STRIPE' } })
+                            const apiKey = config?.secretKey || process.env.STRIPE_SECRET_KEY
+                            if (apiKey) {
+                                // For Connect payments, we need to specify the connected account
+                                // to retrieve the PaymentIntent from the correct account
+                                const stripeOptions: Stripe.StripeConfig = { apiVersion: '2025-11-17.clover' as any }
+                                if (connectedAccountId) {
+                                    stripeOptions.stripeAccount = connectedAccountId
+                                    console.log(`Webhook: Retrieving PaymentIntent from connected account ${connectedAccountId}`)
+                                }
+                                
+                                const stripe = new Stripe(apiKey, stripeOptions)
+                                const paymentIntent = await stripe.paymentIntents.retrieve(stripeChargeId, {
+                                    expand: ['payment_method', 'latest_charge']
+                                })
+                                
+                                if (paymentIntent.application_fee_amount) {
+                                    platformFeeCents = paymentIntent.application_fee_amount
+                                    console.log(`Webhook: Platform fee for order ${orderId}: ${platformFeeCents} cents`)
+                                }
+                                
+                                // Extract payment method details
+                                stripeDetails.paymentIntentId = paymentIntent.id
+                                stripeDetails.customerId = typeof paymentIntent.customer === 'string' 
+                                    ? paymentIntent.customer 
+                                    : paymentIntent.customer?.id
+                                
+                                // Get payment method details
+                                const pm = paymentIntent.payment_method
+                                if (pm && typeof pm !== 'string') {
+                                    stripeDetails.paymentMethodId = pm.id
+                                    stripeDetails.paymentMethodType = pm.type
+                                    if (pm.card) {
+                                        stripeDetails.cardBrand = pm.card.brand
+                                        stripeDetails.cardLast4 = pm.card.last4
+                                        stripeDetails.cardFingerprint = pm.card.fingerprint || undefined
+                                    }
+                                } else if (typeof pm === 'string') {
+                                    stripeDetails.paymentMethodId = pm
+                                }
+                                
+                                console.log(`Webhook: Payment method for order ${orderId}: ${stripeDetails.paymentMethodType || 'unknown'} ${stripeDetails.cardLast4 ? `****${stripeDetails.cardLast4}` : ''}`)
+                            }
+                        } catch (feeErr) {
+                            console.error('Webhook: Error fetching payment details:', feeErr)
+                            // Continue without details - not critical for order fulfillment
+                        }
+                    }
+                    
+                    await fulfillOrder(orderId, session.id, stripeChargeId, undefined, platformFeeCents, stripeDetails)
                     
                     // Send order confirmation email with PDF tickets
                     try {
@@ -761,6 +827,106 @@ export async function POST(req: Request) {
             console.log(`  - Last error: ${paymentIntent.last_payment_error?.message}`)
             
             // TODO: Log payment failures for analytics and customer support
+            break
+        }
+
+        // Charge events - used to capture actual Stripe transaction fees
+        case 'charge.succeeded':
+        case 'charge.updated': {
+            const charge = event.data.object as Stripe.Charge
+            const connectedAccountId = event.account
+            
+            console.log(`Webhook: ${event.type} for charge ${charge.id}`)
+            
+            // Only process if we have a balance_transaction (contains actual fees)
+            if (charge.balance_transaction) {
+                try {
+                    const config = await prisma.paymentConfig.findUnique({ where: { provider: 'STRIPE' } })
+                    const apiKey = config?.secretKey || process.env.STRIPE_SECRET_KEY
+                    
+                    if (apiKey) {
+                        // For Connect charges, retrieve from connected account context
+                        const stripeOptions: Stripe.StripeConfig = { apiVersion: '2025-11-17.clover' as any }
+                        if (connectedAccountId) {
+                            stripeOptions.stripeAccount = connectedAccountId
+                            console.log(`Webhook: Retrieving balance_transaction from connected account ${connectedAccountId}`)
+                        }
+                        
+                        const stripe = new Stripe(apiKey, stripeOptions)
+                        
+                        // Retrieve the balance transaction to get actual fees
+                        const balanceTransactionId = typeof charge.balance_transaction === 'string' 
+                            ? charge.balance_transaction 
+                            : charge.balance_transaction.id
+                        
+                        const balanceTransaction = await stripe.balanceTransactions.retrieve(balanceTransactionId)
+                        
+                        // IMPORTANT: balance_transaction.fee contains BOTH stripe_fee AND application_fee combined
+                        // We need to use fee_details to extract only the Stripe processing fee
+                        let stripeFeeCents = 0
+                        let applicationFeeCents = 0
+                        
+                        if (balanceTransaction.fee_details && balanceTransaction.fee_details.length > 0) {
+                            for (const feeDetail of balanceTransaction.fee_details) {
+                                if (feeDetail.type === 'stripe_fee') {
+                                    stripeFeeCents += feeDetail.amount
+                                } else if (feeDetail.type === 'application_fee') {
+                                    applicationFeeCents += feeDetail.amount
+                                }
+                            }
+                        } else {
+                            // Fallback: if no fee_details, use total fee (less accurate)
+                            stripeFeeCents = balanceTransaction.fee
+                        }
+                        
+                        const netAmountCents = balanceTransaction.net // Net after ALL fees
+                        
+                        // Log fee breakdown for verification
+                        console.log(`Webhook: Charge ${charge.id} - Balance transaction breakdown:`)
+                        console.log(`  - Gross amount: ${balanceTransaction.amount} cents`)
+                        console.log(`  - Total fees: ${balanceTransaction.fee} cents`)
+                        console.log(`  - Stripe processing fee: ${stripeFeeCents} cents`)
+                        console.log(`  - Application fee (in bt): ${applicationFeeCents} cents`)
+                        console.log(`  - Net amount: ${netAmountCents} cents`)
+                        if (balanceTransaction.fee_details) {
+                            console.log(`  - Fee details: ${JSON.stringify(balanceTransaction.fee_details)}`)
+                        }
+                        
+                        // Find the Payment record by the PaymentIntent ID (which we store as stripeChargeId on Order)
+                        // The charge.payment_intent links back to the PaymentIntent
+                        const paymentIntentId = typeof charge.payment_intent === 'string' 
+                            ? charge.payment_intent 
+                            : charge.payment_intent?.id
+                        
+                        if (paymentIntentId) {
+                            // Find order by stripeChargeId (which stores the PaymentIntent ID)
+                            const order = await prisma.order.findFirst({
+                                where: { stripeChargeId: paymentIntentId }
+                            })
+                            
+                            if (order) {
+                                // Update the Payment record with actual Stripe fees (separated)
+                                await prisma.payment.updateMany({
+                                    where: { orderId: order.id },
+                                    data: {
+                                        stripeFeeCents, // Only Stripe processing fee
+                                        netAmountCents, // Net after all fees
+                                        stripeBalanceTransactionId: balanceTransactionId
+                                    }
+                                })
+                                console.log(`Webhook: ✅ Updated Payment for order ${order.id} with Stripe fee: ${stripeFeeCents} cents (separated from application fee)`)
+                            } else {
+                                console.log(`Webhook: No order found for PaymentIntent ${paymentIntentId}`)
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Webhook: Error processing charge fees:`, err)
+                    // Non-critical - don't fail the webhook
+                }
+            } else {
+                console.log(`Webhook: Charge ${charge.id} has no balance_transaction yet`)
+            }
             break
         }
 
