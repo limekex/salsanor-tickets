@@ -53,7 +53,10 @@ export async function cancelRegistration(params: {
       Order: {
         include: {
           Payment: true,
-          Organizer: true
+          Organizer: true,
+          Registration: {
+            select: { id: true, trackId: true }
+          }
         }
       }
     }
@@ -92,8 +95,49 @@ export async function cancelRegistration(params: {
     throw new Error('Registration already cancelled')
   }
 
-  // Calculate refund amount
-  const originalAmount = Number(registration.Order?.totalCents || 0)
+  // Calculate refund amount based on the specific registration's track, not entire order
+  // First, try to get per-item price from pricingSnapshot
+  let itemAmount = 0
+  const order = registration.Order
+  
+  if (order) {
+    // Parse pricing snapshot to find this track's price
+    try {
+      let pricingSnapshot: any = order.pricingSnapshot
+      if (typeof pricingSnapshot === 'string') {
+        pricingSnapshot = JSON.parse(pricingSnapshot)
+      }
+      
+      // Check if pricingSnapshot has lineItems with per-track pricing
+      if (pricingSnapshot?.lineItems && Array.isArray(pricingSnapshot.lineItems)) {
+        const lineItem = pricingSnapshot.lineItems.find(
+          (li: any) => li.trackId === registration.trackId
+        )
+        if (lineItem) {
+          itemAmount = lineItem.finalPriceCents || lineItem.basePriceCents || 0
+        }
+      }
+      
+      // Fallback: if single track in order, use order total
+      if (itemAmount === 0) {
+        const orderRegistrationCount = order.Registration?.length || 1
+        if (orderRegistrationCount === 1) {
+          // Single registration - use full order amount
+          itemAmount = Number(order.totalCents || 0)
+        } else {
+          // Multiple registrations but no lineItems - divide evenly (best effort)
+          itemAmount = Math.round(Number(order.totalCents || 0) / orderRegistrationCount)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse pricingSnapshot:', e)
+      // Fallback to dividing order total by number of registrations
+      const orderRegistrationCount = order.Registration?.length || 1
+      itemAmount = Math.round(Number(order.totalCents || 0) / orderRegistrationCount)
+    }
+  }
+  
+  const originalAmount = itemAmount
   const refundAmount = Math.round((originalAmount * params.refundPercentage) / 100)
 
   let refundMessage = 'Ingen refusjon'

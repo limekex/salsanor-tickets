@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { requireOrgAdmin } from '@/utils/auth-org-admin'
 import { NextResponse } from 'next/server'
 import { generateCreditNotePDF } from '@/lib/tickets/pdf-generator'
-import { DEFAULT_PLATFORM_INFO } from '@/lib/tickets/legal-requirements'
+import { DEFAULT_PLATFORM_INFO, TicketLineItem } from '@/lib/tickets/legal-requirements'
 
 /**
  * Download credit note PDF by credit note ID
@@ -19,12 +19,26 @@ export async function GET(
         const creditNote = await prisma.creditNote.findUnique({
             where: { id: creditNoteId },
             include: {
+                Registration: {
+                    include: {
+                        CourseTrack: true,
+                        CoursePeriod: true,
+                        PersonProfile: true
+                    }
+                },
                 Order: {
                     include: {
                         PersonProfile: true,
-                        Organizer: true
+                        Organizer: true,
+                        Registration: {
+                            include: {
+                                CourseTrack: true,
+                                CoursePeriod: true
+                            }
+                        }
                     }
-                }
+                },
+                Organizer: true
             }
         })
 
@@ -32,11 +46,17 @@ export async function GET(
             return NextResponse.json({ error: 'Credit note not found' }, { status: 404 })
         }
 
-        const order = creditNote.Order
-        if (!order) {
-            return NextResponse.json({ error: 'Order not found for credit note' }, { status: 404 })
+        // Get organizer - either from direct relation or from order
+        const org = creditNote.Organizer || creditNote.Order?.Organizer
+        if (!org) {
+            return NextResponse.json({ error: 'Organizer not found for credit note' }, { status: 404 })
         }
-        const org = order.Organizer
+
+        // Get buyer profile - from registration or order
+        const buyerProfile = creditNote.Registration?.PersonProfile || creditNote.Order?.PersonProfile
+        if (!buyerProfile) {
+            return NextResponse.json({ error: 'Buyer profile not found' }, { status: 404 })
+        }
 
         // Verify user has access to this organization
         const hasAccess = userAccount.UserAccountRole.some(
@@ -48,9 +68,61 @@ export async function GET(
         }
 
         // Build credit note data
-        const buyerName = `${order.PersonProfile.firstName || ''} ${order.PersonProfile.lastName || ''}`.trim() || 'N/A'
+        const buyerName = `${buyerProfile.firstName || ''} ${buyerProfile.lastName || ''}`.trim() || 'N/A'
         
-        const lineItems: { description: string; quantity: number; unitPriceCents: number; totalPriceCents: number; vatRate: number }[] = []
+        // Build line items from registration or order
+        const lineItems: TicketLineItem[] = []
+        
+        // If credit note is linked to a specific registration, use that
+        if (creditNote.Registration) {
+            const reg = creditNote.Registration
+            const trackName = reg.CourseTrack?.title || ''
+            const periodName = reg.CoursePeriod?.name || ''
+            const description = trackName 
+                ? `${trackName} (${periodName})`
+                : periodName || 'Kursregistrering'
+            
+            lineItems.push({
+                description,
+                quantity: 1,
+                unitPriceCents: creditNote.originalAmountCents,
+                totalPriceCents: creditNote.originalAmountCents
+            })
+        } 
+        // Otherwise, build from order registrations
+        else if (creditNote.Order?.Registration && creditNote.Order.Registration.length > 0) {
+            for (const reg of creditNote.Order.Registration) {
+                const trackName = reg.CourseTrack?.title || ''
+                const periodName = reg.CoursePeriod?.name || ''
+                const description = trackName 
+                    ? `${trackName} (${periodName})`
+                    : periodName || 'Kursregistrering'
+                
+                // For full order credit note, distribute amount across registrations
+                const itemAmount = Math.round(creditNote.originalAmountCents / creditNote.Order.Registration.length)
+                
+                lineItems.push({
+                    description,
+                    quantity: 1,
+                    unitPriceCents: itemAmount,
+                    totalPriceCents: itemAmount
+                })
+            }
+        }
+        // Fallback: generic line item
+        else {
+            lineItems.push({
+                description: creditNote.reason || 'Kansellering',
+                quantity: 1,
+                unitPriceCents: creditNote.originalAmountCents,
+                totalPriceCents: creditNote.originalAmountCents
+            })
+        }
+
+        // Calculate refund percentage
+        const refundPercentage = creditNote.originalAmountCents > 0 
+            ? Math.round((creditNote.refundAmountCents / creditNote.originalAmountCents) * 100)
+            : 0
 
         const sellerInfo = {
             name: org.name,
@@ -67,10 +139,10 @@ export async function GET(
             creditNumber: creditNote.creditNumber,
             issueDate: creditNote.issueDate,
             originalInvoiceNumber: undefined as string | undefined,
-            originalOrderNumber: order.orderNumber || undefined,
-            originalTransactionDate: order.createdAt,
+            originalOrderNumber: creditNote.Order?.orderNumber || undefined,
+            originalTransactionDate: creditNote.Order?.createdAt,
             refundType: creditNote.refundType as 'FULL' | 'PARTIAL' | 'NONE',
-            refundPercentage: 0,
+            refundPercentage,
             reason: creditNote.reason || 'Kansellering',
             originalAmountCents: creditNote.originalAmountCents,
             refundAmountCents: creditNote.refundAmountCents,
@@ -80,7 +152,7 @@ export async function GET(
             seller: sellerInfo,
             buyer: {
                 name: buyerName,
-                email: order.PersonProfile.email
+                email: buyerProfile.email
             },
             platform: DEFAULT_PLATFORM_INFO
         }
