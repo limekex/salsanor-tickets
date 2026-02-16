@@ -8,9 +8,24 @@ import { emailService } from '@/lib/email/email-service'
 import { generateCreditNotePDF, CreditNoteData } from '@/lib/tickets/pdf-generator'
 import { SellerInfo, BuyerInfo, TicketLineItem, DEFAULT_PLATFORM_INFO } from '@/lib/tickets/legal-requirements'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-})
+// Get Stripe client - will be configured per-request for Connect refunds
+async function getStripeClient(connectedAccountId?: string | null) {
+  const config = await prisma.paymentConfig.findUnique({ where: { provider: 'STRIPE' } })
+  const apiKey = config?.secretKey || process.env.STRIPE_SECRET_KEY
+  
+  if (!apiKey) {
+    throw new Error('Stripe API key not configured')
+  }
+  
+  const stripeConfig: Stripe.StripeConfig = { apiVersion: '2025-11-17.clover' as any }
+  
+  // If connected account, configure Stripe to act on behalf of that account
+  if (connectedAccountId) {
+    stripeConfig.stripeAccount = connectedAccountId
+  }
+  
+  return new Stripe(apiKey, stripeConfig)
+}
 
 export async function cancelRegistration(params: {
   registrationId: string
@@ -37,7 +52,8 @@ export async function cancelRegistration(params: {
       },
       Order: {
         include: {
-          Payment: true
+          Payment: true,
+          Organizer: true
         }
       }
     }
@@ -87,14 +103,23 @@ export async function cancelRegistration(params: {
   const paymentIntentId = registration.Order?.stripePaymentIntentId 
     || registration.Order?.Payment?.[0]?.stripePaymentIntentId
     || null
+  
+  // Get the connected account ID for Stripe Connect refunds
+  const connectedAccountId = registration.Order?.Organizer?.stripeConnectAccountId || null
 
   // Process refund if percentage > 0 and there's a payment intent
   if (params.refundPercentage > 0 && paymentIntentId) {
     try {
+      console.log(`Processing refund: ${refundAmount} cents for payment_intent ${paymentIntentId}`)
+      console.log(`Connected account: ${connectedAccountId || 'none (platform account)'}`)
+      
+      // Get Stripe client configured for the connected account
+      const stripe = await getStripeClient(connectedAccountId)
+      
       const refund = await stripe.refunds.create({
         payment_intent: paymentIntentId,
         amount: refundAmount, // Stripe uses cents/øre
-        reason: params.reason ? 'requested_by_customer' : 'requested_by_customer',
+        reason: 'requested_by_customer',
         metadata: {
           registrationId: registration.id,
           refundPercentage: params.refundPercentage.toString(),
@@ -103,15 +128,29 @@ export async function cancelRegistration(params: {
       })
       
       stripeRefundId = refund.id
+      console.log(`Refund created: ${refund.id}`)
       
       if (params.refundPercentage === 100) {
         refundMessage = 'Full refusjon vil bli behandlet innen 5-10 virkedager'
       } else {
         refundMessage = `${params.refundPercentage}% refusjon (${(refundAmount / 100).toFixed(2)} kr) vil bli behandlet innen 5-10 virkedager`
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Stripe refund error:', error)
-      throw new Error('Failed to process refund. Please contact support.')
+      console.error('Error type:', error.type)
+      console.error('Error code:', error.code)
+      console.error('Error message:', error.message)
+      
+      // Provide more specific error message based on Stripe error
+      if (error.code === 'charge_already_refunded') {
+        throw new Error('Denne betalingen er allerede refundert.')
+      } else if (error.code === 'amount_too_large') {
+        throw new Error('Refusjonsbeløpet er større enn det som kan refunderes.')
+      } else if (error.type === 'StripeInvalidRequestError') {
+        throw new Error(`Stripe-feil: ${error.message}`)
+      }
+      
+      throw new Error('Kunne ikke behandle refusjonen. Kontakt support.')
     }
   } else if (params.refundPercentage > 0) {
     refundMessage = 'Refusjon krever manuell behandling'
