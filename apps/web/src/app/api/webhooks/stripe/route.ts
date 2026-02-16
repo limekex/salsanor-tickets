@@ -779,6 +779,13 @@ export async function POST(req: Request) {
             const refundPercentage = Math.round((refundAmountCents / charge.amount) * 100)
             const refundReason = latestRefund.reason || 'Refund via Stripe'
             
+            // Try to get ARN (Acquirer Reference Number) for bank tracing
+            // ARN is in destination_details.card.reference for card refunds
+            const acquirerReferenceNumber = (latestRefund as any).destination_details?.card?.reference || null
+            if (acquirerReferenceNumber) {
+                console.log(`Webhook: ARN retrieved: ${acquirerReferenceNumber}`)
+            }
+            
             console.log(`Webhook: Processing ${isFullRefund ? 'full' : 'partial'} refund for order ${order.id}`)
             console.log(`  - Refund amount: ${refundAmountCents} cents (${refundPercentage}%)`)
             
@@ -808,6 +815,7 @@ export async function POST(req: Request) {
                     mvaCents,
                     totalCents: refundAmountCents,
                     stripeRefundId: latestRefund.id,
+                    acquirerReferenceNumber,
                     status: 'ISSUED'
                 }
             })
@@ -987,7 +995,9 @@ export async function POST(req: Request) {
                             refundType: isFullRefund ? 'full' : 'partial',
                             reason: refundReason,
                             creditNoteNumber: creditNumber,
-                            itemDescription
+                            itemDescription,
+                            acquirerReferenceNumber: acquirerReferenceNumber || '',
+                            hasArn: !!acquirerReferenceNumber
                         },
                         language: person.preferredLanguage || 'no',
                         attachments: [{

@@ -390,21 +390,32 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                                 </div>
                             )}
                             {order.CreditNote.map((cn) => (
-                                <div key={cn.id} className="flex items-center justify-between p-rn-3 border border-rn-border rounded-lg bg-red-50">
-                                    <div className="flex-1">
-                                        <p className="font-medium text-sm">Credit Note</p>
-                                        <p className="text-xs text-rn-text-muted">
-                                            {cn.creditNumber} • {formatNOK(cn.totalCents)}
-                                        </p>
+                                <div key={cn.id} className="p-rn-3 border border-rn-border rounded-lg bg-red-50 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-sm">Credit Note</p>
+                                            <p className="text-xs text-rn-text-muted">
+                                                {cn.creditNumber} • {formatNOK(cn.totalCents)}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="text-xs">Issued</Badge>
+                                            <Button asChild size="sm" variant="outline">
+                                                <a href={`/api/credit-notes/${cn.id}/pdf`} target="_blank">
+                                                    <Download className="h-3 w-3" />
+                                                </a>
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className="text-xs">Issued</Badge>
-                                        <Button asChild size="sm" variant="outline">
-                                            <a href={`/api/credit-notes/${cn.id}/pdf`} target="_blank">
-                                                <Download className="h-3 w-3" />
-                                            </a>
-                                        </Button>
-                                    </div>
+                                    {cn.acquirerReferenceNumber && (
+                                        <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                                            <p className="text-xs font-medium text-blue-800">ARN (Bank Reference)</p>
+                                            <p className="text-xs font-mono text-blue-700">{cn.acquirerReferenceNumber}</p>
+                                            <p className="text-xs text-blue-600 mt-1">
+                                                Customer can use this to trace refund at their bank
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                             {!order.Invoice && order.CreditNote.length === 0 && (

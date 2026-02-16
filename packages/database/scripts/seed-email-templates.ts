@@ -2120,6 +2120,9 @@ Best regards,
       <p style="margin: 10px 0;"><strong>Opprinnelig pris:</strong> {{orderTotal}}</p>
       <p style="margin: 10px 0;"><strong>Refusjon:</strong> {{refundAmount}}</p>
       <p style="margin: 10px 0;"><strong>Kansellert:</strong> {{cancelledDate}}</p>
+      {{#if acquirerReferenceNumber}}
+      <p style="margin: 10px 0;"><strong>ARN (Referansenummer):</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: monospace;">{{acquirerReferenceNumber}}</code></p>
+      {{/if}}
     </div>
     
     <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
@@ -2127,6 +2130,17 @@ Best regards,
         <strong>Refusjon:</strong> {{refundMessage}}
       </p>
     </div>
+    
+    {{#if acquirerReferenceNumber}}
+    <div style="background-color: #e8f4fd; padding: 15px; margin: 20px 0; border-left: 4px solid #2196F3; border-radius: 4px;">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: #1565c0;">
+        <strong>💡 Spore refusjonen din</strong>
+      </p>
+      <p style="margin: 0; font-size: 13px; color: #1976d2;">
+        ARN (Acquirer Reference Number) er et unikt referansenummer som kan brukes til å spore refusjonen hos banken din. Hvis refusjonen ikke vises på kontoen din innen 10 virkedager, kontakt banken din og oppgi dette nummeret: <strong>{{acquirerReferenceNumber}}</strong>
+      </p>
+    </div>
+    {{/if}}
     
     <p style="font-size: 14px; color: #666;">
       Hvis du kansellerte ved en feil, ta kontakt med oss så snart som mulig.
@@ -2160,8 +2174,14 @@ Ordrenummer: {{orderNumber}}
 Opprinnelig pris: {{orderTotal}}
 Refusjon: {{refundAmount}}
 Kansellert: {{cancelledDate}}
+{{#if acquirerReferenceNumber}}ARN (Referansenummer): {{acquirerReferenceNumber}}{{/if}}
 
 REFUSJON: {{refundMessage}}
+
+{{#if acquirerReferenceNumber}}
+SPORE REFUSJONEN:
+ARN (Acquirer Reference Number) er et unikt referansenummer som kan brukes til å spore refusjonen hos banken din. Hvis refusjonen ikke vises på kontoen din innen 10 virkedager, kontakt banken din og oppgi dette nummeret: {{acquirerReferenceNumber}}
+{{/if}}
 
 Hvis du kansellerte ved en feil, ta kontakt med oss så snart som mulig.
 
@@ -2182,7 +2202,9 @@ Med vennlig hilsen,
       cancelledDate: 'Cancellation date',
       organizerName: 'Organizer name',
       organizerUrl: 'Organizer page link',
-      currentYear: 'Current year'
+      currentYear: 'Current year',
+      acquirerReferenceNumber: 'ARN for tracing refund at bank',
+      hasArn: 'Whether ARN is available'
     },
   },
   // REGISTRATION_CANCELLED - English
@@ -2219,6 +2241,9 @@ Med vennlig hilsen,
       <p style="margin: 10px 0;"><strong>Original Price:</strong> {{orderTotal}}</p>
       <p style="margin: 10px 0;"><strong>Refund:</strong> {{refundAmount}}</p>
       <p style="margin: 10px 0;"><strong>Cancelled:</strong> {{cancelledDate}}</p>
+      {{#if acquirerReferenceNumber}}
+      <p style="margin: 10px 0;"><strong>ARN (Reference Number):</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: monospace;">{{acquirerReferenceNumber}}</code></p>
+      {{/if}}
     </div>
     
     <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
@@ -2226,6 +2251,17 @@ Med vennlig hilsen,
         <strong>Refund:</strong> {{refundMessage}}
       </p>
     </div>
+    
+    {{#if acquirerReferenceNumber}}
+    <div style="background-color: #e8f4fd; padding: 15px; margin: 20px 0; border-left: 4px solid #2196F3; border-radius: 4px;">
+      <p style="margin: 0 0 8px 0; font-size: 14px; color: #1565c0;">
+        <strong>💡 Track Your Refund</strong>
+      </p>
+      <p style="margin: 0; font-size: 13px; color: #1976d2;">
+        The ARN (Acquirer Reference Number) is a unique reference that can be used to trace your refund with your bank. If the refund doesn't appear in your account within 10 business days, contact your bank and provide this number: <strong>{{acquirerReferenceNumber}}</strong>
+      </p>
+    </div>
+    {{/if}}
     
     <p style="font-size: 14px; color: #666;">
       If you cancelled by mistake, please contact us as soon as possible.
@@ -2259,8 +2295,14 @@ Order Number: {{orderNumber}}
 Original Price: {{orderTotal}}
 Refund: {{refundAmount}}
 Cancelled: {{cancelledDate}}
+{{#if acquirerReferenceNumber}}ARN (Reference Number): {{acquirerReferenceNumber}}{{/if}}
 
 REFUND: {{refundMessage}}
+
+{{#if acquirerReferenceNumber}}
+TRACK YOUR REFUND:
+The ARN (Acquirer Reference Number) is a unique reference that can be used to trace your refund with your bank. If the refund doesn't appear in your account within 10 business days, contact your bank and provide this number: {{acquirerReferenceNumber}}
+{{/if}}
 
 If you cancelled by mistake, please contact us as soon as possible.
 
@@ -2281,7 +2323,9 @@ Best regards,
       cancelledDate: 'Cancellation date',
       organizerName: 'Organizer name',
       organizerUrl: 'Organizer page link',
-      currentYear: 'Current year'
+      currentYear: 'Current year',
+      acquirerReferenceNumber: 'ARN for tracing refund at bank',
+      hasArn: 'Whether ARN is available'
     },
   },
 ]

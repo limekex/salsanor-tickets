@@ -138,6 +138,7 @@ model CreditNote {
   
   // Stripe refund reference
   stripeRefundId  String?
+  acquirerReferenceNumber String?  // ARN - for customer to trace refund at bank
   
   // PDF storage
   pdfUrl          String?    // URL to stored PDF

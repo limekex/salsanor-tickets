@@ -142,6 +142,7 @@ export async function cancelRegistration(params: {
 
   let refundMessage = 'Ingen refusjon'
   let stripeRefundId = null
+  let acquirerReferenceNumber: string | null = null
 
   // Get the payment intent ID from either Order or Payment record
   const paymentIntentId = registration.Order?.stripePaymentIntentId 
@@ -172,6 +173,22 @@ export async function cancelRegistration(params: {
       })
       
       stripeRefundId = refund.id
+      
+      // Try to get the ARN (Acquirer Reference Number) - may not be available immediately
+      // ARN is available in refund.destination_details.card.reference for card refunds
+      try {
+        // Retrieve the full refund to get destination_details
+        const fullRefund = await stripe.refunds.retrieve(refund.id, {
+          expand: ['destination_details']
+        })
+        acquirerReferenceNumber = (fullRefund as any).destination_details?.card?.reference || null
+        if (acquirerReferenceNumber) {
+          console.log(`ARN retrieved: ${acquirerReferenceNumber}`)
+        }
+      } catch (arnError) {
+        console.log('ARN not available yet (normal for recent refunds)')
+      }
+      
       console.log(`Refund created: ${refund.id}`)
       
       if (params.refundPercentage === 100) {
@@ -245,6 +262,7 @@ export async function cancelRegistration(params: {
         mvaCents,
         totalCents: refundAmount,
         stripeRefundId,
+        acquirerReferenceNumber,
         status: 'ISSUED',
         orderId: registration.orderId || undefined,
         registrationId: registration.id
@@ -364,7 +382,9 @@ export async function cancelRegistration(params: {
         organizerUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/org/${registration.CoursePeriod.Organizer.slug}`,
         currentYear: new Date().getFullYear().toString(),
         creditNoteNumber: creditNote?.creditNumber || '',
-        hasCreditNote: !!creditNote
+        hasCreditNote: !!creditNote,
+        acquirerReferenceNumber: acquirerReferenceNumber || '',
+        hasArn: !!acquirerReferenceNumber
       },
       attachments
     })
