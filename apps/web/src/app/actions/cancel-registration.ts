@@ -29,12 +29,17 @@ export async function cancelRegistration(params: {
     where: { id: params.registrationId },
     include: {
       PersonProfile: true,
+      CourseTrack: true,
       CoursePeriod: {
         include: {
           Organizer: true
         }
       },
-      Order: true
+      Order: {
+        include: {
+          Payment: true
+        }
+      }
     }
   })
 
@@ -78,11 +83,16 @@ export async function cancelRegistration(params: {
   let refundMessage = 'Ingen refusjon'
   let stripeRefundId = null
 
+  // Get the payment intent ID from either Order or Payment record
+  const paymentIntentId = registration.Order?.stripePaymentIntentId 
+    || registration.Order?.Payment?.[0]?.stripePaymentIntentId
+    || null
+
   // Process refund if percentage > 0 and there's a payment intent
-  if (params.refundPercentage > 0 && registration.Order?.stripePaymentIntentId) {
+  if (params.refundPercentage > 0 && paymentIntentId) {
     try {
       const refund = await stripe.refunds.create({
-        payment_intent: registration.Order.stripePaymentIntentId,
+        payment_intent: paymentIntentId,
         amount: refundAmount, // Stripe uses cents/øre
         reason: params.reason ? 'requested_by_customer' : 'requested_by_customer',
         metadata: {
@@ -176,8 +186,15 @@ export async function cancelRegistration(params: {
       }
       
       // Build line items from the order/registration
+      // Include both track name and period name for clarity
+      const trackName = registration.CourseTrack?.title
+      const periodName = registration.CoursePeriod.name
+      const description = trackName 
+        ? `${trackName} (${periodName})`
+        : `Kurs: ${periodName}`
+      
       const lineItems: TicketLineItem[] = [{
-        description: `Kurs: ${registration.CoursePeriod.name}`,
+        description,
         quantity: 1,
         unitPriceCents: originalAmount,
         totalPriceCents: originalAmount
