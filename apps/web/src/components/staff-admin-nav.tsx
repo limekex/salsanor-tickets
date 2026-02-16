@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins, Download } from 'lucide-react'
+import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins, Download, FileText } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import {
@@ -34,6 +34,7 @@ const financeItems = [
     { href: '/staffadmin/finance/revenue', label: 'Revenue Reports', icon: Tag, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/finance/payments', label: 'Payment Status', icon: CreditCard, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/finance/registrations', label: 'Registrations', icon: ClipboardList, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
+    { href: '/staffadmin/finance/invoices', label: 'Invoices', icon: FileText, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/finance/export', label: 'Export Data', icon: Download, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
     { href: '/staffadmin/orders', label: 'Orders', icon: Package, roles: ['ORG_ADMIN'] },
 ]

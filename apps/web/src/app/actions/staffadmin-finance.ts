@@ -454,3 +454,205 @@ export async function getOrgRevenueWithMVA(organizerId: string) {
 
     return Object.values(revenueByProduct)
 }
+
+// =============================================================================
+// INVOICE MANAGEMENT (Phase 4)
+// =============================================================================
+
+/**
+ * Get all invoices for the organization
+ */
+export async function getOrgInvoices(organizerId: string) {
+    await requireOrgFinanceForOrganizer(organizerId)
+
+    const invoices = await prisma.invoice.findMany({
+        where: {
+            organizerId: organizerId
+        },
+        include: {
+            Order: {
+                select: {
+                    orderNumber: true,
+                    PersonProfile: {
+                        select: {
+                            firstName: true,
+                            lastName: true,
+                            email: true
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: {
+            invoiceDate: 'desc'
+        }
+    })
+
+    return invoices
+}
+
+/**
+ * Get a single invoice by ID
+ */
+export async function getOrgInvoice(organizerId: string, invoiceId: string) {
+    await requireOrgFinanceForOrganizer(organizerId)
+
+    const invoice = await prisma.invoice.findFirst({
+        where: {
+            id: invoiceId,
+            organizerId: organizerId
+        },
+        include: {
+            Order: {
+                include: {
+                    PersonProfile: true,
+                    CoursePeriod: true,
+                    Registration: {
+                        include: {
+                            CourseTrack: true,
+                            PersonProfile: true
+                        }
+                    },
+                    EventRegistration: {
+                        include: {
+                            Event: true,
+                            PersonProfile: true
+                        }
+                    },
+                    Membership: {
+                        include: {
+                            MembershipTier: true,
+                            PersonProfile: true
+                        }
+                    },
+                    Payment: true
+                }
+            },
+            Organizer: true
+        }
+    })
+
+    return invoice
+}
+
+/**
+ * Generate an invoice for an order (ORG_ADMIN only)
+ */
+export async function generateOrgInvoice(organizerId: string, orderId: string) {
+    // Note: This requires ORG_ADMIN, not just ORG_FINANCE (as per access matrix)
+    const { requireOrgAdminForOrganizer } = await import('@/utils/auth-org-admin')
+    await requireOrgAdminForOrganizer(organizerId)
+
+    // Check if invoice already exists for this order
+    const existingInvoice = await prisma.invoice.findFirst({
+        where: {
+            orderId: orderId,
+            organizerId: organizerId
+        }
+    })
+
+    if (existingInvoice) {
+        throw new Error('Invoice already exists for this order')
+    }
+
+    // Get the order with all details
+    const order = await prisma.order.findFirst({
+        where: {
+            id: orderId,
+            organizerId: organizerId,
+            status: 'PAID'
+        },
+        include: {
+            PersonProfile: true,
+            Organizer: true,
+            CoursePeriod: true,
+            Registration: {
+                include: {
+                    CourseTrack: true,
+                    PersonProfile: true
+                }
+            },
+            EventRegistration: {
+                include: {
+                    Event: true,
+                    PersonProfile: true
+                }
+            },
+            Membership: {
+                include: {
+                    MembershipTier: true,
+                    PersonProfile: true
+                }
+            }
+        }
+    })
+
+    if (!order) {
+        throw new Error('Order not found or not paid')
+    }
+
+    // Get next invoice number for this organizer
+    const organizer = await prisma.organizer.findUnique({
+        where: { id: organizerId },
+        select: { invoicePrefix: true, nextInvoiceNumber: true }
+    })
+
+    if (!organizer) {
+        throw new Error('Organizer not found')
+    }
+
+    const invoiceNumber = `${organizer.invoicePrefix}-${String(organizer.nextInvoiceNumber).padStart(5, '0')}`
+
+    // Create the invoice
+    const invoice = await prisma.invoice.create({
+        data: {
+            invoiceNumber,
+            organizerId,
+            orderId,
+            customerName: `${order.PersonProfile.firstName} ${order.PersonProfile.lastName}`,
+            customerEmail: order.PersonProfile.email,
+            customerOrgNr: null,
+            customerAddress: null,
+            subtotalCents: order.subtotalAfterDiscountCents,
+            mvaRate: order.mvaRate,
+            mvaCents: order.mvaCents,
+            totalCents: order.totalCents,
+            currency: order.currency,
+            invoiceDate: new Date(),
+            dueDate: new Date(), // Paid invoices have immediate due date
+            paymentTerms: 'Due upon receipt',
+            status: 'PAID',
+            paidAt: order.paidAt,
+            paidAmount: order.totalCents
+        }
+    })
+
+    // Increment the invoice number counter
+    await prisma.organizer.update({
+        where: { id: organizerId },
+        data: {
+            nextInvoiceNumber: { increment: 1 }
+        }
+    })
+
+    return invoice
+}
+
+/**
+ * Mark invoice as sent
+ */
+export async function markInvoiceSent(organizerId: string, invoiceId: string) {
+    await requireOrgFinanceForOrganizer(organizerId)
+
+    const invoice = await prisma.invoice.updateMany({
+        where: {
+            id: invoiceId,
+            organizerId: organizerId
+        },
+        data: {
+            sentAt: new Date()
+        }
+    })
+
+    return invoice
+}

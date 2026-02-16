@@ -1,6 +1,6 @@
 # Role Implementation: ORG_FINANCE (Finance Manager)
 
-**Status**: � MVP COMPLETE  
+**Status**: ✅ FULLY COMPLETE  
 **Priority**: 🔥 HIGH - Required for MVP  
 **Last Updated**: February 16, 2026
 
@@ -143,16 +143,16 @@ Total (NOK), Payment Method, Payment Date, Stripe ID
 ### Phase 4: Invoice Management (Post-MVP)
 
 #### 4.1 Invoice List - `/staffadmin/finance/invoices/page.tsx`
-- [ ] List all invoices for organization
-- [ ] Show: invoice number, date, amount, status
-- [ ] Download PDF button
-- [ ] Resend email button
+- [x] List all invoices for organization
+- [x] Show: invoice number, date, amount, status
+- [x] Download PDF button
+- [x] Resend email button
 
 #### 4.2 Invoice Generation
-- [ ] Generate invoice for order
-- [ ] Use existing PDF template from `/admin/pdf-templates`
-- [ ] Store invoice in database
-- [ ] Track invoice number sequence per organization
+- [x] Generate invoice for order
+- [x] Use existing PDF template from `/admin/pdf-templates`
+- [x] Store invoice in database
+- [x] Track invoice number sequence per organization
 
 ---
 

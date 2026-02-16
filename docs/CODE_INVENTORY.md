@@ -384,7 +384,7 @@ import { Suspense } from 'react'
 | `finance.ts` | getFinanceReport, getTransactions |
 | `invoices.ts` | createInvoice, getInvoice |
 | `staffadmin.ts` | Staff admin operations |
-| `staffadmin-finance.ts` | getOrgFinancialSummary, getOrgRevenueByPeriod, getOrgPaymentStatus, exportOrgFinancialData, syncStripeFees |
+| `staffadmin-finance.ts` | getOrgFinancialSummary, getOrgRevenueByPeriod, getOrgPaymentStatus, getOrgPaidRegistrations, exportOrgFinancialData, getOrgRevenueWithMVA, getOrgInvoices, getOrgInvoice, generateOrgInvoice, markInvoiceSent |
 | `sync-stripe-fees.ts` | syncStripeFees(orderId), syncAllMissingStripeFees(organizerId?) |
 | `settings.ts` | getSettings, updateSettings |
 
@@ -471,7 +471,7 @@ Pages using new components and formatters:
 - ✅ `/cart` - Uses formatPrice for all price displays (eliminated 10+ inline calculations)
 - 🟡 `/` - Homepage (no refactoring needed - static content only)
 
-### StaffAdmin Pages (13/29 refactored) - 45% Complete
+### StaffAdmin Pages (14/29 refactored) - 48% Complete
 
 - ✅ `/staffadmin/events` - Uses formatDateTimeShort, EmptyState
 - ✅ `/staffadmin/memberships/tiers` - Uses formatPrice
@@ -486,6 +486,7 @@ Pages using new components and formatters:
 - ✅ `/staffadmin/finance/payments` - Payment status list
 - ✅ `/staffadmin/finance/registrations` - Paid registrations by type
 - ✅ `/staffadmin/finance/export` - CSV export with DateRangeFilter
+- ✅ `/staffadmin/finance/invoices` - Invoice list with PDF download and email
 
 ### Admin Pages (7/8 refactored) - 88% Complete
 
@@ -500,7 +501,7 @@ Pages using new components and formatters:
 ### Remaining Public Pages (1)
 - `/courses/[periodId]/[trackId]/register` - Course registration page (already clean)
 
-### Remaining StaffAdmin Pages (16)
+### Remaining StaffAdmin Pages (15)
 - Most use `formatDateNO` and `formatNOK` from legal-requirements
 - Can be refactored incrementally as needed
 
