@@ -719,14 +719,297 @@ export async function POST(req: Request) {
             console.log(`  - Amount refunded: ${charge.amount_refunded / 100} ${charge.currency.toUpperCase()}`)
             console.log(`  - Refunded: ${charge.refunded ? 'Full' : 'Partial'}`)
             
-            // TODO: When refund system is implemented:
-            // 1. Find order by charge ID or payment_intent
-            // 2. Update order status (REFUNDED or PARTIALLY_REFUNDED)
-            // 3. Update registration statuses if applicable
-            // 4. Send refund confirmation email
-            // 5. Log refund in audit trail
+            // Find order by payment_intent
+            const paymentIntentId = typeof charge.payment_intent === 'string' 
+                ? charge.payment_intent 
+                : charge.payment_intent?.id
             
-            console.log(`Webhook: ℹ️  Refund handling not yet implemented, logging only`)
+            if (!paymentIntentId) {
+                console.error('Webhook: No payment_intent on charge', charge.id)
+                break
+            }
+            
+            const order = await prisma.order.findFirst({
+                where: { stripeChargeId: paymentIntentId },
+                include: {
+                    Organizer: true,
+                    PersonProfile: true,
+                    Registration: {
+                        include: {
+                            CourseTrack: true,
+                            CoursePeriod: true
+                        }
+                    },
+                    EventRegistration: {
+                        include: {
+                            Event: true
+                        }
+                    },
+                    Ticket: true,
+                    EventTicket: true,
+                    CreditNote: true
+                }
+            })
+            
+            if (!order) {
+                console.log(`Webhook: No order found for PaymentIntent ${paymentIntentId}`)
+                break
+            }
+            
+            // Check if we already processed this refund (idempotency)
+            const existingCreditNote = order.CreditNote.find(cn => 
+                cn.stripeRefundId && charge.refunds?.data?.some(r => r.id === cn.stripeRefundId)
+            )
+            if (existingCreditNote) {
+                console.log(`Webhook: Refund already processed, credit note ${existingCreditNote.creditNumber}`)
+                break
+            }
+            
+            // Get refund details from Stripe
+            const refunds = charge.refunds?.data || []
+            const latestRefund = refunds[0] // Most recent refund
+            
+            if (!latestRefund) {
+                console.log(`Webhook: No refund data on charge ${charge.id}`)
+                break
+            }
+            
+            const refundAmountCents = latestRefund.amount
+            const isFullRefund = charge.refunded && charge.amount === charge.amount_refunded
+            const refundPercentage = Math.round((refundAmountCents / charge.amount) * 100)
+            const refundReason = latestRefund.reason || 'Refund via Stripe'
+            
+            console.log(`Webhook: Processing ${isFullRefund ? 'full' : 'partial'} refund for order ${order.id}`)
+            console.log(`  - Refund amount: ${refundAmountCents} cents (${refundPercentage}%)`)
+            
+            // Calculate MVA for credit note
+            const mvaRate = Number(order.Organizer.mvaRate || 0) / 100
+            const mvaCents = order.Organizer.vatRegistered 
+                ? Math.round(refundAmountCents * mvaRate / (1 + mvaRate))
+                : 0
+            
+            // Generate credit note number
+            const year = new Date().getFullYear()
+            const creditNoteCount = await prisma.creditNote.count({
+                where: { organizerId: order.organizerId }
+            })
+            const creditNumber = `CN-${year}-${String(creditNoteCount + 1).padStart(5, '0')}`
+            
+            // Create credit note
+            const creditNote = await prisma.creditNote.create({
+                data: {
+                    creditNumber,
+                    organizerId: order.organizerId,
+                    orderId: order.id,
+                    reason: refundReason,
+                    refundType: isFullRefund ? 'FULL' : 'PARTIAL',
+                    originalAmountCents: order.totalCents,
+                    refundAmountCents,
+                    mvaCents,
+                    totalCents: refundAmountCents,
+                    stripeRefundId: latestRefund.id,
+                    status: 'ISSUED'
+                }
+            })
+            
+            console.log(`Webhook: Created credit note ${creditNumber}`)
+            
+            // Update order status
+            const newOrderStatus = isFullRefund ? 'REFUNDED' : 'PAID' // Keep PAID for partial refunds
+            await prisma.order.update({
+                where: { id: order.id },
+                data: { status: newOrderStatus }
+            })
+            
+            // For full refunds: cancel registrations and void tickets
+            if (isFullRefund) {
+                // Cancel course registrations
+                if (order.Registration.length > 0) {
+                    await prisma.registration.updateMany({
+                        where: { orderId: order.id },
+                        data: { 
+                            status: 'CANCELLED',
+                            cancelledAt: new Date(),
+                            cancellationReason: refundReason,
+                            refundAmount: refundAmountCents,
+                            refundPercentage: 100,
+                            stripeRefundId: latestRefund.id
+                        }
+                    })
+                    console.log(`Webhook: Cancelled ${order.Registration.length} course registrations`)
+                }
+                
+                // Cancel event registrations
+                if (order.EventRegistration.length > 0) {
+                    await prisma.eventRegistration.updateMany({
+                        where: { orderId: order.id },
+                        data: { status: 'CANCELLED' }
+                    })
+                    console.log(`Webhook: Cancelled ${order.EventRegistration.length} event registrations`)
+                }
+                
+                // Void course tickets
+                if (order.Ticket.length > 0) {
+                    await prisma.ticket.updateMany({
+                        where: { orderId: order.id },
+                        data: { isVoid: true, voidReason: refundReason }
+                    })
+                    console.log(`Webhook: Voided ${order.Ticket.length} course tickets`)
+                }
+                
+                // Void event tickets  
+                if (order.EventTicket.length > 0) {
+                    await prisma.eventTicket.updateMany({
+                        where: { 
+                            registrationId: { in: order.EventRegistration.map(er => er.id) }
+                        },
+                        data: { isVoid: true, voidReason: refundReason }
+                    })
+                    console.log(`Webhook: Voided event tickets`)
+                }
+            }
+            
+            // Generate and send credit note email
+            try {
+                const { emailService } = await import('@/lib/email/email-service')
+                const { generateCreditNotePDF, CreditNoteData } = await import('@/lib/tickets/pdf-generator')
+                const { SellerInfo, BuyerInfo, TicketLineItem, DEFAULT_PLATFORM_INFO } = await import('@/lib/tickets/legal-requirements')
+                
+                const organizer = order.Organizer
+                const person = order.PersonProfile
+                
+                // Build seller info
+                let addressInfo: { street?: string; postalCode?: string; city?: string; country: string } | undefined
+                if (organizer.legalAddress) {
+                    const parts = organizer.legalAddress.split(',')
+                    const street = parts[0]?.trim()
+                    const cityPart = parts[1]?.trim()
+                    const postalCodeMatch = cityPart?.match(/^(\d{4})\s+(.+)$/)
+                    addressInfo = {
+                        street,
+                        postalCode: postalCodeMatch?.[1],
+                        city: postalCodeMatch?.[2] || cityPart || organizer.city || undefined,
+                        country: organizer.country
+                    }
+                }
+                
+                const sellerInfo: typeof SellerInfo = {
+                    legalName: organizer.legalName || organizer.name,
+                    organizationNumber: organizer.organizationNumber || undefined,
+                    address: addressInfo,
+                    contactEmail: organizer.contactEmail || undefined,
+                    vatRegistered: organizer.vatRegistered || organizer.mvaReportingRequired,
+                    vatNumber: organizer.vatRegistered && organizer.organizationNumber ? organizer.organizationNumber : undefined,
+                    logoUrl: organizer.logoUrl || undefined
+                }
+                
+                const buyerInfo: typeof BuyerInfo = {
+                    name: `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Guest',
+                    email: person.email || ''
+                }
+                
+                // Build line items from order
+                const lineItems: Array<typeof TicketLineItem> = []
+                
+                // Add course registrations
+                for (const reg of order.Registration) {
+                    lineItems.push({
+                        description: reg.CourseTrack?.title || reg.CoursePeriod?.name || 'Kurs',
+                        quantity: 1,
+                        unitPriceCents: Math.floor(order.subtotalAfterDiscountCents / (order.Registration.length || 1)),
+                        totalPriceCents: Math.floor(order.subtotalAfterDiscountCents / (order.Registration.length || 1))
+                    })
+                }
+                
+                // Add event registrations
+                for (const eventReg of order.EventRegistration) {
+                    lineItems.push({
+                        description: eventReg.Event?.title || 'Event',
+                        quantity: eventReg.quantity,
+                        unitPriceCents: eventReg.unitPriceCents || 0,
+                        totalPriceCents: (eventReg.unitPriceCents || 0) * eventReg.quantity
+                    })
+                }
+                
+                // Fallback if no line items found
+                if (lineItems.length === 0) {
+                    lineItems.push({
+                        description: 'Ordre',
+                        quantity: 1,
+                        unitPriceCents: order.totalCents,
+                        totalPriceCents: order.totalCents
+                    })
+                }
+                
+                const creditNoteData: typeof CreditNoteData = {
+                    creditNumber,
+                    issueDate: new Date(),
+                    originalOrderNumber: order.orderNumber || undefined,
+                    originalTransactionDate: order.createdAt,
+                    refundType: isFullRefund ? 'FULL' : 'PARTIAL',
+                    refundPercentage,
+                    reason: refundReason,
+                    originalAmountCents: order.totalCents,
+                    refundAmountCents,
+                    mvaCents,
+                    totalCents: refundAmountCents,
+                    lineItems,
+                    seller: sellerInfo,
+                    buyer: buyerInfo,
+                    platform: DEFAULT_PLATFORM_INFO
+                }
+                
+                const creditNotePdf = await generateCreditNotePDF(creditNoteData)
+                
+                // Update credit note with PDF generation timestamp
+                await prisma.creditNote.update({
+                    where: { id: creditNote.id },
+                    data: { pdfGeneratedAt: new Date() }
+                })
+                
+                // Send refund confirmation email
+                if (person.email) {
+                    const itemDescription = order.Registration.length > 0 
+                        ? order.Registration.map(r => r.CourseTrack?.title || r.CoursePeriod?.name).join(', ')
+                        : order.EventRegistration.map(er => er.Event?.title).join(', ')
+                    
+                    await emailService.sendTransactional({
+                        organizerId: organizer.id,
+                        templateSlug: 'registration-cancelled',
+                        recipientEmail: person.email,
+                        recipientName: buyerInfo.name,
+                        variables: {
+                            recipientName: person.firstName || 'Kunde',
+                            organizationName: organizer.name,
+                            orderNumber: order.orderNumber || order.id,
+                            refundAmount: `${(refundAmountCents / 100).toFixed(2)} ${order.currency.toUpperCase()}`,
+                            refundPercentage: refundPercentage.toString(),
+                            refundType: isFullRefund ? 'full' : 'partial',
+                            reason: refundReason,
+                            creditNoteNumber: creditNumber,
+                            itemDescription
+                        },
+                        language: person.preferredLanguage || 'no',
+                        attachments: [{
+                            filename: `kreditnota-${creditNumber}.pdf`,
+                            content: creditNotePdf
+                        }]
+                    })
+                    
+                    // Mark credit note as sent
+                    await prisma.creditNote.update({
+                        where: { id: creditNote.id },
+                        data: { status: 'SENT', sentAt: new Date() }
+                    })
+                    
+                    console.log(`Webhook: Sent refund confirmation email to ${person.email}`)
+                }
+            } catch (emailError) {
+                console.error('Webhook: Failed to send refund email:', emailError)
+                // Don't fail webhook - credit note is already created
+            }
+            
+            console.log(`Webhook: ✅ Refund processed for order ${order.id}`)
             break
         }
 
@@ -771,14 +1054,44 @@ export async function POST(req: Request) {
         // Additional checkout events
         case 'checkout.session.expired': {
             const session = event.data.object as Stripe.Checkout.Session
-            console.log(`Webhook: Checkout session expired for order ${session.metadata?.orderId}`)
+            const orderId = session.metadata?.orderId
+            console.log(`Webhook: Checkout session expired for order ${orderId}`)
             
-            // TODO: Clean up expired sessions
-            // 1. Find order by session.metadata.orderId
-            // 2. Mark as EXPIRED if still PENDING
-            // 3. Release reserved inventory if applicable
-            
-            console.log(`Webhook: ℹ️  Session cleanup not yet implemented`)
+            if (orderId) {
+                const order = await prisma.order.findUnique({
+                    where: { id: orderId }
+                })
+                
+                if (order && order.status === 'PENDING') {
+                    // Mark order as cancelled (expired)
+                    await prisma.order.update({
+                        where: { id: orderId },
+                        data: { status: 'CANCELLED' }
+                    })
+                    
+                    console.log(`Webhook: ✅ Marked expired order ${orderId} as CANCELLED`)
+                    
+                    // Cancel any pending registrations
+                    await prisma.registration.updateMany({
+                        where: { orderId, status: 'PENDING' },
+                        data: { 
+                            status: 'CANCELLED',
+                            cancelledAt: new Date(),
+                            cancellationReason: 'Checkout session expired'
+                        }
+                    })
+                    
+                    // Cancel any pending event registrations
+                    await prisma.eventRegistration.updateMany({
+                        where: { orderId, status: 'PENDING' },
+                        data: { status: 'CANCELLED' }
+                    })
+                    
+                    console.log(`Webhook: Released reservations for expired order ${orderId}`)
+                } else if (order) {
+                    console.log(`Webhook: Order ${orderId} status is ${order.status}, skipping expiry handling`)
+                }
+            }
             break
         }
 
@@ -825,8 +1138,63 @@ export async function POST(req: Request) {
             const paymentIntent = event.data.object as Stripe.PaymentIntent
             console.log(`Webhook: ⚠️  Payment intent failed ${paymentIntent.id}`)
             console.log(`  - Last error: ${paymentIntent.last_payment_error?.message}`)
+            console.log(`  - Error code: ${paymentIntent.last_payment_error?.code}`)
             
-            // TODO: Log payment failures for analytics and customer support
+            // Find order by payment intent
+            const orderId = paymentIntent.metadata?.orderId
+            
+            if (orderId) {
+                const order = await prisma.order.findUnique({
+                    where: { id: orderId },
+                    include: {
+                        Organizer: true,
+                        PersonProfile: true
+                    }
+                })
+                
+                if (order && order.status === 'PENDING') {
+                    // Update order status to CANCELLED
+                    await prisma.order.update({
+                        where: { id: order.id },
+                        data: { status: 'CANCELLED' }
+                    })
+                    
+                    console.log(`Webhook: Marked order ${orderId} as CANCELLED due to payment failure`)
+                    
+                    // Send payment failure notification
+                    try {
+                        const { emailService } = await import('@/lib/email/email-service')
+                        
+                        if (order.PersonProfile?.email) {
+                            const errorMessage = paymentIntent.last_payment_error?.message || 'Betalingen kunne ikke gjennomføres'
+                            
+                            await emailService.sendTransactional({
+                                organizerId: order.organizerId,
+                                templateSlug: 'payment-failed',
+                                recipientEmail: order.PersonProfile.email,
+                                recipientName: `${order.PersonProfile.firstName || ''} ${order.PersonProfile.lastName || ''}`.trim() || undefined,
+                                variables: {
+                                    recipientName: order.PersonProfile.firstName || 'Kunde',
+                                    organizationName: order.Organizer.name,
+                                    orderNumber: order.orderNumber || order.id,
+                                    orderTotal: `${(order.totalCents / 100).toFixed(2)} ${order.currency.toUpperCase()}`,
+                                    errorMessage,
+                                    retryUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.reginor.no'}/checkout?orderId=${order.id}`
+                                },
+                                language: order.PersonProfile.preferredLanguage || 'no'
+                            })
+                            
+                            console.log(`Webhook: Sent payment failure notification to ${order.PersonProfile.email}`)
+                        }
+                    } catch (emailError) {
+                        console.error('Webhook: Failed to send payment failure email:', emailError)
+                    }
+                } else if (order) {
+                    console.log(`Webhook: Order ${orderId} status is ${order.status}, not updating`)
+                }
+            } else {
+                console.log(`Webhook: No orderId in payment intent metadata`)
+            }
             break
         }
 
