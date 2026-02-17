@@ -6,7 +6,7 @@
 ## Description
 Complete the Stripe webhook integration to handle payment events and trigger order fulfillment automatically when payments succeed.
 
-## Current Status (Updated: 16. februar 2026)
+## Current Status (Updated: 17. februar 2026)
 
 ### ✅ Completed
 - ✅ Webhook endpoint `/api/webhooks/stripe` exists and functional
@@ -29,6 +29,9 @@ Complete the Stripe webhook integration to handle payment events and trigger ord
 - ✅ **Refund handler** - Full implementation with credit notes and emails
 - ✅ **Payment failure handler** - Marks orders CANCELLED, sends notification
 - ✅ **Session expiry cleanup** - Releases reservations for expired checkouts
+- ✅ **ARN (Acquirer Reference Number)** - Stored from Stripe, displayed in emails and admin pages
+- ✅ **Per-item refund calculation** - Refunds based on specific track price, not full order total
+- ✅ **Credit note PDF generation** - Fixed lineItems population from registration data
 
 ### ❌ Still Missing (Non-Critical)
 - ❌ Dispute/chargeback alerts (`charge.dispute.created`) - only logs, no admin notification
@@ -39,6 +42,9 @@ Complete the Stripe webhook integration to handle payment events and trigger ord
 - CreditNote model fully integrated with refund webhook flow
 - Email service supports PDF attachments (receipts, tickets, credit notes)
 - Invoice auto-generated during fulfillment
+- **ARN (Acquirer Reference Number)**: Retrieved from Stripe after refund via `destination_details.card.reference`. Stored in CreditNote model. Displayed in cancellation emails (NO/EN) with guidance for bank tracing. Also shown on staffadmin and admin order detail pages.
+- **Per-item refunds**: Refund amount calculated from `pricingSnapshot.lineItems` to get the specific track price, not the full order total.
+- **Credit note PDF**: Fixed to properly populate lineItems from Registration data (CourseTrack, CoursePeriod, PersonProfile).
 
 ## Requirements
 
@@ -87,6 +93,9 @@ Complete the Stripe webhook integration to handle payment events and trigger ord
   - [x] Generate credit note PDF
   - [x] Send refund confirmation email with credit note PDF attachment
   - [x] Idempotency check (skip if credit note already exists for refund)
+  - [x] **Store ARN (Acquirer Reference Number)** for bank refund tracing
+  - [x] **Include ARN in cancellation email** with guidance text
+  - [x] **Calculate refund from per-item pricing** (not full order total)
 
 ### Session Expiry Handler
 - [x] On `checkout.session.expired`:
