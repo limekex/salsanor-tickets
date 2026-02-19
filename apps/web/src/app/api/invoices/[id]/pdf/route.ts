@@ -1,19 +1,24 @@
 import { prisma } from '@/lib/db'
-import { requireOrgAdmin } from '@/utils/auth-org-admin'
+import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import { generateInvoicePDF, type InvoiceData } from '@/lib/tickets/pdf-generator'
 
 /**
  * Generate and download invoice PDF by invoice ID
- * Accessible by org admins for their organization's invoices
+ * Accessible by org admins for their organization's invoices AND by order owners
  */
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const userAccount = await requireOrgAdmin()
         const { id: invoiceId } = await params
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
 
         // Get the invoice with order and organization details
         const invoice = await prisma.invoice.findUnique({
@@ -33,7 +38,12 @@ export async function GET(
                                 CourseTrack: true
                             }
                         },
-                        CoursePeriod: true
+                        CoursePeriod: true,
+                        CreditNote: {
+                            orderBy: {
+                                issueDate: 'desc'
+                            }
+                        }
                     }
                 }
             }
@@ -46,14 +56,33 @@ export async function GET(
         const order = invoice.Order
         const org = order.Organizer
 
-        // Verify user has access to this organization
-        const hasAccess = userAccount.UserAccountRole.some(
+        // Get user account to check permissions
+        const userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: user.id },
+            include: { 
+                PersonProfile: true,
+                UserAccountRole: true 
+            }
+        })
+
+        if (!userAccount) {
+            return NextResponse.json({ error: 'User account not found' }, { status: 404 })
+        }
+
+        // Check if user is the order owner OR has org admin access
+        const isOrderOwner = order.purchaserPersonId === userAccount.PersonProfile?.id
+        const hasOrgAccess = userAccount.UserAccountRole.some(
             role => role.organizerId === org.id
         )
         
-        if (!hasAccess) {
+        if (!isOrderOwner && !hasOrgAccess) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 })
         }
+
+        // Calculate refund information
+        const totalRefundedCents = order.CreditNote.reduce((sum, cn) => sum + cn.refundAmountCents, 0)
+        const isFullyRefunded = totalRefundedCents >= order.totalCents
+        const isPartiallyRefunded = totalRefundedCents > 0 && !isFullyRefunded
 
         // Build line items from order
         const lineItems = []
@@ -113,7 +142,15 @@ export async function GET(
                 name: invoice.customerName,
                 email: invoice.customerEmail,
                 address: undefined
-            }
+            },
+            // Add refund information
+            refundStatus: isFullyRefunded ? 'FULLY_REFUNDED' : (isPartiallyRefunded ? 'PARTIALLY_REFUNDED' : undefined),
+            refundedAmountCents: totalRefundedCents > 0 ? totalRefundedCents : undefined,
+            creditNotes: order.CreditNote.length > 0 ? order.CreditNote.map(cn => ({
+                creditNumber: cn.creditNumber,
+                issueDate: cn.issueDate,
+                refundAmountCents: cn.refundAmountCents
+            })) : undefined
         }
 
         // Generate PDF

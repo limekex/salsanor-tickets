@@ -160,6 +160,14 @@ export interface InvoiceData {
     platform?: PlatformInfo
     vat?: VatBreakdown
     footerText?: string  // Custom footer text
+    // Refund information
+    refundStatus?: 'FULLY_REFUNDED' | 'PARTIALLY_REFUNDED'
+    refundedAmountCents?: number
+    creditNotes?: Array<{
+        creditNumber: string
+        issueDate: Date
+        refundAmountCents: number
+    }>
 }
 
 // =============================================================================
@@ -1845,6 +1853,123 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     })
     
     y -= 20
+
+    // ==========================================================================
+    // REFUND INFORMATION (if applicable)
+    // ==========================================================================
+    
+    if (data.refundStatus) {
+        const refundColor = { r: 0.93, g: 0.26, b: 0.26 }  // Red
+        
+        // Display refund status
+        if (data.refundStatus === 'FULLY_REFUNDED') {
+            // Prominent fully refunded banner
+            const bannerHeight = 50
+            page.drawRectangle({
+                x: 50,
+                y: y - bannerHeight,
+                width: width - 100,
+                height: bannerHeight,
+                color: rgb(0.98, 0.95, 0.95),
+                borderColor: rgb(refundColor.r, refundColor.g, refundColor.b),
+                borderWidth: 2
+            })
+            
+            drawText({ 
+                page, 
+                text: 'FULLSTENDIG REFUNDERT', 
+                x: 60, 
+                y: y - 20, 
+                font: helveticaBold, 
+                size: 14, 
+                color: refundColor
+            })
+            
+            if (data.refundedAmountCents) {
+                drawText({ 
+                    page, 
+                    text: `Refundert beløp: ${formatNOK(data.refundedAmountCents)}`, 
+                    x: 60, 
+                    y: y - 38, 
+                    font: helvetica, 
+                    size: 10, 
+                    color: refundColor
+                })
+            }
+            
+            y -= bannerHeight + 10
+        } else if (data.refundStatus === 'PARTIALLY_REFUNDED' && data.refundedAmountCents) {
+            // Partial refund information
+            drawText({ 
+                page, 
+                text: 'DELVIS REFUNDERT:', 
+                x: totalsX, 
+                y, 
+                font: helveticaBold, 
+                size: 10, 
+                color: refundColor
+            })
+            drawText({ 
+                page, 
+                text: `-${formatNOK(data.refundedAmountCents)}`, 
+                x: totalsX + 80, 
+                y, 
+                font: helveticaBold, 
+                size: 10, 
+                color: refundColor
+            })
+            y -= 18
+            
+            // Calculate and show net amount
+            const netAmount = data.totalCents - data.refundedAmountCents
+            drawText({ 
+                page, 
+                text: 'Netto beløp:', 
+                x: totalsX, 
+                y, 
+                font: helveticaBold, 
+                size: 11 
+            })
+            drawText({ 
+                page, 
+                text: formatNOK(netAmount), 
+                x: totalsX + 80, 
+                y, 
+                font: helveticaBold, 
+                size: 11 
+            })
+            y -= 16
+        }
+        
+        // List credit notes if available
+        if (data.creditNotes && data.creditNotes.length > 0) {
+            drawText({ 
+                page, 
+                text: 'Kreditnotaer:', 
+                x: 50, 
+                y, 
+                font: helveticaBold, 
+                size: 9, 
+                color: { r: 0.3, g: 0.3, b: 0.3 }
+            })
+            y -= 14
+            
+            for (const cn of data.creditNotes) {
+                drawText({ 
+                    page, 
+                    text: `• ${cn.creditNumber} (${formatDateNO(cn.issueDate)}): ${formatNOK(cn.refundAmountCents)}`, 
+                    x: 60, 
+                    y, 
+                    font: helvetica, 
+                    size: 8, 
+                    color: { r: 0.4, g: 0.4, b: 0.4 }
+                })
+                y -= 12
+            }
+        }
+        
+        y -= 10
+    }
 
     // ==========================================================================
     // VAT BREAKDOWN (if applicable and template allows)

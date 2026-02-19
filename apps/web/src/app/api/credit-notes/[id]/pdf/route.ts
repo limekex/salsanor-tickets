@@ -1,20 +1,25 @@
 import { prisma } from '@/lib/db'
-import { requireOrgAdmin } from '@/utils/auth-org-admin'
+import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import { generateCreditNotePDF } from '@/lib/tickets/pdf-generator'
 import { DEFAULT_PLATFORM_INFO } from '@/lib/tickets/legal-requirements'
 
 /**
  * Download credit note PDF by credit note ID
- * Accessible by org admins for their organization's credit notes
+ * Accessible by org admins for their organization's credit notes AND by order owners
  */
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const userAccount = await requireOrgAdmin()
         const { id: creditNoteId } = await params
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
 
         const creditNote = await prisma.creditNote.findUnique({
             where: { id: creditNoteId },
@@ -38,12 +43,26 @@ export async function GET(
         }
         const org = order.Organizer
 
-        // Verify user has access to this organization
-        const hasAccess = userAccount.UserAccountRole.some(
+        // Get user account to check permissions
+        const userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: user.id },
+            include: { 
+                PersonProfile: true,
+                UserAccountRole: true 
+            }
+        })
+
+        if (!userAccount) {
+            return NextResponse.json({ error: 'User account not found' }, { status: 404 })
+        }
+
+        // Check if user is the order owner OR has org admin access
+        const isOrderOwner = order.purchaserPersonId === userAccount.PersonProfile?.id
+        const hasOrgAccess = userAccount.UserAccountRole.some(
             role => role.organizerId === org.id
         )
         
-        if (!hasAccess) {
+        if (!isOrderOwner && !hasOrgAccess) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 })
         }
 
