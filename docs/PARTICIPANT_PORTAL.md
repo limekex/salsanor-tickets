@@ -1,11 +1,14 @@
 # Participant Portal Documentation
 
 **Last Updated**: February 19, 2026  
-**Status**: ✅ Complete
+**Status**: ✅ Complete  
+**Language**: English (i18n-ready)
 
 ## Overview
 
 The participant portal is a well-organized dashboard located at `/my/` that provides users with a centralized location to view and manage their event tickets, course registrations, and memberships.
+
+All UI text is in English and structured for future internationalization (i18n) support.
 
 ## Portal Structure
 
@@ -106,13 +109,35 @@ Following AGENT_INSTRUCTIONS.md:
 - `formatPrice()` - For price displays
 - `formatRelativeTime()` - For waitlist offer expiry
 
+### Internationalization (i18n)
+All UI text managed through centralized constants:
+- Text constants in `@/lib/i18n/ui-text.ts`
+- Helper functions for pluralization (`getCountText`)
+- Type-safe text references using `UI_TEXT` object
+- **Current language**: English (en-GB)
+- **Ready for**: i18n library integration (next-intl, react-i18next, etc.)
+
+Example usage:
+```typescript
+import { UI_TEXT, getCountText } from '@/lib/i18n'
+
+// Simple text
+<h1>{UI_TEXT.tickets.title}</h1>
+
+// Pluralization
+{getCountText(UI_TEXT.tickets.singular, UI_TEXT.tickets.plural, count)}
+
+// Dynamic text with parameters
+{UI_TEXT.memberships.pendingMessage(tierName)}
+```
+
 ### UI Guidelines
 Follows RegiNor_UI_Guidelines.md:
 - Minimal, calm design
 - Semantic color usage (badges)
 - Consistent spacing with rn-* tokens
 - Clear call-to-action buttons
-- Norwegian language for user-facing text
+- English language for all user-facing text (i18n-ready)
 
 ## Routes Summary
 
@@ -127,6 +152,7 @@ Follows RegiNor_UI_Guidelines.md:
 ## Future Enhancements
 
 Potential improvements:
+- **Full i18n Support**: Integrate i18n library for multiple languages (Norwegian, English, etc.)
 - Order history section (`/my/orders/`)
 - Payment history section (`/my/payments/`)
 - Notification preferences (`/my/notifications/`)
