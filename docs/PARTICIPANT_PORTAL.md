@@ -6,7 +6,7 @@
 
 ## Overview
 
-The participant portal is a well-organized dashboard located at `/my/` that provides users with a centralized location to view and manage their event tickets, course registrations, and memberships.
+The participant portal is a well-organized dashboard located at `/my/` that provides users with a centralized location to view and manage their event tickets, course registrations, memberships, orders, and account settings.
 
 All UI text is in English and structured for future internationalization (i18n) support.
 
@@ -14,7 +14,7 @@ All UI text is in English and structured for future internationalization (i18n) 
 
 ### Main Dashboard (`/my/`)
 The main portal dashboard displays:
-- **Overview Cards**: Count of event tickets, course registrations, and memberships
+- **Overview Cards**: Count of event tickets, course registrations, memberships, and orders (4-column grid)
 - **Quick Actions**: Links to browse courses/events and access settings
 - **Navigation**: Easy access to all sub-sections
 
@@ -40,6 +40,23 @@ The main portal dashboard displays:
 - Indicates pending approval status
 - Empty state with link to browse organizations
 
+#### Orders (`/my/orders/`)
+- Shows all completed orders (payment history)
+- Displays order number, status, and total
+- Links to event/course associated with order
+- Shows organizer information
+- Link to view detailed order information
+- Empty state with link to browse courses
+
+#### Settings (`/my/settings/`)
+- View and edit profile information
+- Update contact details (name, email, phone)
+- Manage address information
+- Language preferences
+- Emergency contact
+- Profile photo upload
+- GDPR and ToS consent status
+
 ## Navigation Integration
 
 ### Public Navigation
@@ -58,10 +75,15 @@ All internal links updated:
 
 ## Backward Compatibility
 
-The old `/profile` route now redirects to `/my/` to maintain backward compatibility with:
+The old routes now redirect to new portal locations:
+- `/profile` → `/my/` 
+- `/profile/settings` → `/my/settings`
+
+This maintains compatibility with:
 - Existing bookmarks
 - External links
 - Email links
+- Old documentation references
 
 ## Implementation Details
 
@@ -143,19 +165,25 @@ Follows RegiNor_UI_Guidelines.md:
 
 | Route | Purpose | Components |
 |-------|---------|------------|
-| `/my/` | Main dashboard | Overview cards, quick actions |
+| `/my/` | Main dashboard | Overview cards (4-column grid), quick actions |
 | `/my/tickets/` | Event tickets list | QR codes, payment buttons |
 | `/my/courses/` | Course registrations | Tickets, waitlist offers |
 | `/my/memberships/` | Active memberships | Membership cards |
+| `/my/orders/` | Order/payment history | Order cards, status badges |
+| `/my/settings/` | Account settings | Profile editor, language selector |
 | `/profile` | Legacy route | Redirects to `/my/` |
+| `/profile/settings` | Legacy route | Redirects to `/my/settings` |
 
 ## Future Enhancements
 
 Potential improvements:
 - **Full i18n Support**: Integrate i18n library for multiple languages (Norwegian, English, etc.)
-- Order history section (`/my/orders/`)
-- Payment history section (`/my/payments/`)
-- Notification preferences (`/my/notifications/`)
+- **PDF Downloads**: Generate PDF tickets and invoices
+- Order details page (`/my/orders/[id]`)
+- Payment history section with receipts
+- Cancel registration functionality
+- Attendance history tracking (`/my/attendance`)
+- Notification preferences (`/my/notifications`)
 - Favorites/wishlist (`/my/favorites/`)
 - Profile customization beyond settings
 
