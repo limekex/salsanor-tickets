@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { Ticket, GraduationCap, CreditCard, Calendar } from 'lucide-react'
+import { UI_TEXT, getCountText } from '@/lib/i18n'
 
 export default async function MyDashboardPage() {
   const supabase = await createClient()
@@ -47,8 +48,8 @@ export default async function MyDashboardPage() {
     <main className="container mx-auto py-rn-7 px-rn-4">
       <div className="max-w-4xl mx-auto space-y-rn-6">
         <div className="mb-rn-6">
-          <h1 className="rn-h1">My Portal</h1>
-          <p className="rn-meta text-rn-text-muted">Welcome back, {userAccount.PersonProfile.firstName}!</p>
+          <h1 className="rn-h1">{UI_TEXT.portal.title}</h1>
+          <p className="rn-meta text-rn-text-muted">{UI_TEXT.portal.welcome}, {userAccount.PersonProfile.firstName}!</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-rn-6">
@@ -60,9 +61,9 @@ export default async function MyDashboardPage() {
                   <Ticket className="h-6 w-6 text-rn-primary" />
                 </div>
                 <div>
-                  <CardTitle className="rn-h3">Event Tickets</CardTitle>
+                  <CardTitle className="rn-h3">{UI_TEXT.dashboard.eventTickets}</CardTitle>
                   <CardDescription className="rn-meta">
-                    {eventRegistrationsCount} {eventRegistrationsCount === 1 ? 'ticket' : 'tickets'}
+                    {eventRegistrationsCount} {getCountText(UI_TEXT.tickets.singular, UI_TEXT.tickets.plural, eventRegistrationsCount)}
                   </CardDescription>
                 </div>
               </div>
@@ -84,9 +85,9 @@ export default async function MyDashboardPage() {
                   <GraduationCap className="h-6 w-6 text-rn-primary" />
                 </div>
                 <div>
-                  <CardTitle className="rn-h3">Courses</CardTitle>
+                  <CardTitle className="rn-h3">{UI_TEXT.dashboard.courses}</CardTitle>
                   <CardDescription className="rn-meta">
-                    {courseRegistrationsCount} {courseRegistrationsCount === 1 ? 'registration' : 'registrations'}
+                    {courseRegistrationsCount} {getCountText(UI_TEXT.courses.singular, UI_TEXT.courses.plural, courseRegistrationsCount)}
                   </CardDescription>
                 </div>
               </div>
@@ -108,9 +109,9 @@ export default async function MyDashboardPage() {
                   <CreditCard className="h-6 w-6 text-rn-primary" />
                 </div>
                 <div>
-                  <CardTitle className="rn-h3">Memberships</CardTitle>
+                  <CardTitle className="rn-h3">{UI_TEXT.dashboard.memberships}</CardTitle>
                   <CardDescription className="rn-meta">
-                    {membershipsCount} {membershipsCount === 1 ? 'membership' : 'memberships'}
+                    {membershipsCount} {getCountText(UI_TEXT.memberships.singular, UI_TEXT.memberships.plural, membershipsCount)}
                   </CardDescription>
                 </div>
               </div>
@@ -128,25 +129,25 @@ export default async function MyDashboardPage() {
         {/* Quick Links Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="rn-h3">Quick Actions</CardTitle>
+            <CardTitle className="rn-h3">{UI_TEXT.dashboard.quickActions}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-rn-3">
               <Button asChild variant="outline">
                 <Link href="/courses">
                   <Calendar className="h-4 w-4 mr-2" />
-                  Browse Courses
+                  {UI_TEXT.dashboard.browseCourses}
                 </Link>
               </Button>
               <Button asChild variant="outline">
                 <Link href="/events">
                   <Calendar className="h-4 w-4 mr-2" />
-                  Browse Events
+                  {UI_TEXT.dashboard.browseEvents}
                 </Link>
               </Button>
               <Button asChild variant="outline">
                 <Link href="/profile/settings">
-                  Settings
+                  {UI_TEXT.dashboard.settings}
                 </Link>
               </Button>
             </div>

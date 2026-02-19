@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { ArrowLeft, CreditCard, Clock } from 'lucide-react'
 import { EmptyState } from '@/components'
 import { MembershipCard } from '@/components/membership-card'
+import { UI_TEXT, getCountText } from '@/lib/i18n'
 
 export default async function MyMembershipsPage() {
   const supabase = await createClient()
@@ -53,15 +54,15 @@ export default async function MyMembershipsPage() {
           <Button asChild variant="ghost" size="sm">
             <Link href="/my">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Portal
+              {UI_TEXT.common.backToPortal}
             </Link>
           </Button>
         </div>
 
         <div className="mb-rn-6">
-          <h1 className="rn-h1">My Memberships</h1>
+          <h1 className="rn-h1">{UI_TEXT.memberships.title}</h1>
           <p className="rn-meta text-rn-text-muted">
-            {memberships.length} {memberships.length === 1 ? 'membership' : 'memberships'}
+            {memberships.length} {getCountText(UI_TEXT.memberships.singular, UI_TEXT.memberships.plural, memberships.length)}
           </p>
         </div>
 
@@ -69,9 +70,9 @@ export default async function MyMembershipsPage() {
         {memberships.length === 0 ? (
           <EmptyState
             icon={CreditCard}
-            title="No memberships"
-            description="You don't have any active memberships yet"
-            action={{ label: "Browse Organizations", href: "/events" }}
+            title={UI_TEXT.memberships.noMemberships}
+            description={UI_TEXT.memberships.noMembershipsDescription}
+            action={{ label: UI_TEXT.memberships.browseOrganizations, href: "/events" }}
           />
         ) : (
           <div className="grid gap-rn-6 md:grid-cols-2 lg:grid-cols-3">
@@ -86,18 +87,18 @@ export default async function MyMembershipsPage() {
                           <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
                         </div>
                       </div>
-                      <CardTitle className="text-lg">Pending Approval</CardTitle>
+                      <CardTitle className="text-lg">{UI_TEXT.memberships.pendingApproval}</CardTitle>
                       <CardDescription>
                         {membership.Organizer.name}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="text-sm text-center text-muted-foreground">
-                        Your <strong>{membership.MembershipTier.name}</strong> membership is waiting for validation from an administrator.
+                        {UI_TEXT.memberships.pendingMessage(membership.MembershipTier.name)}
                       </div>
                       <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm">
                         <p className="text-yellow-800 dark:text-yellow-400">
-                          You will receive an email notification once your membership has been approved.
+                          {UI_TEXT.memberships.pendingNotice}
                         </p>
                       </div>
                     </CardContent>

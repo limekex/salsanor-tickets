@@ -11,6 +11,7 @@ import { QRCodeDisplay } from '@/components/qr-code-display'
 import { PayButton } from '@/components/pay-button'
 import { CancelOrderButton } from '@/app/(site)/profile/cancel-order-button'
 import { formatDateShort, formatDateTimeShort, formatPrice } from '@/lib/formatters'
+import { UI_TEXT, getCountText, formatTicketLabel } from '@/lib/i18n'
 
 export default async function MyTicketsPage() {
   const supabase = await createClient()
@@ -71,15 +72,15 @@ export default async function MyTicketsPage() {
           <Button asChild variant="ghost" size="sm">
             <Link href="/my">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Portal
+              {UI_TEXT.common.backToPortal}
             </Link>
           </Button>
         </div>
 
         <div className="mb-rn-6">
-          <h1 className="rn-h1">My Event Tickets</h1>
+          <h1 className="rn-h1">{UI_TEXT.tickets.title}</h1>
           <p className="rn-meta text-rn-text-muted">
-            {eventRegistrations.length} {eventRegistrations.length === 1 ? 'ticket' : 'tickets'}
+            {eventRegistrations.length} {getCountText(UI_TEXT.tickets.singular, UI_TEXT.tickets.plural, eventRegistrations.length)}
           </p>
         </div>
 
@@ -87,9 +88,9 @@ export default async function MyTicketsPage() {
         {eventRegistrations.length === 0 ? (
           <EmptyState
             icon={Calendar}
-            title="No event tickets"
-            description="You don't have any event tickets yet"
-            action={{ label: "Browse Events", href: "/events" }}
+            title={UI_TEXT.tickets.noTickets}
+            description={UI_TEXT.tickets.noTicketsDescription}
+            action={{ label: UI_TEXT.tickets.browseEvents, href: "/events" }}
           />
         ) : (
           <div className="grid gap-rn-6 md:grid-cols-2">
@@ -111,18 +112,18 @@ export default async function MyTicketsPage() {
                   <div className="space-y-4">
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>Quantity:</span>
-                        <span>{eventReg.quantity} ticket(s)</span>
+                        <span>{UI_TEXT.tickets.quantity}</span>
+                        <span>{eventReg.quantity} {getCountText(UI_TEXT.tickets.singular, UI_TEXT.tickets.plural, eventReg.quantity)}</span>
                       </div>
                       {eventReg.Event.startDateTime && (
                         <div className="flex justify-between">
-                          <span>Date:</span>
+                          <span>{UI_TEXT.tickets.date}</span>
                           <span>{formatDateTimeShort(eventReg.Event.startDateTime)}</span>
                         </div>
                       )}
                       {eventReg.Order && (
                         <div className="flex justify-between border-t pt-2">
-                          <span>Total Paid/Due:</span>
+                          <span>{UI_TEXT.tickets.totalPaid}</span>
                           <span>{formatPrice(eventReg.Order.totalCents)}</span>
                         </div>
                       )}
@@ -135,7 +136,7 @@ export default async function MyTicketsPage() {
                         return (
                           <div className="border-t pt-4 space-y-3">
                             <p className="text-sm font-medium">
-                              {tickets.length === 1 ? 'Din billett:' : `Dine ${tickets.length} billetter:`}
+                              {formatTicketLabel(tickets.length)}
                             </p>
                             {tickets.length === 1 ? (
                               <div className="flex justify-center">
@@ -148,7 +149,7 @@ export default async function MyTicketsPage() {
                                     <summary className="cursor-pointer list-none">
                                       <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent">
                                         <span className="font-medium">
-                                          Billett {ticket.ticketNumber || idx + 1}
+                                          {UI_TEXT.tickets.ticketNumber(ticket.ticketNumber || idx + 1)}
                                         </span>
                                         <svg 
                                           className="w-5 h-5 transition-transform group-open:rotate-180" 
@@ -168,7 +169,7 @@ export default async function MyTicketsPage() {
                               </div>
                             )}
                             <p className="text-xs text-center text-muted-foreground">
-                              Vis disse ved innsjekk
+                              {UI_TEXT.tickets.showAtCheckIn}
                             </p>
                           </div>
                         )

@@ -12,6 +12,7 @@ import { PayButton } from '@/components/pay-button'
 import { CancelOrderButton } from '@/app/(site)/profile/cancel-order-button'
 import { AcceptOfferButton, DeclineOfferButton } from '@/app/(site)/profile/offer-buttons'
 import { formatDateShort, formatPrice, formatRelativeTime } from '@/lib/formatters'
+import { UI_TEXT, getCountText } from '@/lib/i18n'
 
 export default async function MyCoursesPage() {
   const supabase = await createClient()
@@ -63,15 +64,15 @@ export default async function MyCoursesPage() {
           <Button asChild variant="ghost" size="sm">
             <Link href="/my">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Portal
+              {UI_TEXT.common.backToPortal}
             </Link>
           </Button>
         </div>
 
         <div className="mb-rn-6">
-          <h1 className="rn-h1">My Course Registrations</h1>
+          <h1 className="rn-h1">{UI_TEXT.courses.title}</h1>
           <p className="rn-meta text-rn-text-muted">
-            {registrations.length} {registrations.length === 1 ? 'registration' : 'registrations'}
+            {registrations.length} {getCountText(UI_TEXT.courses.singular, UI_TEXT.courses.plural, registrations.length)}
           </p>
         </div>
 
@@ -79,9 +80,9 @@ export default async function MyCoursesPage() {
         {registrations.length === 0 ? (
           <EmptyState
             icon={GraduationCap}
-            title="No course registrations"
-            description="You don't have any course registrations yet"
-            action={{ label: "Browse Courses", href: "/courses" }}
+            title={UI_TEXT.courses.noCourses}
+            description={UI_TEXT.courses.noCoursesDescription}
+            action={{ label: UI_TEXT.courses.browseCourses, href: "/courses" }}
           />
         ) : (
           <div className="grid gap-rn-6 md:grid-cols-2">
@@ -103,12 +104,12 @@ export default async function MyCoursesPage() {
                   <div className="space-y-4">
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>Role:</span>
+                        <span>{UI_TEXT.courses.role}</span>
                         <span>{reg.chosenRole}</span>
                       </div>
                       {reg.Order && (
                         <div className="flex justify-between border-t pt-2">
-                          <span>Total Paid/Due:</span>
+                          <span>{UI_TEXT.courses.totalPaid}</span>
                           <span>{formatPrice(reg.Order.totalCents)}</span>
                         </div>
                       )}
@@ -118,9 +119,9 @@ export default async function MyCoursesPage() {
                     {reg.WaitlistEntry?.status === 'OFFERED' && reg.WaitlistEntry.offeredUntil && (
                       <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-md border border-orange-200 dark:border-orange-800 space-y-3">
                         <div>
-                          <h4 className="font-bold text-orange-800 dark:text-orange-400">Spot Offered!</h4>
+                          <h4 className="font-bold text-orange-800 dark:text-orange-400">{UI_TEXT.waitlist.spotOffered}</h4>
                           <p className="text-xs text-orange-700 dark:text-orange-500">
-                            Expires {formatRelativeTime(reg.WaitlistEntry.offeredUntil)}
+                            {UI_TEXT.waitlist.expires} {formatRelativeTime(reg.WaitlistEntry.offeredUntil)}
                           </p>
                         </div>
                         <div className="flex gap-2">
