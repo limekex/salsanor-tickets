@@ -51,8 +51,6 @@
   - [x] Email
   - [x] Phone number
   - [x] Emergency contact
-  - [ ] Dance experience level
-  - [ ] Preferred role (leader/follower)
 - [ ] Update preferences
 - [ ] Communication settings
 - [ ] Privacy settings
