@@ -27,14 +27,7 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
         include: {
           Event: {
             include: {
-              Organizer: true,
-              EventTicket: {
-                where: {
-                  personId: {
-                    not: null
-                  }
-                }
-              }
+              Organizer: true
             }
           }
         }
