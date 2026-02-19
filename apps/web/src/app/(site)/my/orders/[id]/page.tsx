@@ -202,7 +202,7 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
                 </div>
               )}
               <div className="flex justify-between text-sm">
-                <span>MVA ({order.mvaRate}%)</span>
+                <span>MVA ({Number(order.mvaRate)}%)</span>
                 <span>{formatPrice(order.mvaCents)}</span>
               </div>
               <div className="flex justify-between font-bold text-lg border-t pt-2">
