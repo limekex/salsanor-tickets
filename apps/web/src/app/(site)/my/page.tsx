@@ -51,12 +51,36 @@ export default async function MyDashboardPage() {
   return (
     <main className="container mx-auto py-rn-7 px-rn-4">
       <div className="max-w-4xl mx-auto space-y-rn-6">
+        {/* Header with title and action buttons */}
         <div className="mb-rn-6">
-          <h1 className="rn-h1">{UI_TEXT.portal.title}</h1>
-          <p className="rn-meta text-rn-text-muted">{UI_TEXT.portal.welcome}, {userAccount.PersonProfile.firstName}!</p>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-rn-4">
+            <div>
+              <h1 className="rn-h1">{UI_TEXT.portal.title}</h1>
+              <p className="rn-meta text-rn-text-muted">{UI_TEXT.portal.welcome}, {userAccount.PersonProfile.firstName}!</p>
+            </div>
+            <div className="flex gap-rn-2 flex-wrap">
+              {/* Memberships button - only show if there are memberships */}
+              {membershipsCount > 0 && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/my/memberships">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Memberships ({membershipsCount})
+                  </Link>
+                </Button>
+              )}
+              {/* Orders button */}
+              <Button asChild variant="outline" size="sm">
+                <Link href="/my/orders">
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  Orders ({ordersCount})
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-rn-6">
+        {/* Main cards - only Tickets and Courses */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-rn-6">
           {/* Event Tickets Card */}
           <Card className="hover:border-rn-primary transition-colors">
             <CardHeader>
@@ -100,54 +124,6 @@ export default async function MyDashboardPage() {
               <Button asChild className="w-full">
                 <Link href="/my/courses">
                   View Courses
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Memberships Card */}
-          <Card className="hover:border-rn-primary transition-colors">
-            <CardHeader>
-              <div className="flex items-center gap-rn-3">
-                <div className="p-rn-2 rounded-lg bg-rn-primary/10">
-                  <CreditCard className="h-6 w-6 text-rn-primary" />
-                </div>
-                <div>
-                  <CardTitle className="rn-h3">{UI_TEXT.dashboard.memberships}</CardTitle>
-                  <CardDescription className="rn-meta">
-                    {membershipsCount} {getCountText(UI_TEXT.memberships.singular, UI_TEXT.memberships.plural, membershipsCount)}
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full">
-                <Link href="/my/memberships">
-                  View Memberships
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Orders Card */}
-          <Card className="hover:border-rn-primary transition-colors">
-            <CardHeader>
-              <div className="flex items-center gap-rn-3">
-                <div className="p-rn-2 rounded-lg bg-rn-primary/10">
-                  <ShoppingBag className="h-6 w-6 text-rn-primary" />
-                </div>
-                <div>
-                  <CardTitle className="rn-h3">Orders</CardTitle>
-                  <CardDescription className="rn-meta">
-                    {ordersCount} {ordersCount === 1 ? 'order' : 'orders'}
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full">
-                <Link href="/my/orders">
-                  View Orders
                 </Link>
               </Button>
             </CardContent>
