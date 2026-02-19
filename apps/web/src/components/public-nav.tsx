@@ -71,7 +71,7 @@ export function PublicNav() {
             {user ? (
               <>
                 <Button asChild variant="ghost" size="sm">
-                  <Link href="/profile">My Profile</Link>
+                  <Link href="/my">My Portal</Link>
                 </Button>
                 {hasStaffRoles && (
                   <Button asChild variant="ghost" size="sm">
@@ -202,7 +202,7 @@ export function PublicNav() {
                       className="w-full justify-start py-rn-3 h-auto"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      <Link href="/profile">My Profile</Link>
+                      <Link href="/my">My Portal</Link>
                     </Button>
                     
                     {hasStaffRoles && (
