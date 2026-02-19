@@ -25,7 +25,7 @@ export default function SuccessPage() {
                 Thank you for your registration. You can now view your active courses and tickets in your profile.
             </p>
             <Button asChild size="lg">
-                <Link href="/profile">Go to My Profile</Link>
+                <Link href="/my">Go to My Portal</Link>
             </Button>
         </main>
     )
