@@ -16,21 +16,21 @@
 
 ### Core Functionality
 - [x] Role exists in database schema (`UserRole.PARTICIPANT`)
-- [ ] Profile/dashboard for participants
-- [ ] View personal data
-- [ ] Mobile-optimized interface
+- [x] Profile/dashboard for participants (`/my/`)
+- [x] View personal data (settings page)
+- [x] Mobile-optimized interface
 
 ### Registration Management (Personal)
-- [x] View own registrations (available at `/profile`)
-- [ ] View registration status
-- [ ] View payment status
+- [x] View own registrations (available at `/my/courses` and `/my/tickets`)
+- [x] View registration status
+- [x] View payment status
 - [ ] Download receipts/invoices
 - [ ] Cancel registrations (if allowed)
 - [ ] Request refunds
 - [ ] Modify registration details (before deadline)
 
 ### Course Access
-- [ ] View enrolled courses/tracks
+- [x] View enrolled courses/tracks (`/my/courses`)
 - [ ] View course schedules
 - [ ] View course location/details
 - [ ] View instructor information
@@ -38,19 +38,19 @@
 - [ ] Receive course notifications
 
 ### Ticket Management
-- [x] View tickets (TicketQR component exists)
+- [x] View tickets (`/my/tickets` - TicketQR component)
 - [ ] Download tickets as PDF
 - [ ] Share ticket QR code
 - [ ] View ticket validity period
-- [ ] Multiple tickets (if multiple registrations)
+- [x] Multiple tickets (if multiple registrations)
 - [ ] Add ticket to Apple Wallet / Google Pay
 
 ### Personal Information
-- [ ] Update profile information
-  - [ ] Name
-  - [ ] Email
-  - [ ] Phone number
-  - [ ] Emergency contact
+- [x] Update profile information (`/my/settings`)
+  - [x] Name
+  - [x] Email
+  - [x] Phone number
+  - [x] Emergency contact
   - [ ] Dance experience level
   - [ ] Preferred role (leader/follower)
 - [ ] Update preferences
@@ -75,16 +75,18 @@
 - [x] Browse available courses (public site)
 - [x] View course details (public site)
 - [x] Register for courses (checkout system exists)
-- [ ] Add to cart
-- [ ] Apply discount codes
+- [x] Add to cart
+- [x] Apply discount codes
 - [ ] Waitlist signup
 
 ## Required Routes
-- [x] `/profile` - Personal profile & registrations ✅
-- [ ] `/profile/settings` - Account settings
-- [ ] `/profile/tickets` - All tickets
-- [ ] `/profile/attendance` - Attendance history
-- [ ] `/profile/invoices` - Payment history
+- [x] `/my/` - Personal portal dashboard ✅
+- [x] `/my/settings` - Account settings ✅
+- [x] `/my/tickets` - Event tickets ✅
+- [x] `/my/courses` - Course registrations ✅
+- [x] `/my/memberships` - Memberships ✅
+- [x] `/my/orders` - Order history ✅
+- [ ] `/my/attendance` - Attendance history
 - [x] `/org/[slug]/courses` - Browse courses ✅
 - [x] `/courses/[periodId]/[trackId]` - Course details ✅
 - [x] `/cart` - Shopping cart ✅
@@ -120,20 +122,30 @@
 
 ## Current Implementation Status
 ✅ **Implemented:**
-- Profile page at `/profile`
-- View registrations
-- TicketQR component
+- Participant portal at `/my/`
+  - Dashboard with overview cards
+  - Event tickets page (`/my/tickets`)
+  - Course registrations page (`/my/courses`)
+  - Memberships page (`/my/memberships`)
+  - Orders/payment history (`/my/orders`)
+  - Settings page (`/my/settings`)
+- Profile management and editing
+- View registrations with status
+- TicketQR component for check-in
 - Public course browsing
 - Cart and checkout system
 - Registration success page
+- Order history with OrderCard component
+- i18n-ready text structure (English)
 
 ⬜ **Pending:**
-- Edit profile information
-- Cancel registrations
+- Cancel registrations functionality
 - Personal attendance history
-- Ticket download/management
+- Ticket download/PDF generation
 - Invoice/receipt download
 - Notification preferences
+- Communication settings
+- Waitlist signup feature
 
 ## Priority
 **HIGH** - Core participant experience, partially implemented
