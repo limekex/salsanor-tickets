@@ -135,7 +135,7 @@ export default async function MyTicketsPage() {
                         return (
                           <div className="border-t pt-4 space-y-3">
                             <p className="text-sm font-medium">
-                              {tickets.length === 1 ? 'Your ticket:' : `Your ${tickets.length} tickets:`}
+                              {tickets.length === 1 ? 'Din billett:' : `Dine ${tickets.length} billetter:`}
                             </p>
                             {tickets.length === 1 ? (
                               <div className="flex justify-center">
@@ -148,7 +148,7 @@ export default async function MyTicketsPage() {
                                     <summary className="cursor-pointer list-none">
                                       <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent">
                                         <span className="font-medium">
-                                          Ticket {ticket.ticketNumber || idx + 1}
+                                          Billett {ticket.ticketNumber || idx + 1}
                                         </span>
                                         <svg 
                                           className="w-5 h-5 transition-transform group-open:rotate-180" 
@@ -168,7 +168,7 @@ export default async function MyTicketsPage() {
                               </div>
                             )}
                             <p className="text-xs text-center text-muted-foreground">
-                              Show these at check-in
+                              Vis disse ved innsjekk
                             </p>
                           </div>
                         )
