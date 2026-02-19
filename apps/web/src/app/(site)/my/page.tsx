@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Ticket, GraduationCap, CreditCard, Calendar } from 'lucide-react'
+import { Ticket, GraduationCap, CreditCard, Calendar, ShoppingBag } from 'lucide-react'
 import { UI_TEXT, getCountText } from '@/lib/i18n'
 
 export default async function MyDashboardPage() {
@@ -29,6 +29,9 @@ export default async function MyDashboardPage() {
           },
           Membership: {
             where: { status: { not: 'CANCELLED' } }
+          },
+          Order: {
+            where: { status: { not: 'DRAFT' } }
           }
         }
       }
@@ -43,6 +46,7 @@ export default async function MyDashboardPage() {
   const eventRegistrationsCount = userAccount.PersonProfile.EventRegistration?.length ?? 0
   const courseRegistrationsCount = userAccount.PersonProfile.Registration?.length ?? 0
   const membershipsCount = userAccount.PersonProfile.Membership?.length ?? 0
+  const ordersCount = userAccount.PersonProfile.Order?.length ?? 0
 
   return (
     <main className="container mx-auto py-rn-7 px-rn-4">
@@ -52,7 +56,7 @@ export default async function MyDashboardPage() {
           <p className="rn-meta text-rn-text-muted">{UI_TEXT.portal.welcome}, {userAccount.PersonProfile.firstName}!</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-rn-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-rn-6">
           {/* Event Tickets Card */}
           <Card className="hover:border-rn-primary transition-colors">
             <CardHeader>
@@ -124,6 +128,30 @@ export default async function MyDashboardPage() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Orders Card */}
+          <Card className="hover:border-rn-primary transition-colors">
+            <CardHeader>
+              <div className="flex items-center gap-rn-3">
+                <div className="p-rn-2 rounded-lg bg-rn-primary/10">
+                  <ShoppingBag className="h-6 w-6 text-rn-primary" />
+                </div>
+                <div>
+                  <CardTitle className="rn-h3">Orders</CardTitle>
+                  <CardDescription className="rn-meta">
+                    {ordersCount} {ordersCount === 1 ? 'order' : 'orders'}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="w-full">
+                <Link href="/my/orders">
+                  View Orders
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Quick Links Section */}
@@ -146,7 +174,7 @@ export default async function MyDashboardPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/profile/settings">
+                <Link href="/my/settings">
                   {UI_TEXT.dashboard.settings}
                 </Link>
               </Button>
