@@ -115,17 +115,27 @@ export async function GET(
         // Calculate order total from line items
         const orderTotalFromItems = lineItems.reduce((sum, item) => sum + item.totalPriceCents, 0)
         
-        // Get total credit note refund amount from database to calculate percentage
-        const totalCreditNoteRefundFromDB = order.CreditNote.reduce((sum, cn) => sum + cn.refundAmountCents, 0)
+        // Calculate total refund by processing each credit note
+        // Each credit note has a refundPercentage we need to apply to the actual order total
+        let totalRefundedCents = 0
+        let combinedRefundPercentage = 0
         
-        // Calculate refund percentage from actual credit note amounts
-        const refundPercentage = orderTotalFromItems > 0 
-            ? (totalCreditNoteRefundFromDB / orderTotalFromItems) * 100 
-            : 0
+        if (order.CreditNote.length > 0) {
+            // For each credit note, calculate its refund percentage and apply it to the actual order total
+            for (const cn of order.CreditNote) {
+                // Get the percentage this credit note represents
+                const cnPercentage = cn.originalAmountCents > 0
+                    ? (cn.refundAmountCents / cn.originalAmountCents) * 100
+                    : 0
+                
+                // Apply this percentage to the actual order total from line items
+                const cnRefundFromActual = Math.round(orderTotalFromItems * cnPercentage / 100)
+                totalRefundedCents += cnRefundFromActual
+                combinedRefundPercentage += cnPercentage
+            }
+        }
         
-        // Calculate the actual refunded amount by applying the percentage to the order total from items
-        // This ensures consistency with how credit notes calculate refunds
-        const totalRefundedCents = Math.round(orderTotalFromItems * refundPercentage / 100)
+        const refundPercentage = combinedRefundPercentage
         
         const isFullyRefunded = totalRefundedCents >= orderTotalFromItems
         const isPartiallyRefunded = totalRefundedCents > 0 && !isFullyRefunded
