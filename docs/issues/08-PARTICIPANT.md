@@ -24,7 +24,7 @@
 - [x] View own registrations (available at `/my/courses` and `/my/tickets`)
 - [x] View registration status
 - [x] View payment status
-- [ ] Download receipts/invoices
+- [x] Download receipts/invoices (via `/my/orders/[id]`)
 - [ ] Cancel registrations (if allowed)
 - [ ] Request refunds
 - [ ] Modify registration details (before deadline)
@@ -119,31 +119,79 @@
 - [ ] Read-only for most organization data
 
 ## Current Implementation Status
-✅ **Implemented:**
-- Participant portal at `/my/`
-  - Dashboard with overview cards
-  - Event tickets page (`/my/tickets`)
-  - Course registrations page (`/my/courses`)
-  - Memberships page (`/my/memberships`)
-  - Orders/payment history (`/my/orders`)
-  - Settings page (`/my/settings`)
+
+### ✅ **Implemented (65% complete):**
+
+**Portal & Dashboard:**
+- Participant portal at `/my/` with dashboard (2-column grid)
+- Memberships button in header (conditional, shows count)
+- Orders button in header (shows count)
+- Event tickets page (`/my/tickets`)
+- Course registrations page (`/my/courses`)
+- Memberships page (`/my/memberships`)
+- Settings page (`/my/settings`)
+
+**Orders Management:**
+- Orders table view at `/my/orders` (Order #, Date, Items, Total, Status, Actions)
+- Order details page at `/my/orders/[id]` with line items breakdown
+- Download invoices (with refund display if applicable)
+- Download credit notes (with line items and correct totals)
+- Color-coded status badges
+- Document access control (order owners can download)
+
+**PDFs & Documents:**
+- Invoice PDFs with:
+  - Refund status display (FULLY/PARTIALLY REFUNDED with percentage)
+  - Per-item refund amounts (proportionally distributed)
+  - Credit notes list
+  - Net amount after refund
+- Credit note PDFs with:
+  - Line items (description, quantity, original price, credited amount)
+  - Correct totals calculated from line items
+  - Refund percentage
+- Refund calculations use actual order line items (not stale DB values)
+
+**Profile & Settings:**
 - Profile management and editing
+- Update name, email, phone, emergency contact
+- Language selector
+
+**Registration & Tickets:**
 - View registrations with status
 - TicketQR component for check-in
+- Multiple tickets support
+
+**Public Features:**
 - Public course browsing
 - Cart and checkout system
 - Registration success page
-- Order history with OrderCard component
-- i18n-ready text structure (English)
 
-⬜ **Pending:**
+**Infrastructure:**
+- i18n-ready text structure (English, centralized in UI_TEXT)
+- Access control and ownership verification
+- Mobile-optimized interface
+
+### ⬜ **Pending (35% remaining):**
+
+**High Priority:**
 - Cancel registrations functionality
-- Personal attendance history
-- Ticket download/PDF generation
-- Invoice/receipt download
+- Download tickets as PDF
+- Course schedules/session details display
+- Ticket validity period display
+
+**Medium Priority:**
+- Personal attendance history (`/my/attendance`)
+- Request refunds (UI for refund requests)
+- Modify registration details (before deadline)
 - Notification preferences
 - Communication settings
+
+**Lower Priority:**
 - Waitlist signup feature
+- Course location/instructor details
+- Calendar integration (iCal export)
+- Apple Wallet / Google Pay integration
+- Social features and enhancements
 
 ## Priority
 **HIGH** - Core participant experience, partially implemented
