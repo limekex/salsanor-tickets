@@ -1741,10 +1741,31 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     })
     textY -= 5
     
+    // Calculate refund amounts per item (proportional distribution to avoid rounding errors)
+    const itemRefunds: number[] = []
+    if (hasRefund && data.refundedAmountCents) {
+        const totalCents = data.lineItems.reduce((sum, item) => sum + item.totalPriceCents, 0)
+        let remainingRefund = data.refundedAmountCents
+        
+        // Distribute refund proportionally across items
+        for (let i = 0; i < data.lineItems.length; i++) {
+            const item = data.lineItems[i]
+            if (i === data.lineItems.length - 1) {
+                // Last item gets the remainder to ensure exact sum
+                itemRefunds.push(remainingRefund)
+            } else {
+                // Calculate proportional refund for this item
+                const itemRefund = Math.round((item.totalPriceCents / totalCents) * data.refundedAmountCents)
+                itemRefunds.push(itemRefund)
+                remainingRefund -= itemRefund
+            }
+        }
+    }
+    
     // Line items
-    for (const item of data.lineItems) {
-        const refundPercentage = data.refundPercentage || 0
-        const itemRefundedAmount = hasRefund ? Math.round(item.totalPriceCents * refundPercentage / 100) : 0
+    for (let itemIndex = 0; itemIndex < data.lineItems.length; itemIndex++) {
+        const item = data.lineItems[itemIndex]
+        const itemRefundedAmount = hasRefund ? itemRefunds[itemIndex] : 0
         
         if (hasRefund) {
             // With refund column - adjusted positions
