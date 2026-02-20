@@ -82,6 +82,11 @@ export async function GET(
             logoUrl: org.logoUrl || undefined
         }
 
+        // Calculate refund percentage
+        const refundPercentage = creditNote.originalAmountCents > 0
+            ? (creditNote.refundAmountCents / creditNote.originalAmountCents) * 100
+            : 0
+
         const creditNoteData = {
             creditNumber: creditNote.creditNumber,
             issueDate: creditNote.issueDate,
@@ -89,7 +94,7 @@ export async function GET(
             originalOrderNumber: order.orderNumber || undefined,
             originalTransactionDate: order.createdAt,
             refundType: creditNote.refundType as 'FULL' | 'PARTIAL' | 'NONE',
-            refundPercentage: 0,
+            refundPercentage: Math.round(refundPercentage),
             reason: creditNote.reason || 'Kansellering',
             originalAmountCents: creditNote.originalAmountCents,
             refundAmountCents: creditNote.refundAmountCents,
