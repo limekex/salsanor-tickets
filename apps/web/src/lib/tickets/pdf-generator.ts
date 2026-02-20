@@ -163,6 +163,7 @@ export interface InvoiceData {
     // Refund information
     refundStatus?: 'FULLY_REFUNDED' | 'PARTIALLY_REFUNDED'
     refundedAmountCents?: number
+    refundPercentage?: number  // 0-100 percentage of total that was refunded
     creditNotes?: Array<{
         creditNumber: string
         issueDate: Date
@@ -1899,10 +1900,14 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
             
             y -= bannerHeight + 10
         } else if (data.refundStatus === 'PARTIALLY_REFUNDED' && data.refundedAmountCents) {
-            // Partial refund information
+            // Partial refund information with percentage
+            const refundPercentageText = data.refundPercentage 
+                ? ` (${Math.round(data.refundPercentage)}%)`
+                : ''
+            
             drawText({ 
                 page, 
-                text: 'DELVIS REFUNDERT:', 
+                text: `DELVIS REFUNDERT${refundPercentageText}:`, 
                 x: totalsX, 
                 y, 
                 font: helveticaBold, 

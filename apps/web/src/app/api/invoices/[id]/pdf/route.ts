@@ -83,6 +83,11 @@ export async function GET(
         const totalRefundedCents = order.CreditNote.reduce((sum, cn) => sum + cn.refundAmountCents, 0)
         const isFullyRefunded = totalRefundedCents >= order.totalCents
         const isPartiallyRefunded = totalRefundedCents > 0 && !isFullyRefunded
+        
+        // Calculate refund percentage
+        const refundPercentage = order.totalCents > 0 
+            ? (totalRefundedCents / order.totalCents) * 100 
+            : 0
 
         // Build line items from order
         const lineItems = []
@@ -146,6 +151,7 @@ export async function GET(
             // Add refund information
             refundStatus: isFullyRefunded ? 'FULLY_REFUNDED' : (isPartiallyRefunded ? 'PARTIALLY_REFUNDED' : undefined),
             refundedAmountCents: totalRefundedCents > 0 ? totalRefundedCents : undefined,
+            refundPercentage: isPartiallyRefunded ? refundPercentage : undefined,
             creditNotes: order.CreditNote.length > 0 ? order.CreditNote.map(cn => ({
                 creditNumber: cn.creditNumber,
                 issueDate: cn.issueDate,
