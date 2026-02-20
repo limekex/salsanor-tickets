@@ -32,6 +32,13 @@ export const UI_TEXT = {
     quantity: 'Quantity:',
     date: 'Date:',
     totalPaid: 'Total Paid/Due:',
+    downloadPDF: 'Download PDF',
+    addToAppleWallet: 'Add to Apple Wallet',
+    addToGoogleWallet: 'Add to Google Wallet',
+    validFrom: 'Valid from:',
+    validUntil: 'Valid until:',
+    expired: 'Expired',
+    active: 'Active',
   },
 
   // Courses Section

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft, Calendar } from 'lucide-react'
+import { ArrowLeft, Calendar, Download } from 'lucide-react'
 import { EmptyState } from '@/components'
 import { QRCodeDisplay } from '@/components/qr-code-display'
 import { PayButton } from '@/components/pay-button'
@@ -139,8 +139,24 @@ export default async function MyTicketsPage() {
                               {formatTicketLabel(tickets.length)}
                             </p>
                             {tickets.length === 1 ? (
-                              <div className="flex justify-center">
-                                <QRCodeDisplay token={tickets[0].qrTokenHash} size={150} />
+                              <div className="space-y-3">
+                                <div className="flex justify-center">
+                                  <QRCodeDisplay token={tickets[0].qrTokenHash} size={150} />
+                                </div>
+                                <Button
+                                  asChild
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full"
+                                >
+                                  <a
+                                    href={`/api/tickets/${tickets[0].id}/pdf`}
+                                    download
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    {UI_TEXT.tickets.downloadPDF}
+                                  </a>
+                                </Button>
                               </div>
                             ) : (
                               <div className="space-y-2">
@@ -151,14 +167,31 @@ export default async function MyTicketsPage() {
                                         <span className="font-medium">
                                           {UI_TEXT.tickets.ticketNumber(ticket.ticketNumber || idx + 1)}
                                         </span>
-                                        <svg 
-                                          className="w-5 h-5 transition-transform group-open:rotate-180" 
-                                          fill="none" 
-                                          stroke="currentColor" 
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            asChild
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <a
+                                              href={`/api/tickets/${ticket.id}/pdf`}
+                                              download
+                                              title={UI_TEXT.tickets.downloadPDF}
+                                            >
+                                              <Download className="h-4 w-4" />
+                                            </a>
+                                          </Button>
+                                          <svg 
+                                            className="w-5 h-5 transition-transform group-open:rotate-180" 
+                                            fill="none" 
+                                            stroke="currentColor" 
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                          </svg>
+                                        </div>
                                       </div>
                                     </summary>
                                     <div className="mt-2 flex justify-center p-4 bg-muted/50 rounded-lg">
