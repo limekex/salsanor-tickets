@@ -1714,11 +1714,22 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     
     let textY = y - 20
     
-    // Header row
-    drawText({ page, text: 'Beskrivelse', x: boxX + 15, y: textY, font: helveticaBold, size: 10 })
-    drawText({ page, text: 'Antall', x: boxX + 320, y: textY, font: helveticaBold, size: 10 })
-    drawText({ page, text: 'Pris', x: boxX + 395, y: textY, font: helveticaBold, size: 10 })
-    drawText({ page, text: 'Sum', x: boxX + 460, y: textY, font: helveticaBold, size: 10 })
+    // Determine if we need to show refund column
+    const hasRefund = data.refundStatus === 'PARTIALLY_REFUNDED' || data.refundStatus === 'FULLY_REFUNDED'
+    
+    // Header row - adjust positions based on whether we show refund column
+    if (hasRefund) {
+        drawText({ page, text: 'Beskrivelse', x: boxX + 15, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Antall', x: boxX + 260, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Pris', x: boxX + 320, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Sum', x: boxX + 385, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Refundert', x: boxX + 445, y: textY, font: helveticaBold, size: 10 })
+    } else {
+        drawText({ page, text: 'Beskrivelse', x: boxX + 15, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Antall', x: boxX + 320, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Pris', x: boxX + 395, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Sum', x: boxX + 460, y: textY, font: helveticaBold, size: 10 })
+    }
     textY -= 18
     
     // Draw line under header
@@ -1732,51 +1743,117 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     
     // Line items
     for (const item of data.lineItems) {
-        drawText({ 
-            page, 
-            text: item.description, 
-            x: boxX + 15, 
-            y: textY, 
-            font: helvetica, 
-            size: 9,
-            maxWidth: 280
-        })
+        const refundPercentage = data.refundPercentage || 0
+        const itemRefundedAmount = hasRefund ? Math.round(item.totalPriceCents * refundPercentage / 100) : 0
         
-        // Center-align quantity
-        const qtyText = item.quantity.toString()
-        const qtyWidth = helvetica.widthOfTextAtSize(qtyText, 9)
-        drawText({ 
-            page, 
-            text: qtyText, 
-            x: boxX + 335 - (qtyWidth / 2), 
-            y: textY, 
-            font: helvetica, 
-            size: 9 
-        })
-        
-        // Right-align unit price
-        const priceText = formatNOK(item.unitPriceCents)
-        const priceWidth = helvetica.widthOfTextAtSize(priceText, 9)
-        drawText({ 
-            page, 
-            text: priceText, 
-            x: boxX + 445 - priceWidth, 
-            y: textY, 
-            font: helvetica, 
-            size: 9 
-        })
-        
-        // Right-align total price
-        const totalText = formatNOK(item.totalPriceCents)
-        const totalWidth = helvetica.widthOfTextAtSize(totalText, 9)
-        drawText({ 
-            page, 
-            text: totalText, 
-            x: boxX + boxWidth - 15 - totalWidth, 
-            y: textY, 
-            font: helvetica, 
-            size: 9 
-        })
+        if (hasRefund) {
+            // With refund column - adjusted positions
+            drawText({ 
+                page, 
+                text: item.description, 
+                x: boxX + 15, 
+                y: textY, 
+                font: helvetica, 
+                size: 9,
+                maxWidth: 230
+            })
+            
+            // Center-align quantity
+            const qtyText = item.quantity.toString()
+            const qtyWidth = helvetica.widthOfTextAtSize(qtyText, 9)
+            drawText({ 
+                page, 
+                text: qtyText, 
+                x: boxX + 275 - (qtyWidth / 2), 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align unit price
+            const priceText = formatNOK(item.unitPriceCents)
+            const priceWidth = helvetica.widthOfTextAtSize(priceText, 9)
+            drawText({ 
+                page, 
+                text: priceText, 
+                x: boxX + 370 - priceWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align total price
+            const totalText = formatNOK(item.totalPriceCents)
+            const totalWidth = helvetica.widthOfTextAtSize(totalText, 9)
+            drawText({ 
+                page, 
+                text: totalText, 
+                x: boxX + 435 - totalWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align refunded amount
+            const refundText = `-${formatNOK(itemRefundedAmount)}`
+            const refundWidth = helvetica.widthOfTextAtSize(refundText, 9)
+            drawText({ 
+                page, 
+                text: refundText, 
+                x: boxX + boxWidth - 15 - refundWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9,
+                color: { r: 0.6, g: 0.2, b: 0.2 }
+            })
+        } else {
+            // Without refund column - original positions
+            drawText({ 
+                page, 
+                text: item.description, 
+                x: boxX + 15, 
+                y: textY, 
+                font: helvetica, 
+                size: 9,
+                maxWidth: 280
+            })
+            
+            // Center-align quantity
+            const qtyText = item.quantity.toString()
+            const qtyWidth = helvetica.widthOfTextAtSize(qtyText, 9)
+            drawText({ 
+                page, 
+                text: qtyText, 
+                x: boxX + 335 - (qtyWidth / 2), 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align unit price
+            const priceText = formatNOK(item.unitPriceCents)
+            const priceWidth = helvetica.widthOfTextAtSize(priceText, 9)
+            drawText({ 
+                page, 
+                text: priceText, 
+                x: boxX + 445 - priceWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align total price
+            const totalText = formatNOK(item.totalPriceCents)
+            const totalWidth = helvetica.widthOfTextAtSize(totalText, 9)
+            drawText({ 
+                page, 
+                text: totalText, 
+                x: boxX + boxWidth - 15 - totalWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+        }
         textY -= 18
     }
     
@@ -1907,11 +1984,11 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
             
             drawText({ 
                 page, 
-                text: `DELVIS REFUNDERT${refundPercentageText}:`, 
+                text: `Refundert${refundPercentageText}:`, 
                 x: totalsX, 
                 y, 
                 font: helveticaBold, 
-                size: 10, 
+                size: 9, 
                 color: refundColor
             })
             drawText({ 
@@ -1920,7 +1997,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
                 x: totalsX + 80, 
                 y, 
                 font: helveticaBold, 
-                size: 10, 
+                size: 9, 
                 color: refundColor
             })
             y -= 18
