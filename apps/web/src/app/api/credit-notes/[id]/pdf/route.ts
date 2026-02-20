@@ -27,7 +27,17 @@ export async function GET(
                 Order: {
                     include: {
                         PersonProfile: true,
-                        Organizer: true
+                        Organizer: true,
+                        EventRegistration: {
+                            include: {
+                                Event: true
+                            }
+                        },
+                        Registration: {
+                            include: {
+                                CourseTrack: true
+                            }
+                        }
                     }
                 }
             }
@@ -69,7 +79,38 @@ export async function GET(
         // Build credit note data
         const buyerName = `${order.PersonProfile.firstName || ''} ${order.PersonProfile.lastName || ''}`.trim() || 'N/A'
         
+        // Build line items from order
         const lineItems: { description: string; quantity: number; unitPriceCents: number; totalPriceCents: number; vatRate: number }[] = []
+        
+        if (order.EventRegistration && order.EventRegistration.length > 0) {
+            const totalQty = order.EventRegistration.reduce((sum, reg) => sum + reg.quantity, 0)
+            
+            for (const reg of order.EventRegistration) {
+                let unitPrice = reg.unitPriceCents
+                if (unitPrice === 0 && totalQty > 0) {
+                    unitPrice = Math.floor(order.subtotalAfterDiscountCents / totalQty)
+                }
+                
+                lineItems.push({
+                    description: reg.Event?.title || 'Event',
+                    quantity: reg.quantity,
+                    unitPriceCents: unitPrice,
+                    totalPriceCents: unitPrice * reg.quantity,
+                    vatRate: 0
+                })
+            }
+        } else if (order.Registration && order.Registration.length > 0) {
+            const pricePerReg = Math.floor(order.subtotalAfterDiscountCents / order.Registration.length)
+            for (const reg of order.Registration) {
+                lineItems.push({
+                    description: reg.CourseTrack?.title || 'Kurs',
+                    quantity: 1,
+                    unitPriceCents: pricePerReg,
+                    totalPriceCents: pricePerReg,
+                    vatRate: 0
+                })
+            }
+        }
 
         const sellerInfo = {
             name: org.name,
