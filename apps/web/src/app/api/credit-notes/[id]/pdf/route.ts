@@ -128,6 +128,10 @@ export async function GET(
             ? (creditNote.refundAmountCents / creditNote.originalAmountCents) * 100
             : 0
 
+        // Calculate totals from line items to ensure they match
+        const calculatedOriginalAmountCents = lineItems.reduce((sum, item) => sum + item.totalPriceCents, 0)
+        const calculatedRefundAmountCents = Math.round(calculatedOriginalAmountCents * refundPercentage / 100)
+
         const creditNoteData = {
             creditNumber: creditNote.creditNumber,
             issueDate: creditNote.issueDate,
@@ -137,10 +141,10 @@ export async function GET(
             refundType: creditNote.refundType as 'FULL' | 'PARTIAL' | 'NONE',
             refundPercentage: Math.round(refundPercentage),
             reason: creditNote.reason || 'Kansellering',
-            originalAmountCents: creditNote.originalAmountCents,
-            refundAmountCents: creditNote.refundAmountCents,
+            originalAmountCents: calculatedOriginalAmountCents,
+            refundAmountCents: calculatedRefundAmountCents,
             mvaCents: creditNote.mvaCents,
-            totalCents: creditNote.totalCents,
+            totalCents: calculatedRefundAmountCents, // Total credit amount equals refund amount
             lineItems,
             seller: sellerInfo,
             buyer: {
