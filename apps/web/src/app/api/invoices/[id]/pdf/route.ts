@@ -79,17 +79,7 @@ export async function GET(
             return NextResponse.json({ error: 'Access denied' }, { status: 403 })
         }
 
-        // Calculate refund information
-        const totalRefundedCents = order.CreditNote.reduce((sum, cn) => sum + cn.refundAmountCents, 0)
-        const isFullyRefunded = totalRefundedCents >= order.totalCents
-        const isPartiallyRefunded = totalRefundedCents > 0 && !isFullyRefunded
-        
-        // Calculate refund percentage
-        const refundPercentage = order.totalCents > 0 
-            ? (totalRefundedCents / order.totalCents) * 100 
-            : 0
-
-        // Build line items from order
+        // Build line items from order first (needed for refund calculation)
         const lineItems = []
         
         if (order.EventRegistration.length > 0) {
@@ -121,6 +111,24 @@ export async function GET(
                 })
             }
         }
+
+        // Calculate order total from line items
+        const orderTotalFromItems = lineItems.reduce((sum, item) => sum + item.totalPriceCents, 0)
+        
+        // Get total credit note refund amount from database to calculate percentage
+        const totalCreditNoteRefundFromDB = order.CreditNote.reduce((sum, cn) => sum + cn.refundAmountCents, 0)
+        
+        // Calculate refund percentage from actual credit note amounts
+        const refundPercentage = orderTotalFromItems > 0 
+            ? (totalCreditNoteRefundFromDB / orderTotalFromItems) * 100 
+            : 0
+        
+        // Calculate the actual refunded amount by applying the percentage to the order total from items
+        // This ensures consistency with how credit notes calculate refunds
+        const totalRefundedCents = Math.round(orderTotalFromItems * refundPercentage / 100)
+        
+        const isFullyRefunded = totalRefundedCents >= orderTotalFromItems
+        const isPartiallyRefunded = totalRefundedCents > 0 && !isFullyRefunded
 
         const invoiceData: InvoiceData = {
             invoiceNumber: invoice.invoiceNumber,
