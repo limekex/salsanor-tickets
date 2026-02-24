@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, Download } from 'lucide-react'
+import { ArrowLeft, Calendar, Download, Wallet } from 'lucide-react'
 import { EmptyState } from '@/components'
 import { QRCodeDisplay } from '@/components/qr-code-display'
 import { PayButton } from '@/components/pay-button'
 import { CancelOrderButton } from '@/app/(site)/profile/cancel-order-button'
+import { WalletButtons } from '@/components/wallet-buttons'
 import { formatDateShort, formatDateTimeShort, formatPrice } from '@/lib/formatters'
 import { UI_TEXT, getCountText, formatTicketLabel } from '@/lib/i18n'
 
@@ -157,6 +158,7 @@ export default async function MyTicketsPage() {
                                     {UI_TEXT.tickets.downloadPDF}
                                   </a>
                                 </Button>
+                                <WalletButtons ticketId={tickets[0].id} />
                               </div>
                             ) : (
                               <div className="space-y-2">
@@ -194,8 +196,13 @@ export default async function MyTicketsPage() {
                                         </div>
                                       </div>
                                     </summary>
-                                    <div className="mt-2 flex justify-center p-4 bg-muted/50 rounded-lg">
-                                      <QRCodeDisplay token={ticket.qrTokenHash} size={150} />
+                                    <div className="mt-2 space-y-3">
+                                      <div className="flex justify-center p-4 bg-muted/50 rounded-lg">
+                                        <QRCodeDisplay token={ticket.qrTokenHash} size={150} />
+                                      </div>
+                                      <div className="px-3">
+                                        <WalletButtons ticketId={ticket.id} />
+                                      </div>
                                     </div>
                                   </details>
                                 ))}

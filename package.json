@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "jsonwebtoken": "^9.0.3",
     "passkit-generator": "^3.5.7",
     "passkit-wallet": "^0.2.1"
