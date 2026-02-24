@@ -5,7 +5,7 @@ import { generateAppleTicketPass } from '@/lib/wallet/apple/ticket-pass-generato
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get authenticated user
@@ -16,7 +16,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const ticketId = params.id;
+    // Await params as required by Next.js 15+
+    const { id: ticketId } = await params;
 
     // Get user's person profile
     const userAccount = await prisma.userAccount.findFirst({
