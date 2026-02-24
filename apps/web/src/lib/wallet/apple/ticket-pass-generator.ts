@@ -39,70 +39,79 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
   }).format(data.eventDate);
 
   // Create pass instance with @walletpass/pass-js
-  const pass = new Pass({
-    passTypeIdentifier: passTypeId,
-    teamIdentifier: teamId,
-    organizationName: data.organizerName,
-    description: `Billett til ${data.eventTitle}`,
-    serialNumber: data.ticketNumber,
-    backgroundColor: 'rgb(30, 30, 30)',
-    foregroundColor: 'rgb(255, 255, 255)',
-    labelColor: 'rgb(200, 200, 200)',
-    
-    // Barcode (QR code)
-    barcodes: [{
-      message: data.qrCode,
-      format: 'PKBarcodeFormatQR',
-      messageEncoding: 'iso-8859-1',
-    }],
-    
-    // Event ticket specific structure
-    eventTicket: {
-      primaryFields: [{
-        key: 'event',
-        label: 'ARRANGEMENT',
-        value: data.eventTitle,
+  // Note: description MUST be provided in the first config object
+  const pass = new Pass(
+    {
+      // Required identification fields
+      passTypeIdentifier: passTypeId,
+      teamIdentifier: teamId,
+      serialNumber: data.ticketNumber,
+      
+      // Required descriptive fields
+      description: `Billett til ${data.eventTitle}`,  // REQUIRED
+      organizationName: data.organizerName,
+      
+      // Visual styling
+      backgroundColor: 'rgb(30, 30, 30)',
+      foregroundColor: 'rgb(255, 255, 255)',
+      labelColor: 'rgb(200, 200, 200)',
+      
+      // Barcode (QR code)
+      barcodes: [{
+        message: data.qrCode,
+        format: 'PKBarcodeFormatQR',
+        messageEncoding: 'iso-8859-1',
       }],
-      secondaryFields: [
-        {
-          key: 'date',
-          label: 'DATO OG TID',
-          value: eventDateStr,
-        },
-        {
-          key: 'location',
-          label: 'STED',
-          value: data.eventLocation,
-        }
-      ],
-      auxiliaryFields: [{
-        key: 'attendee',
-        label: 'NAVN',
-        value: data.attendeeName,
-      }],
-      backFields: [
-        {
-          key: 'ticketNumber',
-          label: 'Billettnummer',
-          value: data.ticketNumber,
-        },
-        {
-          key: 'organizer',
-          label: 'Arrangør',
-          value: data.organizerName,
-        }
-      ],
+      
+      // Event ticket specific structure
+      eventTicket: {
+        primaryFields: [{
+          key: 'event',
+          label: 'ARRANGEMENT',
+          value: data.eventTitle,
+        }],
+        secondaryFields: [
+          {
+            key: 'date',
+            label: 'DATO OG TID',
+            value: eventDateStr,
+          },
+          {
+            key: 'location',
+            label: 'STED',
+            value: data.eventLocation,
+          }
+        ],
+        auxiliaryFields: [{
+          key: 'attendee',
+          label: 'NAVN',
+          value: data.attendeeName,
+        }],
+        backFields: [
+          {
+            key: 'ticketNumber',
+            label: 'Billettnummer',
+            value: data.ticketNumber,
+          },
+          {
+            key: 'organizer',
+            label: 'Arrangør',
+            value: data.organizerName,
+          }
+        ],
+      },
+      
+      // Relevant date (event date)
+      relevantDate: data.eventDate.toISOString(),
     },
-    
-    // Relevant date (event date)
-    relevantDate: data.eventDate.toISOString(),
-  }, {
-    // Certificates
-    signerCert: signerCertPem,
-    signerKey: signerKeyPem,
-    signerKeyPassphrase: signerKeyPassphrase,
-    wwdr: wwdrCertPem,
-  });
+    {
+      // Certificates in second parameter
+      signerCert: signerCertPem,
+      signerKey: signerKeyPem,
+      signerKeyPassphrase: signerKeyPassphrase,
+      wwdr: wwdrCertPem,
+    }
+  );
 
   // Optional: Add event image as strip image
   if (data.eventImageUrl) {
