@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth/lucia';
-import { prisma } from '@salsanor/database';
+import { createClient } from '@/utils/supabase/server';
+import { prisma } from '@/lib/db';
 import { generateGoogleTicketPassUrl } from '@/lib/wallet/google/ticket-pass-generator';
 
 export async function GET(
@@ -9,12 +9,24 @@ export async function GET(
 ) {
   try {
     // Get authenticated user
-    const session = await auth.handleRequest(request).validate();
-    if (!session) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const ticketId = params.id;
+
+    // Get user's person profile
+    const userAccount = await prisma.userAccount.findFirst({
+      where: { supabaseUid: user.id },
+      include: { PersonProfile: true }
+    });
+
+    if (!userAccount?.PersonProfile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
 
     // Fetch the ticket with event and person details
     const ticket = await prisma.eventTicket.findUnique({
@@ -34,7 +46,7 @@ export async function GET(
     }
 
     // Verify ticket ownership
-    if (ticket.personId !== session.user.personProfileId) {
+    if (ticket.personId !== userAccount.PersonProfile.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
