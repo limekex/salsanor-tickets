@@ -49,6 +49,15 @@ export async function GET() {
     return NextResponse.json(userAccount)
   } catch (error) {
     console.error('[API /api/user/account] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error('[API /api/user/account] Error name:', error.name)
+      console.error('[API /api/user/account] Error message:', error.message)
+      console.error('[API /api/user/account] Error stack:', error.stack)
+    }
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
