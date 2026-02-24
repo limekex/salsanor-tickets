@@ -394,6 +394,9 @@ SSH_SETUP.md
 
 # SSH keys
 *.pem
+*.p12
+*_base64.txt
+service-account-key.json
 *.key
 id_rsa*
 id_ed25519*
@@ -408,3 +411,7 @@ packages/database/scripts/grant-admin.ts
 packages/database/scripts/grant-admin.ts
 packages/database/scripts/seed-email-templates.ts
 packages/database/scripts/update-status.ts
+docs/Apple Worldwide Developer Relations Certification Authority.cer
+docs/CertificateSigningRequest.certSigningRequest
+docs/Sertifikater.p12
+docs/Sertifikater2.p12

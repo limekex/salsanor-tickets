@@ -211,8 +211,8 @@ apps/web/src/
 ```json
 {
   "dependencies": {
-    "@walletpass/pass-js": "^9.0.0",
-    "@google-cloud/wallet": "^1.0.0",
+    "passkit-wallet": "^0.2.1",
+    "passkit-generator": "^3.5.7",
     "jsonwebtoken": "^9.0.0"
   },
   "devDependencies": {
@@ -220,6 +220,13 @@ apps/web/src/
   }
 }
 ```
+
+**Package purposes:**
+- **passkit-wallet** - Unified API for both Apple Wallet and Google Wallet pass generation
+- **passkit-generator** - Mature Apple Wallet (.pkpass) generation with excellent documentation
+- **jsonwebtoken** - JWT signing for Google Wallet API authentication
+
+> **Note:** Google Wallet doesn't have an official npm package. Passes are created by signing a JWT and generating a save link: `https://pay.google.com/gp/v/save/{JWT}`
 
 ---
 
