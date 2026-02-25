@@ -52,6 +52,24 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
   console.log('[Apple Wallet Debug] Signer Key First 200 chars:', signerKeyPem.substring(0, 200));
   console.log('[Apple Wallet Debug] Signer Key Last 100 chars:', signerKeyPem.substring(signerKeyPem.length - 100));
 
+  // Validate that we have the correct PEM types
+  if (signerKeyPem.includes('BEGIN CERTIFICATE')) {
+    throw new Error(
+      'Configuration Error: APPLE_TICKETS_SIGNER_KEY contains a CERTIFICATE instead of a PRIVATE KEY.\n' +
+      'The signer key should contain -----BEGIN PRIVATE KEY----- or -----BEGIN ENCRYPTED PRIVATE KEY-----, not -----BEGIN CERTIFICATE-----.\n' +
+      'Please export your PRIVATE KEY (not the certificate) and base64-encode it for APPLE_TICKETS_SIGNER_KEY.\n' +
+      'Hint: If you exported both from Keychain in one file, you need to split them and use only the PRIVATE KEY portion.'
+    );
+  }
+
+  if (signerCertPem.includes('BEGIN PRIVATE KEY') || signerCertPem.includes('BEGIN ENCRYPTED PRIVATE KEY')) {
+    throw new Error(
+      'Configuration Error: APPLE_TICKETS_SIGNER_CERTIFICATE contains a PRIVATE KEY instead of a CERTIFICATE.\n' +
+      'The certificate should contain -----BEGIN CERTIFICATE-----, not a private key.\n' +
+      'Please export your CERTIFICATE (not the private key) and base64-encode it for APPLE_TICKETS_SIGNER_CERTIFICATE.'
+    );
+  }
+
   // Format event date for display
   const eventDateStr = new Intl.DateTimeFormat('no-NO', {
     dateStyle: 'full',
