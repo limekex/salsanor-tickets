@@ -31,6 +31,18 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
   const signerKeyPem = Buffer.from(signerKey, 'base64').toString('utf-8');
   const wwdrCertPem = Buffer.from(wwdrCert, 'base64').toString('utf-8');
 
+  // Debug: Check if PEM headers are present
+  console.log('[Apple Wallet] Signer key preview:', signerKeyPem.substring(0, 100));
+  console.log('[Apple Wallet] Has BEGIN header:', signerKeyPem.includes('BEGIN'));
+  console.log('[Apple Wallet] Has PRIVATE KEY:', signerKeyPem.includes('PRIVATE KEY'));
+  
+  // Validate PEM format
+  if (!signerKeyPem.includes('BEGIN') || !signerKeyPem.includes('PRIVATE KEY')) {
+    throw new Error(
+      `Invalid signer key format. Expected PEM format with headers, got: ${signerKeyPem.substring(0, 100)}...`
+    );
+  }
+
   // Format event date for display
   const eventDateStr = new Intl.DateTimeFormat('no-NO', {
     dateStyle: 'full',
