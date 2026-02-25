@@ -35,7 +35,7 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
   const wwdrCert = process.env.APPLE_WWDR_CERTIFICATE;
 
   if (!teamId || !passTypeId || !signerCert || !signerKey || !signerKeyPassphrase || !wwdrCert) {
-    throw new Error('Missing required Apple Wallet environment variables for tickets');
+    throw new Error('Missing required Apple Wallet environment variables (check APPLE_TEAM_ID, APPLE_TICKETS_PASS_TYPE_ID, etc.)');
   }
 
   // Decode base64-encoded certificates and key, then extract only the PEM portion
@@ -43,6 +43,14 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
   const signerCertPem = extractPEM(Buffer.from(signerCert, 'base64').toString('utf-8'));
   const signerKeyPem = extractPEM(Buffer.from(signerKey, 'base64').toString('utf-8'));
   const wwdrCertPem = extractPEM(Buffer.from(wwdrCert, 'base64').toString('utf-8'));
+
+  // Debug: Log PEM information
+  const keyHeaderMatch = signerKeyPem.match(/-----BEGIN ([^-]+)-----/);
+  const keyType = keyHeaderMatch ? keyHeaderMatch[1] : 'UNKNOWN';
+  console.log('[Apple Wallet Debug] Signer Key PEM Header:', keyType);
+  console.log('[Apple Wallet Debug] Signer Key PEM Length:', signerKeyPem.length);
+  console.log('[Apple Wallet Debug] Signer Key First 200 chars:', signerKeyPem.substring(0, 200));
+  console.log('[Apple Wallet Debug] Signer Key Last 100 chars:', signerKeyPem.substring(signerKeyPem.length - 100));
 
   // Format event date for display
   const eventDateStr = new Intl.DateTimeFormat('no-NO', {
