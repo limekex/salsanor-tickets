@@ -25,10 +25,11 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
     throw new Error('Missing required Apple Wallet environment variables for tickets');
   }
 
-  // Decode base64 certificates and key to buffers
-  const signerCertBuffer = Buffer.from(signerCert, 'base64');
-  const signerKeyBuffer = Buffer.from(signerKey, 'base64');
-  const wwdrCertBuffer = Buffer.from(wwdrCert, 'base64');
+  // Decode base64-encoded PEM certificates and key to strings
+  // passkit-generator expects PEM strings (with BEGIN/END headers), not raw buffers
+  const signerCertPem = Buffer.from(signerCert, 'base64').toString('utf-8');
+  const signerKeyPem = Buffer.from(signerKey, 'base64').toString('utf-8');
+  const wwdrCertPem = Buffer.from(wwdrCert, 'base64').toString('utf-8');
 
   // Format event date for display
   const eventDateStr = new Intl.DateTimeFormat('no-NO', {
@@ -42,10 +43,10 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
       // Template directory (not needed for programmatic creation)
     },
     {
-      // Certificates
-      wwdr: wwdrCertBuffer,
-      signerCert: signerCertBuffer,
-      signerKey: signerKeyBuffer, // Private key for signing
+      // Certificates - must be PEM strings (not buffers)
+      wwdr: wwdrCertPem,
+      signerCert: signerCertPem,
+      signerKey: signerKeyPem, // Private key for signing (PEM string)
       signerKeyPassphrase: signerKeyPassphrase,
     },
     {
