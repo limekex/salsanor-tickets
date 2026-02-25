@@ -12,6 +12,19 @@ interface TicketPassData {
   eventImageUrl?: string;
 }
 
+/**
+ * Extracts the PEM portion from a string that might contain additional metadata
+ * (like "Bag Attributes" from macOS Keychain exports)
+ */
+function extractPEM(data: string): string {
+  // Extract content from -----BEGIN to -----END (inclusive)
+  const pemMatch = data.match(/-----BEGIN [^-]+-----[\s\S]+?-----END [^-]+-----/);
+  if (!pemMatch) {
+    throw new Error(`No PEM data found in the provided string. Preview: ${data.substring(0, 100)}...`);
+  }
+  return pemMatch[0];
+}
+
 export async function generateAppleTicketPass(data: TicketPassData): Promise<Buffer> {
   // Validate required environment variables
   const teamId = process.env.APPLE_TEAM_ID;
@@ -25,23 +38,11 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
     throw new Error('Missing required Apple Wallet environment variables for tickets');
   }
 
-  // Decode base64-encoded PEM certificates and key to strings
-  // passkit-generator expects PEM strings (with BEGIN/END headers), not raw buffers
-  const signerCertPem = Buffer.from(signerCert, 'base64').toString('utf-8');
-  const signerKeyPem = Buffer.from(signerKey, 'base64').toString('utf-8');
-  const wwdrCertPem = Buffer.from(wwdrCert, 'base64').toString('utf-8');
-
-  // Debug: Check if PEM headers are present
-  console.log('[Apple Wallet] Signer key preview:', signerKeyPem.substring(0, 100));
-  console.log('[Apple Wallet] Has BEGIN header:', signerKeyPem.includes('BEGIN'));
-  console.log('[Apple Wallet] Has PRIVATE KEY:', signerKeyPem.includes('PRIVATE KEY'));
-  
-  // Validate PEM format
-  if (!signerKeyPem.includes('BEGIN') || !signerKeyPem.includes('PRIVATE KEY')) {
-    throw new Error(
-      `Invalid signer key format. Expected PEM format with headers, got: ${signerKeyPem.substring(0, 100)}...`
-    );
-  }
+  // Decode base64-encoded certificates and key, then extract only the PEM portion
+  // This strips any metadata (like "Bag Attributes" from macOS Keychain exports)
+  const signerCertPem = extractPEM(Buffer.from(signerCert, 'base64').toString('utf-8'));
+  const signerKeyPem = extractPEM(Buffer.from(signerKey, 'base64').toString('utf-8'));
+  const wwdrCertPem = extractPEM(Buffer.from(wwdrCert, 'base64').toString('utf-8'));
 
   // Format event date for display
   const eventDateStr = new Intl.DateTimeFormat('no-NO', {
