@@ -17,15 +17,17 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
   const teamId = process.env.APPLE_TEAM_ID;
   const passTypeId = process.env.APPLE_TICKETS_PASS_TYPE_ID;
   const signerCert = process.env.APPLE_TICKETS_SIGNER_CERTIFICATE;
+  const signerKey = process.env.APPLE_TICKETS_SIGNER_KEY;
   const signerKeyPassphrase = process.env.APPLE_TICKETS_SIGNER_KEY_PASSPHRASE;
   const wwdrCert = process.env.APPLE_WWDR_CERTIFICATE;
 
-  if (!teamId || !passTypeId || !signerCert || !signerKeyPassphrase || !wwdrCert) {
+  if (!teamId || !passTypeId || !signerCert || !signerKey || !signerKeyPassphrase || !wwdrCert) {
     throw new Error('Missing required Apple Wallet environment variables for tickets');
   }
 
-  // Decode base64 certificates to buffers
+  // Decode base64 certificates and key to buffers
   const signerCertBuffer = Buffer.from(signerCert, 'base64');
+  const signerKeyBuffer = Buffer.from(signerKey, 'base64');
   const wwdrCertBuffer = Buffer.from(wwdrCert, 'base64');
 
   // Format event date for display
@@ -43,7 +45,7 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
       // Certificates
       wwdr: wwdrCertBuffer,
       signerCert: signerCertBuffer,
-      signerKey: signerCertBuffer, // If combined in PKCS12, otherwise separate
+      signerKey: signerKeyBuffer, // Private key for signing
       signerKeyPassphrase: signerKeyPassphrase,
     },
     {
