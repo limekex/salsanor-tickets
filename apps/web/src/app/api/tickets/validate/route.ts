@@ -34,10 +34,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    const { token, trackId } = await req.json()
+    const { token, trackId, eventId } = await req.json()
 
-    if (!token || !trackId) {
-        return NextResponse.json({ error: 'Token and trackId required' }, { status: 400 })
+    if (!token) {
+        return NextResponse.json({ error: 'Token required' }, { status: 400 })
+    }
+
+    // Must specify either trackId (for courses) or eventId (for events)
+    if (!trackId && !eventId) {
+        return NextResponse.json({ error: 'trackId or eventId required' }, { status: 400 })
     }
 
     // Check if global admin
@@ -47,6 +52,81 @@ export async function POST(req: Request) {
     const organizerIds = userAccount.UserAccountRole
         .filter(r => r.organizerId)
         .map(r => r.organizerId!)
+
+    // ================================================================
+    // EVENT TICKET VALIDATION
+    // ================================================================
+    if (eventId) {
+        const eventTicket = await prisma.eventTicket.findFirst({
+            where: { qrTokenHash: token },
+            include: {
+                PersonProfile: true,
+                Event: {
+                    include: {
+                        Organizer: true
+                    }
+                }
+            }
+        })
+
+        if (!eventTicket) {
+            return NextResponse.json({ valid: false, message: 'Invalid ticket' })
+        }
+
+        if (eventTicket.status !== 'ACTIVE') {
+            return NextResponse.json({ valid: false, message: `Ticket is ${eventTicket.status === 'USED' ? 'already used' : eventTicket.status}` })
+        }
+
+        // Check organization access for non-global admins
+        if (!isGlobalAdmin && !organizerIds.includes(eventTicket.Event.organizerId)) {
+            return NextResponse.json({ 
+                valid: false, 
+                message: 'Ticket belongs to a different organization' 
+            })
+        }
+
+        // Check if ticket is for the correct event
+        if (eventTicket.eventId !== eventId) {
+            return NextResponse.json({ 
+                valid: false, 
+                message: `Wrong event. This ticket is for: ${eventTicket.Event.title}` 
+            })
+        }
+
+        // Check if already checked in
+        if (eventTicket.checkedInAt) {
+            const checkedInTime = new Intl.DateTimeFormat('en-GB', {
+                dateStyle: 'short',
+                timeStyle: 'short'
+            }).format(eventTicket.checkedInAt)
+            return NextResponse.json({ 
+                valid: false, 
+                message: `Already checked in: ${checkedInTime}`,
+                personName: `${eventTicket.PersonProfile.firstName} ${eventTicket.PersonProfile.lastName}`,
+                alreadyCheckedIn: true
+            })
+        }
+
+        // Mark as checked in
+        await prisma.eventTicket.update({
+            where: { id: eventTicket.id },
+            data: { checkedInAt: new Date() }
+        })
+
+        // Valid event ticket
+        return NextResponse.json({
+            valid: true,
+            personName: `${eventTicket.PersonProfile.firstName} ${eventTicket.PersonProfile.lastName}`,
+            eventTitle: eventTicket.Event.title,
+            ticketNumber: eventTicket.ticketNumber,
+            ticketId: eventTicket.id,
+            type: 'event'
+        })
+    }
+
+    // ================================================================
+    // COURSE TICKET VALIDATION (original logic)
+    // ================================================================
 
     // Fetch the ticket with person and registrations
     const ticket = await prisma.ticket.findFirst({

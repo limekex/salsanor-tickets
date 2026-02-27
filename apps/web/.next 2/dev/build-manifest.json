@@ -1,0 +1,50 @@
+{
+  "pages": {
+    "/_app": [
+      "static/chunks/8ef40_next_dist_compiled_4d150ecd._.js",
+      "static/chunks/8ef40_next_dist_shared_lib_a3751fad._.js",
+      "static/chunks/8ef40_next_dist_client_4500985f._.js",
+      "static/chunks/8ef40_next_dist_2c63c2ea._.js",
+      "static/chunks/8ef40_next_app_09dd4374.js",
+      "static/chunks/[next]_entry_page-loader_ts_ae1bddd8._.js",
+      "static/chunks/8ef40_react-dom_21cbb242._.js",
+      "static/chunks/8ef40_f02e86ca._.js",
+      "static/chunks/[root-of-the-server]__d5324290._.js",
+      "static/chunks/Documents_GIT_SalsaNor Tickets_apps_web_pages__app_2da965e7._.js",
+      "static/chunks/turbopack-Documents_GIT_SalsaNor Tickets_apps_web_pages__app_95fc9d1b._.js"
+    ],
+    "/_error": [
+      "static/chunks/8ef40_next_dist_compiled_4d150ecd._.js",
+      "static/chunks/8ef40_next_dist_shared_lib_c5c8a6f7._.js",
+      "static/chunks/8ef40_next_dist_client_4500985f._.js",
+      "static/chunks/8ef40_next_dist_bc8c26eb._.js",
+      "static/chunks/8ef40_next_error_f6079f76.js",
+      "static/chunks/[next]_entry_page-loader_ts_717626d6._.js",
+      "static/chunks/8ef40_react-dom_21cbb242._.js",
+      "static/chunks/8ef40_f02e86ca._.js",
+      "static/chunks/[root-of-the-server]__eb570217._.js",
+      "static/chunks/Documents_GIT_SalsaNor Tickets_apps_web_pages__error_2da965e7._.js",
+      "static/chunks/turbopack-Documents_GIT_SalsaNor Tickets_apps_web_pages__error_2d48c0c4._.js"
+    ]
+  },
+  "devFiles": [],
+  "polyfillFiles": [
+    "static/chunks/8ef40_next_dist_build_polyfills_polyfill-nomodule.js"
+  ],
+  "lowPriorityFiles": [
+    "static/development/_ssgManifest.js",
+    "static/development/_buildManifest.js"
+  ],
+  "rootMainFiles": [
+    "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_7369b468._.js",
+    "static/chunks/8ef40_next_dist_compiled_react-dom_05a87e08._.js",
+    "static/chunks/8ef40_next_dist_compiled_react-server-dom-turbopack_ef6280ec._.js",
+    "static/chunks/8ef40_next_dist_compiled_next-devtools_index_8ee06c39.js",
+    "static/chunks/8ef40_next_dist_compiled_e4009b1d._.js",
+    "static/chunks/8ef40_next_dist_client_8c4d5ae8._.js",
+    "static/chunks/8ef40_next_dist_a3d4d908._.js",
+    "static/chunks/8ef40_@swc_helpers_cjs_6cf2f344._.js",
+    "static/chunks/Documents_GIT_SalsaNor Tickets_apps_web_a0ff3932._.js",
+    "static/chunks/turbopack-Documents_GIT_SalsaNor Tickets_apps_web_c3aaa349._.js"
+  ]
+}

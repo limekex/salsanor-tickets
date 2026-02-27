@@ -39,11 +39,46 @@
 
 ### Ticket Management
 - [x] View tickets (`/my/tickets` - TicketQR component)
-- [ ] Download tickets as PDF
+- [x] Download tickets as PDF (`/api/tickets/[id]/pdf`)
 - [ ] Share ticket QR code
 - [ ] View ticket validity period
 - [x] Multiple tickets (if multiple registrations)
-- [ ] Add ticket to Apple Wallet / Google Pay
+- [x] Add ticket to Apple Wallet / Google Pay (implemented 2026-02-25)
+
+#### Wallet Integration Field Mapping
+
+The ticket data must be consistent across all outputs (UI, PDF, Apple Wallet, Google Wallet).
+
+**Data Sources (from database via Prisma):**
+
+| Field | Database Field | Description |
+|-------|----------------|-------------|
+| Event Title | `Event.title` | Name of the event |
+| Event Date/Time | `Event.startDateTime` | When the event starts |
+| Event Location | `Event.location` | Venue/address |
+| Organizer Name | `Event.Organizer.name` | Who organizes the event |
+| Ticket Number | `EventTicket.ticketNumber` | Sequential number for this ticket |
+| QR Token | `EventTicket.qrTokenHash` | **The unique scannable token** |
+| Attendee Name | `PersonProfile.firstName` + `lastName` | Who the ticket belongs to |
+
+**Field Usage by Output:**
+
+| Field | My/Tickets UI | PDF | Apple Wallet | Google Wallet |
+|-------|---------------|-----|--------------|---------------|
+| Event Title | ✅ `Event.title` | ✅ `eventTitle` | ✅ `eventTitle` | ✅ `eventTitle` |
+| Date/Time | ✅ `startDateTime` | ✅ `eventDate` | ⚠️ `startDate`→`startDateTime` | ✅ `eventDate` |
+| Location | ❌ (not shown) | ✅ `eventVenue` | ⚠️ uses fallback | ✅ `eventLocation` |
+| Organizer | ✅ `Organizer.name` | ✅ `seller.name` | ✅ `organizerName` | ✅ `organizerName` |
+| QR Code | ✅ `qrTokenHash` | ✅ `qrToken` | ⚠️ `qrCode`→`qrTokenHash` | ✅ `qrCode` |
+| Attendee | ❌ (implied) | ✅ `buyer.name` | ✅ `attendeeName` | ✅ `attendeeName` |
+| Ticket # | ✅ `ticketNumber` | ✅ `ticketNumber` | ✅ `ticketNumber` | ✅ `ticketNumber` |
+
+**Issues Found (2026-02-25):**
+- [x] Apple Wallet: Certificate/key mismatch - FIXED
+- [x] Apple Wallet: Team ID mismatch - FIXED  
+- [x] Apple Wallet: Uses `startDate` instead of `startDateTime` - FIXED
+- [x] Apple Wallet: Uses `ticket.qrCode` instead of `ticket.qrTokenHash` - FIXED
+- [ ] Apple Wallet: `Event.location` may be empty in test data (shows "Location TBA")
 
 ### Personal Information
 - [x] Update profile information (`/my/settings`)

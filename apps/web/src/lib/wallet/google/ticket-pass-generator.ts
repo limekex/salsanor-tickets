@@ -31,7 +31,7 @@ export function generateGoogleTicketPassUrl(data: TicketPassData): string {
   const objectId = `${issuerId}.${data.ticketId}`;
 
   // Format event date
-  const eventDateStr = new Intl.DateTimeFormat('no-NO', {
+  const eventDateStr = new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'full',
     timeStyle: 'short',
   }).format(data.eventDate);
@@ -82,36 +82,36 @@ export function generateGoogleTicketPassUrl(data: TicketPassData): string {
     },
     cardTitle: {
       defaultValue: {
-        language: 'no',
+        language: 'en',
         value: data.eventTitle,
       },
     },
     header: {
       defaultValue: {
-        language: 'no',
-        value: 'ARRANGEMENT',
+        language: 'en',
+        value: 'EVENT',
       },
     },
     subheader: {
       defaultValue: {
-        language: 'no',
+        language: 'en',
         value: data.ticketNumber,
       },
     },
     textModulesData: [
       {
         id: 'attendee',
-        header: 'NAVN',
+        header: 'NAME',
         body: data.attendeeName,
       },
       {
         id: 'date',
-        header: 'DATO OG TID',
+        header: 'DATE & TIME',
         body: eventDateStr,
       },
       {
         id: 'location',
-        header: 'STED',
+        header: 'LOCATION',
         body: data.eventLocation,
       },
     ],

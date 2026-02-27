@@ -29,13 +29,30 @@ export async function GET(
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Fetch the ticket with event and person details
+    // Fetch the ticket with event, organizer, and person details
+    // Include all location/time fields needed for wallet passes
     const ticket = await prisma.eventTicket.findUnique({
       where: { id: ticketId },
       include: {
         Event: {
-          include: {
-            Organizer: true,
+          select: {
+            id: true,
+            title: true,
+            startDateTime: true,
+            endDateTime: true,
+            timezone: true,
+            locationName: true,
+            locationAddress: true,
+            city: true,
+            imageUrl: true,
+            Organizer: {
+              select: {
+                id: true,
+                name: true,
+                city: true,
+                country: true,
+              },
+            },
           },
         },
         PersonProfile: true,
@@ -59,17 +76,31 @@ export async function GET(
       );
     }
 
+    // Build location string from components
+    // Format: "Venue Name, Address, City" (omitting empty parts)
+    const locationParts = [
+      ticket.Event?.locationName,
+      ticket.Event?.locationAddress,
+      ticket.Event?.city,
+    ].filter(Boolean);
+    const eventLocation = locationParts.length > 0 
+      ? locationParts.join(', ') 
+      : 'Location TBA';
+
     // Generate Google Wallet save URL
+    // NOTE: Use same fields as Apple Wallet/PDF for consistency:
+    // - eventDate: Event.startDateTime (full datetime)
+    // - qrCode: ticket.qrTokenHash (scannable token for check-in)
     const saveUrl = generateGoogleTicketPassUrl({
       ticketId: ticket.id,
-      ticketNumber: ticket.ticketNumber || `TICKET-${ticket.id.substring(0, 8)}`,
+      ticketNumber: String(ticket.ticketNumber || `TICKET-${ticket.id.substring(0, 8)}`),
       eventTitle: ticket.Event?.title || 'Event',
-      eventDate: ticket.Event?.startDate || new Date(),
-      eventLocation: ticket.Event?.location || 'Location TBA',
+      eventDate: ticket.Event?.startDateTime || new Date(),
+      eventLocation: eventLocation,
       organizerName: ticket.Event?.Organizer?.name || 'Organizer',
       attendeeName: `${ticket.PersonProfile?.firstName || ''} ${ticket.PersonProfile?.lastName || ''}`.trim() || 'Guest',
-      qrCode: ticket.qrCode || ticket.id,
-      eventImageUrl: ticket.Event?.bannerImageUrl || undefined,
+      qrCode: ticket.qrTokenHash || ticket.id,
+      eventImageUrl: ticket.Event?.imageUrl || undefined,
     });
 
     // Return the save URL

@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
   
   // Explicitly set Turbopack root to monorepo root
   // This prevents Next.js from inferring the wrong workspace root
-  // when multiple package-lock.json files exist
   turbopack: {
     root: path.resolve(__dirname, "../.."),
   },

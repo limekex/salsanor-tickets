@@ -79,12 +79,61 @@ export async function GET() {
             ]
         })
 
+        // ================================================================
+        // FETCH EVENTS FOR CHECK-IN
+        // ================================================================
+        // Filter for upcoming or ongoing events (started within last 24h or future)
+        const eventCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000) // 24 hours ago
+        
+        const eventWhereClause = isGlobalAdmin
+            ? {
+                status: 'PUBLISHED' as const,
+                startDateTime: { gte: eventCutoff }
+            }
+            : {
+                status: 'PUBLISHED' as const,
+                startDateTime: { gte: eventCutoff },
+                organizerId: { in: organizerIds }
+            }
+
+        const events = await prisma.event.findMany({
+            where: eventWhereClause,
+            include: {
+                Organizer: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                _count: {
+                    select: {
+                        EventTicket: true
+                    }
+                }
+            },
+            orderBy: [
+                { startDateTime: 'asc' }
+            ]
+        })
+
         return NextResponse.json({
             tracks: tracks.map(track => ({
                 id: track.id,
                 title: track.title,
                 periodName: `${track.CoursePeriod.Organizer.name} - ${track.CoursePeriod.name}`,
-                organizerId: track.CoursePeriod.organizerId
+                organizerId: track.CoursePeriod.organizerId,
+                type: 'track'
+            })),
+            events: events.map(event => ({
+                id: event.id,
+                title: event.title,
+                startDateTime: event.startDateTime,
+                locationName: event.locationName,
+                city: event.city,
+                organizerName: event.Organizer.name,
+                organizerId: event.organizerId,
+                ticketCount: event._count.EventTicket,
+                type: 'event'
             }))
         })
     } catch (error) {
