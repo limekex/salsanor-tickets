@@ -54,13 +54,13 @@ export function WalletButtons({ ticketId, type = 'event' }: WalletButtonsProps) 
   const showGoogleButton = isAndroid || (!isIOS && !isAndroid);
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {showAppleButton && (
         <Button
           asChild
           variant="outline"
           size="sm"
-          className="w-full sm:w-auto"
+          className="w-full"
         >
           <a
             href={`${apiBasePath}/apple`}
@@ -75,7 +75,7 @@ export function WalletButtons({ ticketId, type = 'event' }: WalletButtonsProps) 
         <Button
           variant="outline"
           size="sm"
-          className="w-full sm:w-auto"
+          className="w-full"
           onClick={handleGoogleWallet}
           disabled={isLoading}
         >

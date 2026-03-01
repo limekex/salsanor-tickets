@@ -11,9 +11,9 @@
  */
 
 export const UI_TEXT = {
-  // Portal Navigation
+  // My Page Navigation
   portal: {
-    title: 'My Portal',
+    title: 'My page',
     welcome: 'Welcome back',
   },
 
@@ -80,7 +80,7 @@ export const UI_TEXT = {
 
   // Common
   common: {
-    backToPortal: 'Back to Portal',
+    backToPortal: 'Back to My page',
     status: 'Status:',
     createdAt: 'Created:',
   },

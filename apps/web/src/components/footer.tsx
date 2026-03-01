@@ -31,7 +31,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/my" className="hover:text-rn-text transition-colors">
-                  My Portal
+                  My page
                 </Link>
               </li>
               <li>

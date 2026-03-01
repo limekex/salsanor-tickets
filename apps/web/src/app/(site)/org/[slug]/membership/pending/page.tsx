@@ -131,7 +131,7 @@ export default async function MembershipPendingPage({ params, searchParams }: Pr
                         <div className="pt-6 flex flex-col sm:flex-row gap-3 justify-center">
                             <Button asChild className="sm:order-2 sm:w-auto">
                                 <Link href="/my">
-                                    View My Portal
+                                    View My page
                                 </Link>
                             </Button>
                             <Button asChild variant="outline" className="sm:order-1 sm:w-auto">

@@ -76,7 +76,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ order
                                 <Link href={`/checkout/${orderId}`}>Try Again</Link>
                             </Button>
                             <Button variant="outline" asChild>
-                                <Link href="/my">Go to Portal</Link>
+                                <Link href="/my">Go to My page</Link>
                             </Button>
                         </div>
                     </CardContent>
