@@ -1,20 +1,25 @@
 import { prisma } from '@/lib/db'
-import { requireOrgAdmin } from '@/utils/auth-org-admin'
+import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 import { generateCreditNotePDF } from '@/lib/tickets/pdf-generator'
 import { DEFAULT_PLATFORM_INFO } from '@/lib/tickets/legal-requirements'
 
 /**
  * Download credit note PDF by credit note ID
- * Accessible by org admins for their organization's credit notes
+ * Accessible by org admins for their organization's credit notes AND by order owners
  */
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const userAccount = await requireOrgAdmin()
         const { id: creditNoteId } = await params
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
 
         const creditNote = await prisma.creditNote.findUnique({
             where: { id: creditNoteId },
@@ -22,7 +27,17 @@ export async function GET(
                 Order: {
                     include: {
                         PersonProfile: true,
-                        Organizer: true
+                        Organizer: true,
+                        EventRegistration: {
+                            include: {
+                                Event: true
+                            }
+                        },
+                        Registration: {
+                            include: {
+                                CourseTrack: true
+                            }
+                        }
                     }
                 }
             }
@@ -38,19 +53,64 @@ export async function GET(
         }
         const org = order.Organizer
 
-        // Verify user has access to this organization
-        const hasAccess = userAccount.UserAccountRole.some(
+        // Get user account to check permissions
+        const userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: user.id },
+            include: { 
+                PersonProfile: true,
+                UserAccountRole: true 
+            }
+        })
+
+        if (!userAccount) {
+            return NextResponse.json({ error: 'User account not found' }, { status: 404 })
+        }
+
+        // Check if user is the order owner OR has org admin access
+        const isOrderOwner = order.purchaserPersonId === userAccount.PersonProfile?.id
+        const hasOrgAccess = userAccount.UserAccountRole.some(
             role => role.organizerId === org.id
         )
         
-        if (!hasAccess) {
+        if (!isOrderOwner && !hasOrgAccess) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 })
         }
 
         // Build credit note data
         const buyerName = `${order.PersonProfile.firstName || ''} ${order.PersonProfile.lastName || ''}`.trim() || 'N/A'
         
+        // Build line items from order
         const lineItems: { description: string; quantity: number; unitPriceCents: number; totalPriceCents: number; vatRate: number }[] = []
+        
+        if (order.EventRegistration && order.EventRegistration.length > 0) {
+            const totalQty = order.EventRegistration.reduce((sum, reg) => sum + reg.quantity, 0)
+            
+            for (const reg of order.EventRegistration) {
+                let unitPrice = reg.unitPriceCents
+                if (unitPrice === 0 && totalQty > 0) {
+                    unitPrice = Math.floor(order.subtotalAfterDiscountCents / totalQty)
+                }
+                
+                lineItems.push({
+                    description: reg.Event?.title || 'Event',
+                    quantity: reg.quantity,
+                    unitPriceCents: unitPrice,
+                    totalPriceCents: unitPrice * reg.quantity,
+                    vatRate: 0
+                })
+            }
+        } else if (order.Registration && order.Registration.length > 0) {
+            const pricePerReg = Math.floor(order.subtotalAfterDiscountCents / order.Registration.length)
+            for (const reg of order.Registration) {
+                lineItems.push({
+                    description: reg.CourseTrack?.title || 'Kurs',
+                    quantity: 1,
+                    unitPriceCents: pricePerReg,
+                    totalPriceCents: pricePerReg,
+                    vatRate: 0
+                })
+            }
+        }
 
         const sellerInfo = {
             name: org.name,
@@ -63,6 +123,15 @@ export async function GET(
             logoUrl: org.logoUrl || undefined
         }
 
+        // Calculate refund percentage
+        const refundPercentage = creditNote.originalAmountCents > 0
+            ? (creditNote.refundAmountCents / creditNote.originalAmountCents) * 100
+            : 0
+
+        // Calculate totals from line items to ensure they match
+        const calculatedOriginalAmountCents = lineItems.reduce((sum, item) => sum + item.totalPriceCents, 0)
+        const calculatedRefundAmountCents = Math.round(calculatedOriginalAmountCents * refundPercentage / 100)
+
         const creditNoteData = {
             creditNumber: creditNote.creditNumber,
             issueDate: creditNote.issueDate,
@@ -70,12 +139,12 @@ export async function GET(
             originalOrderNumber: order.orderNumber || undefined,
             originalTransactionDate: order.createdAt,
             refundType: creditNote.refundType as 'FULL' | 'PARTIAL' | 'NONE',
-            refundPercentage: 0,
+            refundPercentage: Math.round(refundPercentage),
             reason: creditNote.reason || 'Kansellering',
-            originalAmountCents: creditNote.originalAmountCents,
-            refundAmountCents: creditNote.refundAmountCents,
+            originalAmountCents: calculatedOriginalAmountCents,
+            refundAmountCents: calculatedRefundAmountCents,
             mvaCents: creditNote.mvaCents,
-            totalCents: creditNote.totalCents,
+            totalCents: calculatedRefundAmountCents, // Total credit amount equals refund amount
             lineItems,
             seller: sellerInfo,
             buyer: {

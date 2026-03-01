@@ -30,8 +30,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/profile" className="hover:text-rn-text transition-colors">
-                  My Profile
+                <Link href="/my" className="hover:text-rn-text transition-colors">
+                  My page
                 </Link>
               </li>
               <li>

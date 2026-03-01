@@ -160,6 +160,15 @@ export interface InvoiceData {
     platform?: PlatformInfo
     vat?: VatBreakdown
     footerText?: string  // Custom footer text
+    // Refund information
+    refundStatus?: 'FULLY_REFUNDED' | 'PARTIALLY_REFUNDED'
+    refundedAmountCents?: number
+    refundPercentage?: number  // 0-100 percentage of total that was refunded
+    creditNotes?: Array<{
+        creditNumber: string
+        issueDate: Date
+        refundAmountCents: number
+    }>
 }
 
 // =============================================================================
@@ -1705,11 +1714,22 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     
     let textY = y - 20
     
-    // Header row
-    drawText({ page, text: 'Beskrivelse', x: boxX + 15, y: textY, font: helveticaBold, size: 10 })
-    drawText({ page, text: 'Antall', x: boxX + 320, y: textY, font: helveticaBold, size: 10 })
-    drawText({ page, text: 'Pris', x: boxX + 395, y: textY, font: helveticaBold, size: 10 })
-    drawText({ page, text: 'Sum', x: boxX + 460, y: textY, font: helveticaBold, size: 10 })
+    // Determine if we need to show refund column
+    const hasRefund = data.refundStatus === 'PARTIALLY_REFUNDED' || data.refundStatus === 'FULLY_REFUNDED'
+    
+    // Header row - adjust positions based on whether we show refund column
+    if (hasRefund) {
+        drawText({ page, text: 'Beskrivelse', x: boxX + 15, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Antall', x: boxX + 260, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Pris', x: boxX + 320, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Sum', x: boxX + 385, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Refundert', x: boxX + 445, y: textY, font: helveticaBold, size: 10 })
+    } else {
+        drawText({ page, text: 'Beskrivelse', x: boxX + 15, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Antall', x: boxX + 320, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Pris', x: boxX + 395, y: textY, font: helveticaBold, size: 10 })
+        drawText({ page, text: 'Sum', x: boxX + 460, y: textY, font: helveticaBold, size: 10 })
+    }
     textY -= 18
     
     // Draw line under header
@@ -1721,53 +1741,140 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     })
     textY -= 5
     
+    // Calculate refund amounts per item (proportional distribution to avoid rounding errors)
+    const itemRefunds: number[] = []
+    if (hasRefund && data.refundedAmountCents) {
+        const totalCents = data.lineItems.reduce((sum, item) => sum + item.totalPriceCents, 0)
+        let remainingRefund = data.refundedAmountCents
+        
+        // Distribute refund proportionally across items
+        for (let i = 0; i < data.lineItems.length; i++) {
+            const item = data.lineItems[i]
+            if (i === data.lineItems.length - 1) {
+                // Last item gets the remainder to ensure exact sum
+                itemRefunds.push(remainingRefund)
+            } else {
+                // Calculate proportional refund for this item
+                const itemRefund = Math.round((item.totalPriceCents / totalCents) * data.refundedAmountCents)
+                itemRefunds.push(itemRefund)
+                remainingRefund -= itemRefund
+            }
+        }
+    }
+    
     // Line items
-    for (const item of data.lineItems) {
-        drawText({ 
-            page, 
-            text: item.description, 
-            x: boxX + 15, 
-            y: textY, 
-            font: helvetica, 
-            size: 9,
-            maxWidth: 280
-        })
+    for (let itemIndex = 0; itemIndex < data.lineItems.length; itemIndex++) {
+        const item = data.lineItems[itemIndex]
+        const itemRefundedAmount = hasRefund ? itemRefunds[itemIndex] : 0
         
-        // Center-align quantity
-        const qtyText = item.quantity.toString()
-        const qtyWidth = helvetica.widthOfTextAtSize(qtyText, 9)
-        drawText({ 
-            page, 
-            text: qtyText, 
-            x: boxX + 335 - (qtyWidth / 2), 
-            y: textY, 
-            font: helvetica, 
-            size: 9 
-        })
-        
-        // Right-align unit price
-        const priceText = formatNOK(item.unitPriceCents)
-        const priceWidth = helvetica.widthOfTextAtSize(priceText, 9)
-        drawText({ 
-            page, 
-            text: priceText, 
-            x: boxX + 445 - priceWidth, 
-            y: textY, 
-            font: helvetica, 
-            size: 9 
-        })
-        
-        // Right-align total price
-        const totalText = formatNOK(item.totalPriceCents)
-        const totalWidth = helvetica.widthOfTextAtSize(totalText, 9)
-        drawText({ 
-            page, 
-            text: totalText, 
-            x: boxX + boxWidth - 15 - totalWidth, 
-            y: textY, 
-            font: helvetica, 
-            size: 9 
-        })
+        if (hasRefund) {
+            // With refund column - adjusted positions
+            drawText({ 
+                page, 
+                text: item.description, 
+                x: boxX + 15, 
+                y: textY, 
+                font: helvetica, 
+                size: 9,
+                maxWidth: 230
+            })
+            
+            // Center-align quantity
+            const qtyText = item.quantity.toString()
+            const qtyWidth = helvetica.widthOfTextAtSize(qtyText, 9)
+            drawText({ 
+                page, 
+                text: qtyText, 
+                x: boxX + 275 - (qtyWidth / 2), 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align unit price
+            const priceText = formatNOK(item.unitPriceCents)
+            const priceWidth = helvetica.widthOfTextAtSize(priceText, 9)
+            drawText({ 
+                page, 
+                text: priceText, 
+                x: boxX + 370 - priceWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align total price
+            const totalText = formatNOK(item.totalPriceCents)
+            const totalWidth = helvetica.widthOfTextAtSize(totalText, 9)
+            drawText({ 
+                page, 
+                text: totalText, 
+                x: boxX + 435 - totalWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align refunded amount
+            const refundText = `-${formatNOK(itemRefundedAmount)}`
+            const refundWidth = helvetica.widthOfTextAtSize(refundText, 9)
+            drawText({ 
+                page, 
+                text: refundText, 
+                x: boxX + boxWidth - 15 - refundWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9,
+                color: { r: 0.6, g: 0.2, b: 0.2 }
+            })
+        } else {
+            // Without refund column - original positions
+            drawText({ 
+                page, 
+                text: item.description, 
+                x: boxX + 15, 
+                y: textY, 
+                font: helvetica, 
+                size: 9,
+                maxWidth: 280
+            })
+            
+            // Center-align quantity
+            const qtyText = item.quantity.toString()
+            const qtyWidth = helvetica.widthOfTextAtSize(qtyText, 9)
+            drawText({ 
+                page, 
+                text: qtyText, 
+                x: boxX + 335 - (qtyWidth / 2), 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align unit price
+            const priceText = formatNOK(item.unitPriceCents)
+            const priceWidth = helvetica.widthOfTextAtSize(priceText, 9)
+            drawText({ 
+                page, 
+                text: priceText, 
+                x: boxX + 445 - priceWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+            
+            // Right-align total price
+            const totalText = formatNOK(item.totalPriceCents)
+            const totalWidth = helvetica.widthOfTextAtSize(totalText, 9)
+            drawText({ 
+                page, 
+                text: totalText, 
+                x: boxX + boxWidth - 15 - totalWidth, 
+                y: textY, 
+                font: helvetica, 
+                size: 9 
+            })
+        }
         textY -= 18
     }
     
@@ -1845,6 +1952,127 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     })
     
     y -= 20
+
+    // ==========================================================================
+    // REFUND INFORMATION (if applicable)
+    // ==========================================================================
+    
+    if (data.refundStatus) {
+        const refundColor = { r: 0.93, g: 0.26, b: 0.26 }  // Red
+        
+        // Display refund status
+        if (data.refundStatus === 'FULLY_REFUNDED') {
+            // Prominent fully refunded banner
+            const bannerHeight = 50
+            page.drawRectangle({
+                x: 50,
+                y: y - bannerHeight,
+                width: width - 100,
+                height: bannerHeight,
+                color: rgb(0.98, 0.95, 0.95),
+                borderColor: rgb(refundColor.r, refundColor.g, refundColor.b),
+                borderWidth: 2
+            })
+            
+            drawText({ 
+                page, 
+                text: 'FULLSTENDIG REFUNDERT', 
+                x: 60, 
+                y: y - 20, 
+                font: helveticaBold, 
+                size: 14, 
+                color: refundColor
+            })
+            
+            if (data.refundedAmountCents) {
+                drawText({ 
+                    page, 
+                    text: `Refundert beløp: ${formatNOK(data.refundedAmountCents)}`, 
+                    x: 60, 
+                    y: y - 38, 
+                    font: helvetica, 
+                    size: 10, 
+                    color: refundColor
+                })
+            }
+            
+            y -= bannerHeight + 10
+        } else if (data.refundStatus === 'PARTIALLY_REFUNDED' && data.refundedAmountCents) {
+            // Partial refund information with percentage
+            const refundPercentageText = data.refundPercentage 
+                ? ` (${Math.round(data.refundPercentage)}%)`
+                : ''
+            
+            drawText({ 
+                page, 
+                text: `Refundert${refundPercentageText}:`, 
+                x: totalsX, 
+                y, 
+                font: helveticaBold, 
+                size: 9, 
+                color: refundColor
+            })
+            drawText({ 
+                page, 
+                text: `-${formatNOK(data.refundedAmountCents)}`, 
+                x: totalsX + 80, 
+                y, 
+                font: helveticaBold, 
+                size: 9, 
+                color: refundColor
+            })
+            y -= 18
+            
+            // Calculate and show net amount
+            const netAmount = data.totalCents - data.refundedAmountCents
+            drawText({ 
+                page, 
+                text: 'Netto beløp:', 
+                x: totalsX, 
+                y, 
+                font: helveticaBold, 
+                size: 11 
+            })
+            drawText({ 
+                page, 
+                text: formatNOK(netAmount), 
+                x: totalsX + 80, 
+                y, 
+                font: helveticaBold, 
+                size: 11 
+            })
+            y -= 16
+        }
+        
+        // List credit notes if available
+        if (data.creditNotes && data.creditNotes.length > 0) {
+            drawText({ 
+                page, 
+                text: 'Kreditnotaer:', 
+                x: 50, 
+                y, 
+                font: helveticaBold, 
+                size: 9, 
+                color: { r: 0.3, g: 0.3, b: 0.3 }
+            })
+            y -= 14
+            
+            for (const cn of data.creditNotes) {
+                drawText({ 
+                    page, 
+                    text: `• ${cn.creditNumber} (${formatDateNO(cn.issueDate)}): ${formatNOK(cn.refundAmountCents)}`, 
+                    x: 60, 
+                    y, 
+                    font: helvetica, 
+                    size: 8, 
+                    color: { r: 0.4, g: 0.4, b: 0.4 }
+                })
+                y -= 12
+            }
+        }
+        
+        y -= 10
+    }
 
     // ==========================================================================
     // VAT BREAKDOWN (if applicable and template allows)

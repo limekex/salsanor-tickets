@@ -325,6 +325,17 @@ export async function POST(req: Request) {
                                 // Ensure startDateTime is a Date object (could be string from DB)
                                 const eventDate = event.startDateTime ? new Date(event.startDateTime) : new Date()
 
+                                // Build full location string from components
+                                // Format: "Venue Name, Address, City" (omitting empty parts)
+                                const locationParts = [
+                                    event.locationName,
+                                    event.locationAddress,
+                                    event.city,
+                                ].filter(Boolean);
+                                const eventVenue = locationParts.length > 0 
+                                    ? locationParts.join(', ') 
+                                    : undefined;
+
                                 // Add each unique ticket
                                 for (const ticket of eventTickets) {
                                     allTicketData.push({
@@ -332,7 +343,7 @@ export async function POST(req: Request) {
                                         ticketNumber: ticketNumber++,
                                         eventTitle: event.title,
                                         eventDate,
-                                        eventVenue: event.locationName || undefined,
+                                        eventVenue,
                                         seller,
                                         unitPriceCents: unitPrice
                                     })

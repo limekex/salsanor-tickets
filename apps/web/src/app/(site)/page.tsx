@@ -59,7 +59,7 @@ export default async function Home() {
                     <Link href="/courses">Browse Courses</Link>
                   </Button>
                   <Button asChild variant="outline" size="lg">
-                    <Link href="/profile">My Profile</Link>
+                    <Link href="/my">My page</Link>
                   </Button>
                   {hasStaffRoles && (
                     <Button asChild variant="secondary" size="lg">

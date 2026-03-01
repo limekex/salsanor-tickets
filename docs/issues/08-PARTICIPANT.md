@@ -16,21 +16,21 @@
 
 ### Core Functionality
 - [x] Role exists in database schema (`UserRole.PARTICIPANT`)
-- [ ] Profile/dashboard for participants
-- [ ] View personal data
-- [ ] Mobile-optimized interface
+- [x] Profile/dashboard for participants (`/my/`)
+- [x] View personal data (settings page)
+- [x] Mobile-optimized interface
 
 ### Registration Management (Personal)
-- [x] View own registrations (available at `/profile`)
-- [ ] View registration status
-- [ ] View payment status
-- [ ] Download receipts/invoices
+- [x] View own registrations (available at `/my/courses` and `/my/tickets`)
+- [x] View registration status
+- [x] View payment status
+- [x] Download receipts/invoices (via `/my/orders/[id]`)
 - [ ] Cancel registrations (if allowed)
 - [ ] Request refunds
 - [ ] Modify registration details (before deadline)
 
 ### Course Access
-- [ ] View enrolled courses/tracks
+- [x] View enrolled courses/tracks (`/my/courses`)
 - [ ] View course schedules
 - [ ] View course location/details
 - [ ] View instructor information
@@ -38,21 +38,54 @@
 - [ ] Receive course notifications
 
 ### Ticket Management
-- [x] View tickets (TicketQR component exists)
-- [ ] Download tickets as PDF
+- [x] View tickets (`/my/tickets` - TicketQR component)
+- [x] Download tickets as PDF (`/api/tickets/[id]/pdf`)
 - [ ] Share ticket QR code
 - [ ] View ticket validity period
-- [ ] Multiple tickets (if multiple registrations)
-- [ ] Add ticket to Apple Wallet / Google Pay
+- [x] Multiple tickets (if multiple registrations)
+- [x] Add ticket to Apple Wallet / Google Pay (implemented 2026-02-25)
+
+#### Wallet Integration Field Mapping
+
+The ticket data must be consistent across all outputs (UI, PDF, Apple Wallet, Google Wallet).
+
+**Data Sources (from database via Prisma):**
+
+| Field | Database Field | Description |
+|-------|----------------|-------------|
+| Event Title | `Event.title` | Name of the event |
+| Event Date/Time | `Event.startDateTime` | When the event starts |
+| Event Location | `Event.location` | Venue/address |
+| Organizer Name | `Event.Organizer.name` | Who organizes the event |
+| Ticket Number | `EventTicket.ticketNumber` | Sequential number for this ticket |
+| QR Token | `EventTicket.qrTokenHash` | **The unique scannable token** |
+| Attendee Name | `PersonProfile.firstName` + `lastName` | Who the ticket belongs to |
+
+**Field Usage by Output:**
+
+| Field | My/Tickets UI | PDF | Apple Wallet | Google Wallet |
+|-------|---------------|-----|--------------|---------------|
+| Event Title | ✅ `Event.title` | ✅ `eventTitle` | ✅ `eventTitle` | ✅ `eventTitle` |
+| Date/Time | ✅ `startDateTime` | ✅ `eventDate` | ⚠️ `startDate`→`startDateTime` | ✅ `eventDate` |
+| Location | ❌ (not shown) | ✅ `eventVenue` | ⚠️ uses fallback | ✅ `eventLocation` |
+| Organizer | ✅ `Organizer.name` | ✅ `seller.name` | ✅ `organizerName` | ✅ `organizerName` |
+| QR Code | ✅ `qrTokenHash` | ✅ `qrToken` | ⚠️ `qrCode`→`qrTokenHash` | ✅ `qrCode` |
+| Attendee | ❌ (implied) | ✅ `buyer.name` | ✅ `attendeeName` | ✅ `attendeeName` |
+| Ticket # | ✅ `ticketNumber` | ✅ `ticketNumber` | ✅ `ticketNumber` | ✅ `ticketNumber` |
+
+**Issues Found (2026-02-25):**
+- [x] Apple Wallet: Certificate/key mismatch - FIXED
+- [x] Apple Wallet: Team ID mismatch - FIXED  
+- [x] Apple Wallet: Uses `startDate` instead of `startDateTime` - FIXED
+- [x] Apple Wallet: Uses `ticket.qrCode` instead of `ticket.qrTokenHash` - FIXED
+- [ ] Apple Wallet: `Event.location` may be empty in test data (shows "Location TBA")
 
 ### Personal Information
-- [ ] Update profile information
-  - [ ] Name
-  - [ ] Email
-  - [ ] Phone number
-  - [ ] Emergency contact
-  - [ ] Dance experience level
-  - [ ] Preferred role (leader/follower)
+- [x] Update profile information (`/my/settings`)
+  - [x] Name
+  - [x] Email
+  - [x] Phone number
+  - [x] Emergency contact
 - [ ] Update preferences
 - [ ] Communication settings
 - [ ] Privacy settings
@@ -75,16 +108,18 @@
 - [x] Browse available courses (public site)
 - [x] View course details (public site)
 - [x] Register for courses (checkout system exists)
-- [ ] Add to cart
-- [ ] Apply discount codes
+- [x] Add to cart
+- [x] Apply discount codes
 - [ ] Waitlist signup
 
 ## Required Routes
-- [x] `/profile` - Personal profile & registrations ✅
-- [ ] `/profile/settings` - Account settings
-- [ ] `/profile/tickets` - All tickets
-- [ ] `/profile/attendance` - Attendance history
-- [ ] `/profile/invoices` - Payment history
+- [x] `/my/` - Personal portal dashboard ✅
+- [x] `/my/settings` - Account settings ✅
+- [x] `/my/tickets` - Event tickets ✅
+- [x] `/my/courses` - Course registrations ✅
+- [x] `/my/memberships` - Memberships ✅
+- [x] `/my/orders` - Order history ✅
+- [ ] `/my/attendance` - Attendance history
 - [x] `/org/[slug]/courses` - Browse courses ✅
 - [x] `/courses/[periodId]/[trackId]` - Course details ✅
 - [x] `/cart` - Shopping cart ✅
@@ -119,21 +154,79 @@
 - [ ] Read-only for most organization data
 
 ## Current Implementation Status
-✅ **Implemented:**
-- Profile page at `/profile`
-- View registrations
-- TicketQR component
+
+### ✅ **Implemented (65% complete):**
+
+**Portal & Dashboard:**
+- Participant portal at `/my/` with dashboard (2-column grid)
+- Memberships button in header (conditional, shows count)
+- Orders button in header (shows count)
+- Event tickets page (`/my/tickets`)
+- Course registrations page (`/my/courses`)
+- Memberships page (`/my/memberships`)
+- Settings page (`/my/settings`)
+
+**Orders Management:**
+- Orders table view at `/my/orders` (Order #, Date, Items, Total, Status, Actions)
+- Order details page at `/my/orders/[id]` with line items breakdown
+- Download invoices (with refund display if applicable)
+- Download credit notes (with line items and correct totals)
+- Color-coded status badges
+- Document access control (order owners can download)
+
+**PDFs & Documents:**
+- Invoice PDFs with:
+  - Refund status display (FULLY/PARTIALLY REFUNDED with percentage)
+  - Per-item refund amounts (proportionally distributed)
+  - Credit notes list
+  - Net amount after refund
+- Credit note PDFs with:
+  - Line items (description, quantity, original price, credited amount)
+  - Correct totals calculated from line items
+  - Refund percentage
+- Refund calculations use actual order line items (not stale DB values)
+
+**Profile & Settings:**
+- Profile management and editing
+- Update name, email, phone, emergency contact
+- Language selector
+
+**Registration & Tickets:**
+- View registrations with status
+- TicketQR component for check-in
+- Multiple tickets support
+
+**Public Features:**
 - Public course browsing
 - Cart and checkout system
 - Registration success page
 
-⬜ **Pending:**
-- Edit profile information
-- Cancel registrations
-- Personal attendance history
-- Ticket download/management
-- Invoice/receipt download
+**Infrastructure:**
+- i18n-ready text structure (English, centralized in UI_TEXT)
+- Access control and ownership verification
+- Mobile-optimized interface
+
+### ⬜ **Pending (35% remaining):**
+
+**High Priority:**
+- Cancel registrations functionality
+- Download tickets as PDF
+- Course schedules/session details display
+- Ticket validity period display
+
+**Medium Priority:**
+- Personal attendance history (`/my/attendance`)
+- Request refunds (UI for refund requests)
+- Modify registration details (before deadline)
 - Notification preferences
+- Communication settings
+
+**Lower Priority:**
+- Waitlist signup feature
+- Course location/instructor details
+- Calendar integration (iCal export)
+- Apple Wallet / Google Pay integration
+- Social features and enhancements
 
 ## Priority
 **HIGH** - Core participant experience, partially implemented
