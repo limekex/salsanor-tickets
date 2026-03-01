@@ -203,7 +203,7 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
               )}
               <div className="flex justify-between text-sm">
                 <span>MVA ({Number(order.mvaRate)}%)</span>
-                <span>{formatPrice(order.mvaCents)}</span>
+                <span>{formatPrice(order.mvaCents, { showZeroAsAmount: true })}</span>
               </div>
               <div className="flex justify-between font-bold text-lg border-t pt-2">
                 <span>Total</span>
