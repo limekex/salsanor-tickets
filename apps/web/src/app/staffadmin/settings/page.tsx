@@ -74,6 +74,7 @@ export default async function StaffAdminSettingsPage() {
                         ...org,
                         mvaRate: org.mvaRate ? Number(org.mvaRate) : null,
                         stripeFeePercentage: org.stripeFeePercentage ? Number(org.stripeFeePercentage) : null,
+                        platformFeePercent: org.platformFeePercent ? Number(org.platformFeePercent) : null,
                     } : null
                     
                     return serializedOrg ? (

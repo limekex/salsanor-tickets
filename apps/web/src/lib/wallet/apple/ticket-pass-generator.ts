@@ -299,7 +299,7 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
     message: data.qrCode,
     format: 'PKBarcodeFormatQR',
     messageEncoding: 'iso-8859-1',
-    altText: `from signup to showtime · Ref: ${refCode}`,
+    altText: 'from signup to showtime',
   });
 
   // Add header field (top right of pass) - shows ticket type if provided

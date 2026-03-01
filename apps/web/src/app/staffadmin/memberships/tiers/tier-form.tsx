@@ -9,8 +9,39 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Palette } from 'lucide-react'
 import { createMembershipTier, updateMembershipTier } from '@/app/actions/membership-tiers'
+
+// Preset colors for tier accent
+const PRESET_COLORS = [
+  { name: 'Slate', hex: '#475569' },
+  { name: 'Blue', hex: '#2563eb' },
+  { name: 'Green', hex: '#16a34a' },
+  { name: 'Purple', hex: '#9333ea' },
+  { name: 'Amber', hex: '#f59e0b' },
+  { name: 'Red', hex: '#dc2626' },
+  { name: 'Teal', hex: '#0d9488' },
+  { name: 'Pink', hex: '#db2777' },
+  { name: 'Indigo', hex: '#4f46e5' },
+  { name: 'Orange', hex: '#ea580c' },
+]
+
+/**
+ * Calculate relative luminance and return appropriate text color
+ * Returns white for dark backgrounds, black for light backgrounds
+ */
+function getContrastTextColor(hexColor: string): string {
+  // Remove # if present
+  const hex = hexColor.replace('#', '')
+  const r = parseInt(hex.substr(0, 2), 16)
+  const g = parseInt(hex.substr(2, 2), 16)
+  const b = parseInt(hex.substr(4, 2), 16)
+  
+  // Calculate relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  
+  return luminance > 0.5 ? '#000000' : '#ffffff'
+}
 
 interface TierFormProps {
   tier?: {
@@ -25,6 +56,7 @@ interface TierFormProps {
     enabled: boolean
     validationRequired: boolean
     mvaEnabled: boolean
+    accentColor: string | null
     organizerVatRegistered?: boolean
   }
   organizerVatRegistered?: boolean
@@ -44,8 +76,12 @@ export function TierForm({ tier, organizerVatRegistered = true }: TierFormProps)
   const [enabled, setEnabled] = useState(tier?.enabled ?? true)
   const [validationRequired, setValidationRequired] = useState(tier?.validationRequired ?? false)
   const [mvaEnabled, setMvaEnabled] = useState(tier?.mvaEnabled ?? true)
+  const [accentColor, setAccentColor] = useState(tier?.accentColor || '#475569')
   const [benefits, setBenefits] = useState<string[]>(tier?.benefits || [])
   const [newBenefit, setNewBenefit] = useState('')
+
+  // Calculate contrast text color for preview
+  const textColor = getContrastTextColor(accentColor)
 
   // Auto-generate slug from name
   const handleNameChange = (value: string) => {
@@ -89,6 +125,7 @@ export function TierForm({ tier, organizerVatRegistered = true }: TierFormProps)
         enabled,
         validationRequired,
         mvaEnabled,
+        accentColor: accentColor || undefined,
       }
 
       if (tier) {
@@ -236,6 +273,64 @@ export function TierForm({ tier, organizerVatRegistered = true }: TierFormProps)
               <Button type="button" onClick={addBenefit} variant="outline" size="icon">
                 <Plus className="h-4 w-4" />
               </Button>
+            </div>
+          </div>
+
+          {/* Tier Accent Color */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Palette className="h-4 w-4 text-muted-foreground" />
+              <Label>Choose Tier Accent Color</Label>
+            </div>
+            <p className="text-sm text-muted-foreground -mt-2">
+              This color will be used for the membership card and wallet pass background
+            </p>
+            
+            {/* Color preview card */}
+            <div 
+              className="rounded-lg p-4 transition-colors"
+              style={{ backgroundColor: accentColor, color: textColor }}
+            >
+              <div className="text-xs opacity-80">PREVIEW</div>
+              <div className="font-bold">{name || 'Tier Name'}</div>
+              <div className="text-sm mt-1">Member Name</div>
+            </div>
+            
+            {/* Preset colors */}
+            <div className="flex flex-wrap gap-2">
+              {PRESET_COLORS.map((color) => (
+                <button
+                  key={color.hex}
+                  type="button"
+                  onClick={() => setAccentColor(color.hex)}
+                  className={`w-10 h-10 rounded-full border-2 transition-all ${
+                    accentColor === color.hex 
+                      ? 'border-primary ring-2 ring-primary ring-offset-2' 
+                      : 'border-transparent hover:border-muted-foreground/50'
+                  }`}
+                  style={{ backgroundColor: color.hex }}
+                  title={color.name}
+                />
+              ))}
+            </div>
+            
+            {/* Custom color input */}
+            <div className="flex items-center gap-3">
+              <Input
+                type="color"
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="w-12 h-10 p-1 cursor-pointer"
+              />
+              <Input
+                type="text"
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                placeholder="#475569"
+                pattern="^#[0-9A-Fa-f]{6}$"
+                className="w-28 font-mono"
+              />
+              <span className="text-sm text-muted-foreground">Custom color</span>
             </div>
           </div>
 

@@ -49,6 +49,8 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
+                contactEmail: true,
+                website: true,
                 city: true,
                 country: true,
               },
@@ -76,16 +78,15 @@ export async function GET(
       );
     }
 
-    // Build location string from components
-    // Format: "Venue Name, Address, City" (omitting empty parts)
-    const locationParts = [
-      ticket.Event?.locationName,
+    // Build address string from components
+    // Format: "Address, City" (for Google Wallet venue address)
+    const addressParts = [
       ticket.Event?.locationAddress,
       ticket.Event?.city,
     ].filter(Boolean);
-    const eventLocation = locationParts.length > 0 
-      ? locationParts.join(', ') 
-      : 'Location TBA';
+    const venueAddress = addressParts.length > 0 
+      ? addressParts.join(', ') 
+      : undefined;
 
     // Generate Google Wallet save URL
     // NOTE: Use same fields as Apple Wallet/PDF for consistency:
@@ -94,10 +95,16 @@ export async function GET(
     const saveUrl = generateGoogleTicketPassUrl({
       ticketId: ticket.id,
       ticketNumber: String(ticket.ticketNumber || `TICKET-${ticket.id.substring(0, 8)}`),
+      eventId: ticket.Event?.id || ticket.eventId,
       eventTitle: ticket.Event?.title || 'Event',
       eventDate: ticket.Event?.startDateTime || new Date(),
-      eventLocation: eventLocation,
+      eventEndDate: ticket.Event?.endDateTime || undefined,
+      timezone: ticket.Event?.timezone || 'Europe/Oslo',
+      venueName: ticket.Event?.locationName || 'TBA',
+      venueAddress: venueAddress,
       organizerName: ticket.Event?.Organizer?.name || 'Organizer',
+      organizerEmail: ticket.Event?.Organizer?.contactEmail || undefined,
+      organizerWebsite: ticket.Event?.Organizer?.website || undefined,
       attendeeName: `${ticket.PersonProfile?.firstName || ''} ${ticket.PersonProfile?.lastName || ''}`.trim() || 'Guest',
       qrCode: ticket.qrTokenHash || ticket.id,
       eventImageUrl: ticket.Event?.imageUrl || undefined,

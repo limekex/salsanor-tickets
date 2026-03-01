@@ -7,12 +7,18 @@ import { useState, useEffect } from 'react';
 
 interface WalletButtonsProps {
   ticketId: string;
+  type?: 'event' | 'course';
 }
 
-export function WalletButtons({ ticketId }: WalletButtonsProps) {
+export function WalletButtons({ ticketId, type = 'event' }: WalletButtonsProps) {
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Determine API base path based on ticket type
+  const apiBasePath = type === 'course' 
+    ? `/api/course-tickets/${ticketId}/wallet`
+    : `/api/tickets/${ticketId}/wallet`;
 
   useEffect(() => {
     // Detect iOS
@@ -27,7 +33,7 @@ export function WalletButtons({ ticketId }: WalletButtonsProps) {
   const handleGoogleWallet = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/tickets/${ticketId}/wallet/google`);
+      const response = await fetch(`${apiBasePath}/google`);
       if (response.ok) {
         const { saveUrl } = await response.json();
         window.open(saveUrl, '_blank');
@@ -57,7 +63,7 @@ export function WalletButtons({ ticketId }: WalletButtonsProps) {
           className="w-full sm:w-auto"
         >
           <a
-            href={`/api/tickets/${ticketId}/wallet/apple`}
+            href={`${apiBasePath}/apple`}
             download
           >
             <Wallet className="h-4 w-4 mr-2" />

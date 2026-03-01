@@ -1,15 +1,80 @@
 import jwt from 'jsonwebtoken';
 
+/**
+ * Google Wallet Event Ticket Data
+ * 
+ * Issuer Model (same as Apple Wallet):
+ * - RegiNor.events is the selling platform and pass issuer (stable brand)
+ * - Organizer varies per event (e.g., SalsaNor) and is displayed as "EVENT BY"
+ */
 interface TicketPassData {
-  ticketId: string;
-  ticketNumber: string;
+  // Core identifiers
+  ticketId: string;           // Unique ticket UUID
+  ticketNumber: string;       // Display reference (e.g., "ABC123")
+  eventId: string;            // Event UUID (for class ID)
+  
+  // Event information
   eventTitle: string;
-  eventDate: Date;
-  eventLocation: string;
+  eventDate: Date;            // Start date/time
+  eventEndDate?: Date;        // End date/time (optional)
+  timezone?: string;          // e.g., "Europe/Oslo"
+  venueName: string;          // Venue name
+  venueAddress?: string;      // Full address
+  
+  // Organizer (event owner)
   organizerName: string;
+  organizerEmail?: string;
+  organizerWebsite?: string;
+  
+  // Attendee
   attendeeName: string;
+  
+  // Ticket details
+  ticketType?: string;        // e.g., "General Admission", "VIP"
+  
+  // QR code
   qrCode: string;
+  
+  // Visual
   eventImageUrl?: string;
+}
+
+/**
+ * Format a date to ISO 8601 with timezone offset for Google Wallet
+ * E.g., "2026-03-01T18:00:00+01:00"
+ */
+function toISOWithTimezone(date: Date, timezone: string): string {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  
+  const parts = formatter.formatToParts(date);
+  const get = (type: string) => parts.find(p => p.type === type)?.value || '00';
+  
+  // Get timezone offset
+  const offsetFormatter = new Intl.DateTimeFormat('en', {
+    timeZone: timezone,
+    timeZoneName: 'longOffset',
+  });
+  const formatted = offsetFormatter.format(date);
+  const offsetMatch = formatted.match(/GMT([+-])(\d{1,2}):?(\d{2})?/);
+  
+  let offset = '+00:00';
+  if (offsetMatch) {
+    const sign = offsetMatch[1];
+    const hours = offsetMatch[2].padStart(2, '0');
+    const minutes = offsetMatch[3] || '00';
+    offset = `${sign}${hours}:${minutes}`;
+  }
+  
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}${offset}`;
 }
 
 export function generateGoogleTicketPassUrl(data: TicketPassData): string {
@@ -27,112 +92,127 @@ export function generateGoogleTicketPassUrl(data: TicketPassData): string {
   );
 
   // Create unique class and object IDs
-  const classId = `${issuerId}.event_ticket_class`;
-  const objectId = `${issuerId}.${data.ticketId}`;
+  // Class = one per event (shared template for all tickets to this event)
+  // Object = one per ticket (unique to each attendee)
+  const classId = `${issuerId}.event_${data.eventId}`;
+  const objectId = `${issuerId}.ticket_${data.ticketId}`;
 
-  // Format event date
-  const eventDateStr = new Intl.DateTimeFormat('en-GB', {
-    dateStyle: 'full',
-    timeStyle: 'short',
-  }).format(data.eventDate);
+  // Format event date with correct timezone
+  const eventTimezone = data.timezone || 'Europe/Oslo';
+  
+  // ISO format with timezone offset for Google Wallet dateTime field
+  const eventStartISO = toISOWithTimezone(data.eventDate, eventTimezone);
+  const eventEndISO = data.eventEndDate 
+    ? toISOWithTimezone(data.eventEndDate, eventTimezone) 
+    : undefined;
 
-  // Create the event ticket class (generic, reusable)
+  // Reference code (short version for display)
+  const refCode = data.ticketNumber.length > 8 
+    ? data.ticketNumber.substring(0, 8).toUpperCase() 
+    : data.ticketNumber.toUpperCase();
+
+  // Create the event ticket class (defines the template for this event type)
+  // Required fields: eventName, reviewStatus, venue (with name + address)
   const eventTicketClass = {
     id: classId,
-    classTemplateInfo: {
-      cardTemplateOverride: {
-        cardRowTemplateInfos: [
-          {
-            twoItems: {
-              startItem: {
-                firstValue: {
-                  fields: [
-                    {
-                      fieldPath: 'object.textModulesData["date"]',
-                    },
-                  ],
-                },
-              },
-              endItem: {
-                firstValue: {
-                  fields: [
-                    {
-                      fieldPath: 'object.textModulesData["location"]',
-                    },
-                  ],
-                },
-              },
-            },
-          },
-        ],
-      },
-    },
-    reviewStatus: 'UNDER_REVIEW',
-    issuerName: data.organizerName,
-  };
-
-  // Create the event ticket object (specific to this ticket)
-  const eventTicketObject = {
-    id: objectId,
-    classId: classId,
-    state: 'ACTIVE',
-    barcode: {
-      type: 'QR_CODE',
-      value: data.qrCode,
-    },
-    cardTitle: {
+    // Required: Event name displayed on the pass
+    eventName: {
       defaultValue: {
         language: 'en',
         value: data.eventTitle,
       },
     },
-    header: {
-      defaultValue: {
-        language: 'en',
-        value: 'EVENT',
+    // Venue information - requires EITHER place_id OR (name + address)
+    venue: {
+      name: {
+        defaultValue: {
+          language: 'en',
+          value: data.venueName,
+        },
+      },
+      address: {
+        defaultValue: {
+          language: 'en',
+          value: data.venueAddress || data.venueName,
+        },
       },
     },
-    subheader: {
-      defaultValue: {
-        language: 'en',
-        value: data.ticketNumber,
+    // Date/time with correct timezone offset (Google auto-translates labels)
+    dateTime: {
+      start: eventStartISO,
+      ...(eventEndISO && { end: eventEndISO }),
+    },
+    // Review status (required)
+    reviewStatus: 'UNDER_REVIEW',
+    // Issuer name - RegiNor.events as platform
+    issuerName: 'RegiNor.events',
+    // Logo - hosted on reginor.events (must be publicly accessible)
+    logo: {
+      sourceUri: {
+        uri: 'https://reginor.events/assets/logos/GoogleWalletIssuerLogo.png',
+      },
+      contentDescription: {
+        defaultValue: {
+          language: 'en',
+          value: 'RegiNor.events',
+        },
       },
     },
-    textModulesData: [
-      {
-        id: 'attendee',
-        header: 'NAME',
-        body: data.attendeeName,
-      },
-      {
-        id: 'date',
-        header: 'DATE & TIME',
-        body: eventDateStr,
-      },
-      {
-        id: 'location',
-        header: 'LOCATION',
-        body: data.eventLocation,
-      },
-    ],
-    validTimeInterval: {
-      start: {
-        date: new Date().toISOString(),
-      },
-      end: {
-        date: new Date(data.eventDate.getTime() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours after event
-      },
+    // Homepage link
+    homepageUri: {
+      uri: 'https://reginor.events',
+      description: 'RegiNor.events - from signup to showtime',
     },
   };
 
-  // Add hero image if available
-  if (data.eventImageUrl) {
-    (eventTicketObject as any).heroImage = {
-      sourceUri: {
-        uri: data.eventImageUrl,
+  // Log the class for debugging
+  console.log('[Google Wallet] Class:', JSON.stringify(eventTicketClass, null, 2));
+
+  // Create the event ticket object (specific to this ticket)
+  // Simplified to identify issues
+  const eventTicketObject: Record<string, unknown> = {
+    id: objectId,
+    classId: classId,
+    state: 'ACTIVE',
+    // Barcode/QR code
+    barcode: {
+      type: 'QR_CODE',
+      value: data.qrCode,
+      alternateText: `#${refCode}`,
+    },
+    // Ticket holder name
+    ticketHolderName: data.attendeeName,
+    // Ticket number
+    ticketNumber: refCode,
+    // Text modules for additional info (organizer only - date/time/location shown by Google)
+    textModulesData: [
+      {
+        id: 'organizer',
+        header: 'EVENT BY',
+        body: data.organizerName,
       },
-    };
-  }
+    ],
+    // Links section
+    linksModuleData: {
+      uris: [
+        {
+          uri: 'https://reginor.events',
+          description: 'RegiNor.events',
+        },
+      ],
+    },
+  };
+
+  // Add hero image - use event image if available, otherwise default RegiNor hero
+  const heroImageUrl = data.eventImageUrl || 'https://reginor.events/assets/logos/WalletStandardHero.jpg';
+  eventTicketObject.heroImage = {
+    sourceUri: {
+      uri: heroImageUrl,
+    },
+  };
+
+  // Log the object for debugging
+  console.log('[Google Wallet] Object:', JSON.stringify(eventTicketObject, null, 2));
 
   // Create JWT payload
   const claims = {

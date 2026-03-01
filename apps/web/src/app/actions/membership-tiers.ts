@@ -16,6 +16,7 @@ const membershipTierSchema = z.object({
   enabled: z.boolean().default(true),
   validationRequired: z.boolean().default(false),
   mvaEnabled: z.boolean().default(true),
+  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color').optional(),
 })
 
 export async function createMembershipTier(data: z.infer<typeof membershipTierSchema>) {
@@ -51,6 +52,7 @@ export async function createMembershipTier(data: z.infer<typeof membershipTierSc
     enabled: tier.enabled,
     validationRequired: tier.validationRequired,
     mvaEnabled: tier.mvaEnabled,
+    accentColor: tier.accentColor,
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
   }
@@ -187,6 +189,7 @@ export async function listMembershipTiers() {
     enabled: tier.enabled,
     validationRequired: tier.validationRequired,
     mvaEnabled: tier.mvaEnabled,
+    accentColor: tier.accentColor,
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
     memberCount: tier._count.Membership,

@@ -111,10 +111,16 @@ export default async function MyMembershipsPage() {
                 <MembershipCard 
                   key={membership.id} 
                   membership={{
-                    ...membership,
+                    id: membership.id,
+                    memberNumber: membership.memberNumber,
+                    validFrom: membership.validFrom,
+                    validTo: membership.validTo,
+                    status: membership.status,
+                    verificationToken: membership.verificationToken,
                     tier: {
                       name: membership.MembershipTier.name,
-                      slug: membership.MembershipTier.slug
+                      slug: membership.MembershipTier.slug,
+                      accentColor: membership.MembershipTier.accentColor
                     },
                     organizer: {
                       name: membership.Organizer.name

@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { ArrowLeft, GraduationCap } from 'lucide-react'
 import { EmptyState } from '@/components'
 import { TicketQR } from '@/components/ticket-qr'
+import { WalletButtons } from '@/components/wallet-buttons'
 import { PayButton } from '@/components/pay-button'
 import { CancelOrderButton } from '@/app/(site)/profile/cancel-order-button'
 import { AcceptOfferButton, DeclineOfferButton } from '@/app/(site)/profile/offer-buttons'
@@ -142,7 +143,12 @@ export default async function MyCoursesPage() {
                       (() => {
                         const ticket = tickets.find(t => t.periodId === reg.periodId)
                         if (ticket) {
-                          return <TicketQR token={ticket.qrTokenHash} title={reg.CoursePeriod.name} />
+                          return (
+                            <div className="space-y-4">
+                              <TicketQR token={ticket.qrTokenHash} title={reg.CoursePeriod.name} />
+                              <WalletButtons ticketId={ticket.id} type="course" />
+                            </div>
+                          )
                         }
                         return null
                       })()

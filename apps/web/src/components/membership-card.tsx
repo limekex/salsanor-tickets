@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatDateNumeric } from '@/lib/formatters'
 import { Download, Wallet, Maximize2, X } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import QRCode from 'qrcode'
 
 interface MembershipCardProps {
@@ -20,6 +20,7 @@ interface MembershipCardProps {
         tier: {
             name: string
             slug: string
+            accentColor?: string | null  // Custom accent color (hex)
         }
         organizer: {
             name: string
@@ -32,7 +33,69 @@ interface MembershipCardProps {
     }
 }
 
-// Tier color mapping
+/**
+ * Convert hex color to RGB values
+ */
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result
+        ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        }
+        : null
+}
+
+/**
+ * Calculate relative luminance for WCAG contrast calculations
+ */
+function getLuminance(r: number, g: number, b: number): number {
+    const [rs, gs, bs] = [r, g, b].map(c => {
+        c = c / 255
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+    })
+    return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
+}
+
+/**
+ * Determine if text should be light or dark based on background color
+ * Returns true if light text (white) should be used
+ */
+function shouldUseLightText(hexColor: string): boolean {
+    const rgb = hexToRgb(hexColor)
+    if (!rgb) return true
+    const luminance = getLuminance(rgb.r, rgb.g, rgb.b)
+    return luminance < 0.5
+}
+
+/**
+ * Darken a hex color by a percentage (for gradient)
+ */
+function darkenColor(hex: string, percent: number): string {
+    const rgb = hexToRgb(hex)
+    if (!rgb) return hex
+    const factor = 1 - percent / 100
+    const r = Math.round(rgb.r * factor)
+    const g = Math.round(rgb.g * factor)
+    const b = Math.round(rgb.b * factor)
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+}
+
+/**
+ * Lighten a hex color (for badge background)
+ */
+function lightenColor(hex: string, percent: number): string {
+    const rgb = hexToRgb(hex)
+    if (!rgb) return hex
+    const factor = percent / 100
+    const r = Math.round(rgb.r + (255 - rgb.r) * factor)
+    const g = Math.round(rgb.g + (255 - rgb.g) * factor)
+    const b = Math.round(rgb.b + (255 - rgb.b) * factor)
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+}
+
+// Tier color mapping (fallback for tiers without custom accentColor)
 const tierColors: Record<string, { bg: string; border: string; text: string; badge: string }> = {
     normal: {
         bg: 'bg-gradient-to-br from-slate-600 to-slate-800',
@@ -87,7 +150,35 @@ export function MembershipCard({ membership }: MembershipCardProps) {
     const [fullscreen, setFullscreen] = useState(false)
     const [qrEnlarged, setQrEnlarged] = useState(false)
     
-    const colors = tierColors[membership.tier.slug] || defaultColor
+    // Calculate colors - prefer custom accentColor, then fallback to tier slug mapping
+    const { colors, customStyles } = useMemo(() => {
+        const accentColor = membership.tier.accentColor
+        
+        if (accentColor && /^#[0-9A-Fa-f]{6}$/.test(accentColor)) {
+            // Custom accent color provided - generate matching colors
+            const useLightText = shouldUseLightText(accentColor)
+            const darkerColor = darkenColor(accentColor, 25)
+            const badgeBg = lightenColor(accentColor, 85)
+            const badgeText = darkenColor(accentColor, 30)
+            
+            return {
+                colors: null, // Signal to use custom styles instead
+                customStyles: {
+                    cardBg: `linear-gradient(to bottom right, ${accentColor}, ${darkerColor})`,
+                    borderColor: accentColor,
+                    textColor: useLightText ? '#ffffff' : '#1f2937',
+                    badgeBg: badgeBg,
+                    badgeText: badgeText,
+                }
+            }
+        }
+        
+        return {
+            colors: tierColors[membership.tier.slug] || defaultColor,
+            customStyles: null
+        }
+    }, [membership.tier.accentColor, membership.tier.slug])
+    
     const membershipYear = new Date(membership.validFrom).getFullYear()
 
     // Generate QR code for verification
@@ -107,25 +198,48 @@ export function MembershipCard({ membership }: MembershipCardProps) {
 
     const handleDownloadAppleWallet = async () => {
         setDownloadingApple(true)
-        // TODO: Implement Apple Wallet pass generation
-        // This would typically call an API endpoint that generates a .pkpass file
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        alert('Apple Wallet functionality coming soon!')
-        setDownloadingApple(false)
+        try {
+            // Trigger download of .pkpass file
+            const link = document.createElement('a')
+            link.href = `/api/memberships/${membership.id}/wallet/apple`
+            link.download = `membership-${membership.memberNumber || membership.id}.pkpass`
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        } catch (error) {
+            console.error('Failed to download Apple Wallet pass:', error)
+            alert('Failed to generate Apple Wallet pass. Please try again.')
+        } finally {
+            setDownloadingApple(false)
+        }
     }
 
     const handleDownloadGoogleWallet = async () => {
         setDownloadingGoogle(true)
-        // TODO: Implement Google Wallet pass generation
-        // This would typically generate a JWT and redirect to Google Wallet
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        alert('Google Wallet functionality coming soon!')
-        setDownloadingGoogle(false)
+        try {
+            const response = await fetch(`/api/memberships/${membership.id}/wallet/google`)
+            if (response.ok) {
+                const { saveUrl } = await response.json()
+                window.open(saveUrl, '_blank')
+            } else {
+                const error = await response.json()
+                console.error('Failed to generate Google Wallet pass:', error)
+                alert('Failed to generate Google Wallet pass. Please try again.')
+            }
+        } catch (error) {
+            console.error('Error:', error)
+            alert('An error occurred. Please try again.')
+        } finally {
+            setDownloadingGoogle(false)
+        }
     }
 
     return (
         <>
-            <Card className={`overflow-hidden border-2 ${colors.border} relative`}>
+            <Card 
+                className={`overflow-hidden border-2 relative !py-0 !gap-0 ${colors ? colors.border : ''}`}
+                style={customStyles ? { borderColor: customStyles.borderColor } : undefined}
+            >
                 {/* Fullscreen Toggle Button (Mobile) */}
                 <Button
                     variant="ghost"
@@ -136,20 +250,35 @@ export function MembershipCard({ membership }: MembershipCardProps) {
                     <Maximize2 className="h-4 w-4" />
                 </Button>
 
-                <div className={`${colors.bg} ${colors.text} p-6`}>
+                <div 
+                    className={`p-6 ${colors ? `${colors.bg} ${colors.text}` : ''}`}
+                    style={customStyles ? { 
+                        background: customStyles.cardBg, 
+                        color: customStyles.textColor 
+                    } : undefined}
+                >
                     <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
                             <div className="text-xs opacity-80 mb-1">MEMBERSHIP CARD</div>
                             <h3 className="text-2xl font-bold">{membership.organizer.name}</h3>
                         </div>
-                        <Badge className={colors.badge}>
+                        <Badge 
+                            className={colors ? colors.badge : ''}
+                            style={customStyles ? { 
+                                backgroundColor: customStyles.badgeBg, 
+                                color: customStyles.badgeText 
+                            } : undefined}
+                        >
                             {membership.tier.name}
                         </Badge>
                     </div>
 
                 <div className="flex gap-4 items-center mb-4">
                     {membership.person.photoUrl && (
-                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/50">
+                        <div 
+                            className={`w-20 h-20 rounded-full overflow-hidden border-2 ${!customStyles ? 'border-white/50' : ''}`}
+                            style={customStyles ? { borderColor: 'rgba(255,255,255,0.5)' } : undefined}
+                        >
                             <img 
                                 src={membership.person.photoUrl} 
                                 alt={`${membership.person.firstName} ${membership.person.lastName}`}
@@ -236,7 +365,13 @@ export function MembershipCard({ membership }: MembershipCardProps) {
         <Dialog open={fullscreen} onOpenChange={setFullscreen}>
             <DialogContent className="!h-[100dvh] !w-screen !max-w-none !rounded-none !border-0 !p-0 !gap-0 !left-0 !top-0 !translate-x-0 !translate-y-0 sm:!h-auto sm:!max-h-[90vh] sm:!w-full sm:!max-w-md sm:!left-[50%] sm:!top-[50%] sm:!translate-x-[-50%] sm:!translate-y-[-50%] sm:!rounded-lg sm:!border overflow-y-auto" showCloseButton={false}>
                 <DialogTitle className="sr-only">Membership Card</DialogTitle>
-                <div className={`${colors.bg} ${colors.text} min-h-full p-4 sm:p-8`}>
+                <div 
+                    className={`min-h-full p-4 sm:p-8 ${colors ? `${colors.bg} ${colors.text}` : ''}`}
+                    style={customStyles ? { 
+                        background: customStyles.cardBg, 
+                        color: customStyles.textColor 
+                    } : undefined}
+                >
                     <div className="flex justify-between items-start mb-3 sticky top-0 bg-inherit pb-3 z-10">
                         <div className="flex-1">
                             <div className="text-xs opacity-80 mb-1">MEMBERSHIP CARD</div>
@@ -245,7 +380,8 @@ export function MembershipCard({ membership }: MembershipCardProps) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="text-white hover:bg-white/20 shrink-0 -mt-1 -mr-1"
+                            className={`hover:bg-white/20 shrink-0 -mt-1 -mr-1 ${!customStyles ? 'text-white' : ''}`}
+                            style={customStyles ? { color: customStyles.textColor } : undefined}
                             onClick={() => setFullscreen(false)}
                         >
                             <X className="h-6 w-6" />
@@ -253,7 +389,13 @@ export function MembershipCard({ membership }: MembershipCardProps) {
                     </div>
 
                     <div className="flex flex-col items-center gap-3 mb-3">
-                        <Badge className={`${colors.badge} text-base px-4 py-1`}>
+                        <Badge 
+                            className={`text-base px-4 py-1 ${colors ? colors.badge : ''}`}
+                            style={customStyles ? { 
+                                backgroundColor: customStyles.badgeBg, 
+                                color: customStyles.badgeText 
+                            } : undefined}
+                        >
                             {membership.tier.name}
                         </Badge>
                         
@@ -269,7 +411,10 @@ export function MembershipCard({ membership }: MembershipCardProps) {
 
                     {membership.person.photoUrl && (
                         <div className="flex justify-center mb-3">
-                            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white/50">
+                            <div 
+                                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 ${!customStyles ? 'border-white/50' : ''}`}
+                                style={customStyles ? { borderColor: 'rgba(255,255,255,0.5)' } : undefined}
+                            >
                                 <img 
                                     src={membership.person.photoUrl} 
                                     alt={`${membership.person.firstName} ${membership.person.lastName}`}
