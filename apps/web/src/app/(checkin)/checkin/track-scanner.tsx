@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle2, XCircle, RotateCcw, ChevronLeft, AlertCircle } from 'lucide-react'
+import { CheckCircle2, XCircle, RotateCcw, ChevronLeft, AlertCircle, CalendarX } from 'lucide-react'
 
 type ScanResult = {
     valid: boolean
@@ -15,6 +15,7 @@ type ScanResult = {
     eventTitle?: string
     ticketNumber?: number
     alreadyCheckedIn?: boolean
+    wrongDay?: boolean
     type?: 'track' | 'event'
 }
 
@@ -187,28 +188,28 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                             ? 'border-green-500 bg-green-900' 
                             : result?.alreadyCheckedIn 
                                 ? 'border-amber-500 bg-amber-900'
-                                : 'border-red-500 bg-red-900'
+                                : result?.wrongDay
+                                    ? 'border-blue-500 bg-blue-900'
+                                    : 'border-red-500 bg-red-900'
                     }`}>
                         <CardHeader className="text-center pb-2">
                             {result?.valid ? (
                                 <CheckCircle2 className="h-20 w-20 mx-auto text-green-300 mb-4" />
                             ) : result?.alreadyCheckedIn ? (
                                 <AlertCircle className="h-20 w-20 mx-auto text-amber-300 mb-4" />
+                            ) : result?.wrongDay ? (
+                                <CalendarX className="h-20 w-20 mx-auto text-blue-300 mb-4" />
                             ) : (
                                 <XCircle className="h-20 w-20 mx-auto text-red-300 mb-4" />
                             )}
-                            <CardTitle className={`text-3xl font-bold ${
-                                result?.valid 
-                                    ? 'text-white' 
-                                    : result?.alreadyCheckedIn 
-                                        ? 'text-white'
-                                        : 'text-white'
-                            }`}>
+                            <CardTitle className="text-3xl font-bold text-white">
                                 {result?.valid 
                                     ? 'Access Granted' 
                                     : result?.alreadyCheckedIn 
                                         ? 'Already Checked In'
-                                        : 'Access Denied'}
+                                        : result?.wrongDay
+                                            ? 'Wrong Day'
+                                            : 'Access Denied'}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6 text-center">
@@ -239,6 +240,8 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                                     <h3 className="font-bold text-xl text-white">{result.personName}</h3>
                                     <p className="text-lg text-amber-100">{result?.message}</p>
                                 </div>
+                            ) : result?.wrongDay ? (
+                                <p className="text-xl text-blue-100 font-medium">{result?.message}</p>
                             ) : (
                                 <p className="text-xl text-red-100 font-medium">{result?.message}</p>
                             )}

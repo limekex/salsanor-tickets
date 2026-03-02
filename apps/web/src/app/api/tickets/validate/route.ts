@@ -187,6 +187,70 @@ export async function POST(req: Request) {
         })
     }
 
+    // ================================================================
+    // DAY-BASED CHECK-IN RESTRICTION
+    // DB weekday: 1=Monday, 2=Tuesday, ..., 6=Saturday, 7=Sunday (ISO)
+    // JS Date.getDay(): 0=Sunday, 1=Monday, ..., 6=Saturday
+    // ================================================================
+    const now = new Date()
+    const jsDayOfWeek = now.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const isoDayOfWeek = jsDayOfWeek === 0 ? 7 : jsDayOfWeek // 1=Mon..7=Sun
+    const track = registration.CourseTrack
+
+    if (track.weekday !== isoDayOfWeek) {
+        const weekdays = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        const scheduledDay = weekdays[track.weekday] ?? `day ${track.weekday}`
+        return NextResponse.json({
+            valid: false,
+            message: `Check-in is only available on ${scheduledDay}s. This track runs on ${scheduledDay}s.`,
+            wrongDay: true
+        })
+    }
+
+    // ================================================================
+    // SINGLE CHECK-IN PER DAY ENFORCEMENT
+    // ================================================================
+    // Compute the session date as start of today in UTC
+    const sessionDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+
+    const existingAttendance = await prisma.attendance.findUnique({
+        where: {
+            registrationId_trackId_sessionDate: {
+                registrationId: registration.id,
+                trackId: trackId,
+                sessionDate: sessionDate
+            }
+        }
+    })
+
+    if (existingAttendance && !existingAttendance.cancelled) {
+        const checkedInTime = new Intl.DateTimeFormat('en-GB', {
+            dateStyle: 'short',
+            timeStyle: 'short'
+        }).format(existingAttendance.checkInTime)
+        return NextResponse.json({
+            valid: false,
+            message: `Already checked in today at ${checkedInTime}`,
+            personName: `${ticket.PersonProfile.firstName} ${ticket.PersonProfile.lastName}`,
+            alreadyCheckedIn: true
+        })
+    }
+
+    // ================================================================
+    // RECORD ATTENDANCE
+    // ================================================================
+    await prisma.attendance.create({
+        data: {
+            registrationId: registration.id,
+            trackId: trackId,
+            periodId: registration.periodId,
+            sessionDate: sessionDate,
+            checkInTime: now,
+            checkedInBy: userAccount.id,
+            method: 'QR_SCAN'
+        }
+    })
+
     // Valid ticket for the correct track
     return NextResponse.json({
         valid: true,

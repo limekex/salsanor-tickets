@@ -28,6 +28,33 @@ model AuditLog {
   @@index([userId])
 }
 
+model Attendance {
+  id             String        @id @default(uuid())
+  registrationId String
+  trackId        String
+  periodId       String
+  sessionDate    DateTime      // The date of the class (date only, time is midnight UTC)
+  checkInTime    DateTime      @default(now())
+  checkedInBy    String
+  method         CheckInMethod @default(MANUAL)
+  deviceInfo     String?
+  cancelled      Boolean       @default(false)
+  cancelledAt    DateTime?
+  cancelledBy    String?
+  cancelReason   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  Registration     Registration @relation(fields: [registrationId], references: [id])
+  CourseTrack      CourseTrack  @relation(fields: [trackId], references: [id])
+  CoursePeriod     CoursePeriod @relation(fields: [periodId], references: [id])
+  CheckedInByUser  UserAccount  @relation(fields: [checkedInBy], references: [id])
+
+  @@unique([registrationId, trackId, sessionDate])
+  @@index([trackId, sessionDate])
+  @@index([periodId, sessionDate])
+}
+
 model Category {
   id           String         @id @default(uuid())
   name         String         @unique
@@ -86,6 +113,7 @@ model CoursePeriod {
   Ticket       Ticket[]
   Category     Category[]
   Tag          Tag[]
+  Attendance   Attendance[]
 
   @@index([featured])
   @@index([organizerId])
@@ -112,9 +140,13 @@ model CourseTrack {
   updatedAt              DateTime       @updatedAt
   memberPricePairCents   Int?
   memberPriceSingleCents Int?
+  checkInWindowBefore    Int            @default(30)
+  checkInWindowAfter     Int            @default(30)
+  allowSelfCheckIn       Boolean        @default(false)
   CoursePeriod           CoursePeriod   @relation(fields: [periodId], references: [id])
   Registration           Registration[]
   TrackSession           TrackSession[]
+  Attendance             Attendance[]
 
   @@index([periodId])
 }
@@ -672,6 +704,7 @@ model Registration {
   PersonProfile      PersonProfile      @relation(fields: [personId], references: [id])
   CourseTrack        CourseTrack        @relation(fields: [trackId], references: [id])
   WaitlistEntry      WaitlistEntry?
+  Attendance         Attendance[]
 
   @@unique([trackId, personId])
   @@index([periodId, trackId])
@@ -729,6 +762,7 @@ model UserAccount {
   PersonProfile   PersonProfile?
   UserAccountRole UserAccountRole[]
   UserInvitation  UserInvitation[]  // Invitations sent by this user
+  Attendance      Attendance[]
 }
 
 model UserAccountRole {
@@ -793,6 +827,13 @@ model WebhookEvent {
 enum CheckInType {
   PERIOD_ENTRY
   SESSION_ENTRY
+}
+
+enum CheckInMethod {
+  QR_SCAN
+  MANUAL
+  BULK_IMPORT
+  SELF_CHECKIN
 }
 
 enum CreditNoteStatus {
