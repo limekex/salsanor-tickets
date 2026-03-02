@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
 import { StaffPeriodForm } from '../staff-period-form'
+import { BreakManager } from '../break-manager'
 
 export default async function EditStaffPeriodPage({ 
     params 
@@ -38,12 +39,15 @@ export default async function EditStaffPeriodPage({
         redirect('/dashboard')
     }
 
-    // Fetch the period with categories and tags
+    // Fetch the period with categories, tags, and breaks
     const period = await prisma.coursePeriod.findUnique({
         where: { id: periodId },
         include: {
             Category: true,
-            Tag: true
+            Tag: true,
+            PeriodBreak: {
+                orderBy: { startDate: 'asc' }
+            }
         }
     })
 
@@ -71,12 +75,13 @@ export default async function EditStaffPeriodPage({
                 <h2 className="rn-h2">Edit Course Period</h2>
             </div>
             <StaffPeriodForm 
-                period={period}
+                period={period as any}
                 organizerIds={adminOrgIds}
                 organizers={organizers as any}
                 categories={categories}
                 tags={tags}
             />
+            <BreakManager periodId={period.id} breaks={period.PeriodBreak} />
         </div>
     )
 }

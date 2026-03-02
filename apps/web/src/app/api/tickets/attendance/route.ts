@@ -143,6 +143,23 @@ export async function POST(req: Request) {
 
         const sessionDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
 
+        // Check for active break week
+        const activeBreak = await prisma.periodBreak.findFirst({
+            where: {
+                periodId: registration.periodId,
+                startDate: { lte: sessionDate },
+                endDate: { gte: sessionDate }
+            }
+        })
+        if (activeBreak) {
+            const desc = activeBreak.description ? ` (${activeBreak.description})` : ''
+            return NextResponse.json({
+                success: false,
+                message: `No class today — this is a break week${desc}.`,
+                wrongDay: true
+            }, { status: 422 })
+        }
+
         // Prevent duplicates
         const existing = await prisma.attendance.findUnique({
             where: {

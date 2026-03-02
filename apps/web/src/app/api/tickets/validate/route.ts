@@ -208,10 +208,30 @@ export async function POST(req: Request) {
     }
 
     // ================================================================
+    // BREAK WEEK CHECK
+    // ================================================================
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    const activeBreak = await prisma.periodBreak.findFirst({
+        where: {
+            periodId: registration.periodId,
+            startDate: { lte: todayStart },
+            endDate: { gte: todayStart }
+        }
+    })
+    if (activeBreak) {
+        const desc = activeBreak.description ? ` (${activeBreak.description})` : ''
+        return NextResponse.json({
+            valid: false,
+            message: `No class today — this is a break week${desc}.`,
+            wrongDay: true
+        })
+    }
+
+    // ================================================================
     // SINGLE CHECK-IN PER DAY ENFORCEMENT
     // ================================================================
-    // Compute the session date as start of today in UTC
-    const sessionDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    // Reuse todayStart as the session date
+    const sessionDate = todayStart
 
     const existingAttendance = await prisma.attendance.findUnique({
         where: {

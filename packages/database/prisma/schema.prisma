@@ -55,6 +55,18 @@ model Attendance {
   @@index([periodId, sessionDate])
 }
 
+model PeriodBreak {
+  id          String       @id @default(uuid())
+  periodId    String
+  startDate   DateTime
+  endDate     DateTime
+  description String?
+  createdAt   DateTime     @default(now())
+  CoursePeriod CoursePeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@index([periodId, startDate, endDate])
+}
+
 model Category {
   id           String         @id @default(uuid())
   name         String         @unique
@@ -114,6 +126,7 @@ model CoursePeriod {
   Category     Category[]
   Tag          Tag[]
   Attendance   Attendance[]
+  PeriodBreak  PeriodBreak[]
 
   @@index([featured])
   @@index([organizerId])
