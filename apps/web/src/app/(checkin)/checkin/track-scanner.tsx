@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle2, XCircle, RotateCcw, ChevronLeft, AlertCircle, CalendarX, Users, ScanLine } from 'lucide-react'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { CheckCircle2, XCircle, RotateCcw, ChevronLeft, AlertCircle, CalendarX, Users, ScanLine, UserCheck } from 'lucide-react'
 
 const checkInTimeFormatter = new Intl.DateTimeFormat('en-GB', { timeStyle: 'short' })
 
@@ -28,11 +36,25 @@ type AttendanceEntry = {
     chosenRole: string
 }
 
+type NotCheckedInEntry = {
+    registrationId: string
+    personName: string
+    chosenRole: string
+}
+
 type AttendanceData = {
     sessionDate: string
     totalRegistered: number
     attendances: AttendanceEntry[]
+    notCheckedIn: NotCheckedInEntry[]
 }
+
+type ManualCheckInState =
+    | { phase: 'idle' }
+    | { phase: 'confirming'; entry: NotCheckedInEntry }
+    | { phase: 'loading' }
+    | { phase: 'success'; personName: string }
+    | { phase: 'error'; message: string }
 
 type Props = {
     trackId?: string
@@ -48,6 +70,7 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
     const [view, setView] = useState<'scanner' | 'list'>('scanner')
     const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
     const [loadingList, setLoadingList] = useState(false)
+    const [manualCheckIn, setManualCheckIn] = useState<ManualCheckInState>({ phase: 'idle' })
     const scannerRef = useRef<Html5QrcodeScanner | null>(null)
     const isMounted = useRef(false)
     const isTransitioning = useRef(false)
@@ -186,6 +209,32 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
         }
     }
 
+    async function confirmManualCheckIn() {
+        if (manualCheckIn.phase !== 'confirming' || !trackId) return
+        const entry = manualCheckIn.entry
+        setManualCheckIn({ phase: 'loading' })
+        try {
+            const res = await fetch('/api/tickets/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ registrationId: entry.registrationId, trackId })
+            })
+            const data = await res.json()
+            if (res.ok && data.success) {
+                setManualCheckIn({ phase: 'success', personName: data.personName })
+                fetchAttendance()
+            } else {
+                setManualCheckIn({ phase: 'error', message: data.message ?? 'Check-in failed' })
+            }
+        } catch {
+            setManualCheckIn({ phase: 'error', message: 'Network error' })
+        }
+    }
+
+    function closeManualDialog() {
+        setManualCheckIn({ phase: 'idle' })
+    }
+
     function reset() {
         setResult(null)
         setVerifying(false)
@@ -194,6 +243,8 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
     }
 
     const formatCheckInTime = (iso: string) => checkInTimeFormatter.format(new Date(iso))
+
+    const isDialogOpen = manualCheckIn.phase !== 'idle'
 
     if (verifying && scanning) {
         return (
@@ -268,6 +319,7 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                             </div>
                         ) : attendanceData ? (
                             <>
+                                {/* Stats summary card */}
                                 <div className="flex items-center gap-3 bg-slate-800 rounded-lg p-4">
                                     <Users className="h-5 w-5 text-slate-400 shrink-0" />
                                     <div>
@@ -287,12 +339,10 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                                     )}
                                 </div>
 
-                                {attendanceData.attendances.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <p className="text-slate-400">No one checked in yet</p>
-                                    </div>
-                                ) : (
+                                {/* Checked-in list */}
+                                {attendanceData.attendances.length > 0 && (
                                     <div className="space-y-2">
+                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1">Checked in</p>
                                         {attendanceData.attendances.map((entry, idx) => (
                                             <div key={entry.id} className="flex items-center gap-3 bg-slate-800 rounded-lg px-4 py-3">
                                                 <span className="text-slate-500 text-sm w-6 shrink-0">{idx + 1}</span>
@@ -301,6 +351,30 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                                                 <span className="text-xs text-slate-400">{formatCheckInTime(entry.checkInTime)}</span>
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+
+                                {/* Not yet checked-in list */}
+                                {attendanceData.notCheckedIn.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1 pt-2">Not yet checked in</p>
+                                        {attendanceData.notCheckedIn.map(entry => (
+                                            <button
+                                                key={entry.registrationId}
+                                                onClick={() => setManualCheckIn({ phase: 'confirming', entry })}
+                                                className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-lg px-4 py-3 text-left transition-colors"
+                                            >
+                                                <UserCheck className="h-4 w-4 text-slate-500 shrink-0" />
+                                                <span className="flex-1 text-slate-300 font-medium">{entry.personName}</span>
+                                                <span className="text-xs text-slate-500">Tap to check in</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {attendanceData.attendances.length === 0 && attendanceData.notCheckedIn.length === 0 && (
+                                    <div className="text-center py-8">
+                                        <p className="text-slate-400">No registrations for this track</p>
                                     </div>
                                 )}
                             </>
@@ -394,6 +468,69 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                     )}
                 </div>
             )}
+
+            {/* ─── MANUAL CHECK-IN DIALOG ─── */}
+            <Dialog open={isDialogOpen} onOpenChange={open => { if (!open) closeManualDialog() }}>
+                <DialogContent className="max-w-sm">
+                    {manualCheckIn.phase === 'confirming' && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Manual Check-In</DialogTitle>
+                                <DialogDescription>
+                                    Check in <span className="font-semibold text-foreground">{manualCheckIn.entry.personName}</span> without a QR code?
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter className="flex-row gap-2 sm:flex-row">
+                                <Button variant="outline" className="flex-1" onClick={closeManualDialog}>
+                                    Cancel
+                                </Button>
+                                <Button className="flex-1" onClick={confirmManualCheckIn}>
+                                    <UserCheck className="mr-2 h-4 w-4" />
+                                    Confirm
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                    {manualCheckIn.phase === 'loading' && (
+                        <div className="flex flex-col items-center gap-4 py-4">
+                            <div className="h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary"></div>
+                            <p className="text-sm text-muted-foreground">Checking in...</p>
+                        </div>
+                    )}
+                    {manualCheckIn.phase === 'success' && (
+                        <>
+                            <DialogHeader>
+                                <div className="flex flex-col items-center gap-3 py-2">
+                                    <CheckCircle2 className="h-14 w-14 text-green-500" />
+                                    <DialogTitle className="text-xl">Checked In</DialogTitle>
+                                    <DialogDescription className="text-center text-base">
+                                        <span className="font-semibold text-foreground">{manualCheckIn.personName}</span> has been manually checked in.
+                                    </DialogDescription>
+                                </div>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button className="w-full" onClick={closeManualDialog}>Done</Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                    {manualCheckIn.phase === 'error' && (
+                        <>
+                            <DialogHeader>
+                                <div className="flex flex-col items-center gap-3 py-2">
+                                    <XCircle className="h-14 w-14 text-red-500" />
+                                    <DialogTitle className="text-xl">Check-In Failed</DialogTitle>
+                                    <DialogDescription className="text-center">
+                                        {manualCheckIn.message}
+                                    </DialogDescription>
+                                </div>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button variant="outline" className="w-full" onClick={closeManualDialog}>Close</Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
