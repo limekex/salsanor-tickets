@@ -12,7 +12,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import { CheckCircle2, XCircle, RotateCcw, ChevronLeft, AlertCircle, CalendarX, Users, ScanLine, UserCheck } from 'lucide-react'
+import { CheckCircle2, XCircle, RotateCcw, ChevronLeft, AlertCircle, CalendarX, Users, ScanLine, UserCheck, Undo2 } from 'lucide-react'
 
 const checkInTimeFormatter = new Intl.DateTimeFormat('en-GB', { timeStyle: 'short' })
 
@@ -56,6 +56,13 @@ type ManualCheckInState =
     | { phase: 'success'; personName: string }
     | { phase: 'error'; message: string }
 
+type UndoCheckInState =
+    | { phase: 'idle' }
+    | { phase: 'confirming'; entry: AttendanceEntry }
+    | { phase: 'loading' }
+    | { phase: 'success'; personName: string }
+    | { phase: 'error'; message: string }
+
 type Props = {
     trackId?: string
     eventId?: string
@@ -71,6 +78,7 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
     const [attendanceData, setAttendanceData] = useState<AttendanceData | null>(null)
     const [loadingList, setLoadingList] = useState(false)
     const [manualCheckIn, setManualCheckIn] = useState<ManualCheckInState>({ phase: 'idle' })
+    const [undoCheckIn, setUndoCheckIn] = useState<UndoCheckInState>({ phase: 'idle' })
     const scannerRef = useRef<Html5QrcodeScanner | null>(null)
     const isMounted = useRef(false)
     const isTransitioning = useRef(false)
@@ -109,6 +117,9 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
     const cleanupScanner = async () => {
         if (!scannerRef.current) return
         
+        const scanner = scannerRef.current
+        scannerRef.current = null // Clear ref immediately to prevent double cleanup
+        
         // Wait a bit if we're in a transition
         if (isTransitioning.current) {
             await new Promise(resolve => setTimeout(resolve, 500))
@@ -116,12 +127,11 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
         
         try {
             isTransitioning.current = true
-            await scannerRef.current.clear()
+            await scanner.clear()
         } catch (e) {
             // Ignore transition errors - scanner will be garbage collected
         } finally {
             isTransitioning.current = false
-            scannerRef.current = null
         }
     }
 
@@ -150,9 +160,19 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                 )
                 scannerRef.current = scanner
 
-                scanner.render(onScanSuccess, () => {
-                    // ignore scan failures silently
-                })
+                scanner.render(
+                    (decodedText) => {
+                        // Wrap callback to catch any post-cleanup errors
+                        try {
+                            onScanSuccess(decodedText)
+                        } catch (e) {
+                            // Ignore errors if component unmounted
+                        }
+                    },
+                    () => {
+                        // ignore scan failures silently
+                    }
+                )
             } catch (e) {
                 console.error("Scanner init error", e)
             }
@@ -235,6 +255,32 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
         setManualCheckIn({ phase: 'idle' })
     }
 
+    async function confirmUndoCheckIn() {
+        if (undoCheckIn.phase !== 'confirming') return
+        const entry = undoCheckIn.entry
+        setUndoCheckIn({ phase: 'loading' })
+        try {
+            const res = await fetch('/api/tickets/attendance', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ attendanceId: entry.id, reason: 'Manual undo' })
+            })
+            const data = await res.json()
+            if (res.ok && data.success) {
+                setUndoCheckIn({ phase: 'success', personName: data.personName })
+                fetchAttendance()
+            } else {
+                setUndoCheckIn({ phase: 'error', message: data.message ?? 'Undo failed' })
+            }
+        } catch {
+            setUndoCheckIn({ phase: 'error', message: 'Network error' })
+        }
+    }
+
+    function closeUndoDialog() {
+        setUndoCheckIn({ phase: 'idle' })
+    }
+
     function reset() {
         setResult(null)
         setVerifying(false)
@@ -244,7 +290,8 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
 
     const formatCheckInTime = (iso: string) => checkInTimeFormatter.format(new Date(iso))
 
-    const isDialogOpen = manualCheckIn.phase !== 'idle'
+    const isManualDialogOpen = manualCheckIn.phase !== 'idle'
+    const isUndoDialogOpen = undoCheckIn.phase !== 'idle'
 
     if (verifying && scanning) {
         return (
@@ -349,6 +396,13 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                                                 <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
                                                 <span className="flex-1 text-white font-medium">{entry.personName}</span>
                                                 <span className="text-xs text-slate-400">{formatCheckInTime(entry.checkInTime)}</span>
+                                                <button
+                                                    onClick={() => setUndoCheckIn({ phase: 'confirming', entry })}
+                                                    className="p-1.5 rounded-md hover:bg-slate-700 active:bg-slate-600 transition-colors"
+                                                    title="Undo check-in"
+                                                >
+                                                    <Undo2 className="h-4 w-4 text-slate-400 hover:text-slate-200" />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -470,14 +524,14 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
             )}
 
             {/* ─── MANUAL CHECK-IN DIALOG ─── */}
-            <Dialog open={isDialogOpen} onOpenChange={open => { if (!open) closeManualDialog() }}>
+            <Dialog open={isManualDialogOpen} onOpenChange={open => { if (!open) closeManualDialog() }}>
                 <DialogContent className="max-w-sm">
                     {manualCheckIn.phase === 'confirming' && (
                         <>
                             <DialogHeader>
                                 <DialogTitle>Manual Check-In</DialogTitle>
-                                <DialogDescription>
-                                    Check in <span className="font-semibold text-foreground">{manualCheckIn.entry.personName}</span> without a QR code?
+                                <DialogDescription asChild>
+                                    <p className="text-rn-text-muted">Check in <span className="font-bold text-rn-text">{manualCheckIn.entry.personName}</span> without a QR code?</p>
                                 </DialogDescription>
                             </DialogHeader>
                             <DialogFooter className="flex-row gap-2 sm:flex-row">
@@ -526,6 +580,69 @@ export default function TrackScanner({ trackId, eventId, trackTitle, onBack }: P
                             </DialogHeader>
                             <DialogFooter>
                                 <Button variant="outline" className="w-full" onClick={closeManualDialog}>Close</Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* ─── UNDO CHECK-IN DIALOG ─── */}
+            <Dialog open={isUndoDialogOpen} onOpenChange={open => { if (!open) closeUndoDialog() }}>
+                <DialogContent className="max-w-sm">
+                    {undoCheckIn.phase === 'confirming' && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Undo Check-In</DialogTitle>
+                                <DialogDescription asChild>
+                                    <p className="text-rn-text-muted">Remove check-in for <span className="font-bold text-rn-text">{undoCheckIn.entry.personName}</span>?</p>
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter className="flex-row gap-2 sm:flex-row">
+                                <Button variant="outline" className="flex-1" onClick={closeUndoDialog}>
+                                    Cancel
+                                </Button>
+                                <Button variant="destructive" className="flex-1" onClick={confirmUndoCheckIn}>
+                                    <Undo2 className="mr-2 h-4 w-4" />
+                                    Undo
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                    {undoCheckIn.phase === 'loading' && (
+                        <div className="flex flex-col items-center gap-4 py-4">
+                            <div className="h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary"></div>
+                            <p className="text-sm text-muted-foreground">Removing check-in...</p>
+                        </div>
+                    )}
+                    {undoCheckIn.phase === 'success' && (
+                        <>
+                            <DialogHeader>
+                                <div className="flex flex-col items-center gap-3 py-2">
+                                    <CheckCircle2 className="h-14 w-14 text-green-500" />
+                                    <DialogTitle className="text-xl">Check-In Removed</DialogTitle>
+                                    <DialogDescription className="text-center text-base">
+                                        <span className="font-semibold text-foreground">{undoCheckIn.personName}</span>&apos;s check-in has been removed.
+                                    </DialogDescription>
+                                </div>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button className="w-full" onClick={closeUndoDialog}>Done</Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                    {undoCheckIn.phase === 'error' && (
+                        <>
+                            <DialogHeader>
+                                <div className="flex flex-col items-center gap-3 py-2">
+                                    <XCircle className="h-14 w-14 text-red-500" />
+                                    <DialogTitle className="text-xl">Undo Failed</DialogTitle>
+                                    <DialogDescription className="text-center">
+                                        {undoCheckIn.message}
+                                    </DialogDescription>
+                                </div>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button variant="outline" className="w-full" onClick={closeUndoDialog}>Close</Button>
                             </DialogFooter>
                         </>
                     )}

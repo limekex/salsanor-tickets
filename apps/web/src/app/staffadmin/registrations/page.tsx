@@ -1,7 +1,6 @@
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { getSelectedOrganizerForFinance, requireOrgFinance } from '@/utils/auth-org-finance'
 import {
     Table,
     TableBody,
@@ -47,32 +46,9 @@ function getRoleBadge(role: string) {
 }
 
 export default async function StaffAdminRegistrationsPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-        redirect('/auth/login')
-    }
-
-    // Get user's organization
-    const userAccount = await prisma.userAccount.findUnique({
-        where: { supabaseUid: user.id },
-        include: {
-            UserAccountRole: {
-                where: {
-                    role: {
-                        in: ['ORG_ADMIN', 'ORG_FINANCE']
-                    }
-                }
-            }
-        }
-    })
-
-    if (!userAccount?.UserAccountRole.length) {
-        throw new Error('Unauthorized: You must be an organization admin or finance manager')
-    }
-
-    const organizerId = userAccount.UserAccountRole[0].organizerId!
+    // Validate access and get selected organizer
+    await requireOrgFinance()
+    const organizerId = await getSelectedOrganizerForFinance()
 
     // Get all registrations for this organization
     const registrations = await prisma.registration.findMany({

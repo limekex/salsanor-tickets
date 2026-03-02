@@ -183,3 +183,56 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
+
+export async function DELETE(req: Request) {
+    try {
+        const userAccount = await authorizeCheckinUser()
+        if (!userAccount) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const { attendanceId, reason } = await req.json()
+
+        if (!attendanceId) {
+            return NextResponse.json({ error: 'attendanceId required' }, { status: 400 })
+        }
+
+        const attendance = await prisma.attendance.findUnique({
+            where: { id: attendanceId },
+            include: {
+                Registration: {
+                    include: {
+                        PersonProfile: { select: { firstName: true, lastName: true } }
+                    }
+                }
+            }
+        })
+
+        if (!attendance) {
+            return NextResponse.json({ error: 'Attendance record not found' }, { status: 404 })
+        }
+
+        if (attendance.cancelled) {
+            return NextResponse.json({ error: 'Already undone' }, { status: 409 })
+        }
+
+        // Soft delete - mark as cancelled with reason
+        await prisma.attendance.update({
+            where: { id: attendanceId },
+            data: {
+                cancelled: true,
+                cancelledAt: new Date(),
+                cancelledBy: userAccount.id,
+                cancelReason: reason || 'Manual undo'
+            }
+        })
+
+        return NextResponse.json({
+            success: true,
+            personName: `${attendance.Registration.PersonProfile.firstName} ${attendance.Registration.PersonProfile.lastName}`
+        })
+    } catch (error) {
+        console.error('Error undoing check-in:', error)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+}
