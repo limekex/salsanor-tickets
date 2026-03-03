@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
+import { headers } from 'next/headers'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
     Table,
@@ -16,6 +17,7 @@ import Link from 'next/link'
 import { CancelRegistrationButton } from '@/components/cancel-registration-button'
 import { PromoteFromWaitlistButton } from './promote-button'
 import { formatWeekday, formatPrice, formatDateShort, formatRelativeTime } from '@/lib/formatters'
+import { QrCode } from 'lucide-react'
 
 function StatusBadge({ status }: { status: string }) {
     switch (status) {
@@ -109,6 +111,12 @@ export default async function StaffAdminTrackDetailPage({
     const capacityPercent = Math.round((activeCount / track.capacityTotal) * 100)
     const availableSpots = track.capacityTotal - activeCount
 
+    // Build self check-in URL
+    const headersList = await headers()
+    const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000'
+    const protocol = headersList.get('x-forwarded-proto') || 'https'
+    const selfCheckInUrl = `${protocol}://${host}/selfcheckin?trackId=${trackId}`
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -180,6 +188,31 @@ export default async function StaffAdminTrackDetailPage({
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Self Check-in */}
+            {track.allowSelfCheckIn && (
+                <Card className="border-primary/30 bg-primary/5">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm">
+                            <QrCode className="h-4 w-4 text-primary" />
+                            Self Check-in Enabled
+                        </CardTitle>
+                        <CardDescription>
+                            Participants can check themselves in by scanning this link or entering their phone number.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <code className="text-xs bg-muted px-2 py-1 rounded break-all">{selfCheckInUrl}</code>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={selfCheckInUrl} target="_blank" rel="noopener noreferrer">
+                                    Open
+                                </Link>
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Registrations Table */}
             <Card>
