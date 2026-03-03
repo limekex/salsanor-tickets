@@ -14,6 +14,7 @@ import { CancelOrderButton } from '@/app/(site)/profile/cancel-order-button'
 import { AcceptOfferButton, DeclineOfferButton } from '@/app/(site)/profile/offer-buttons'
 import { formatDateShort, formatPrice, formatRelativeTime } from '@/lib/formatters'
 import { UI_TEXT, getCountText } from '@/lib/i18n'
+import { AttendanceStatsCard } from '@/components/attendance-stats-card'
 
 export default async function MyCoursesPage() {
   const supabase = await createClient()
@@ -140,18 +141,23 @@ export default async function MyCoursesPage() {
                     )}
 
                     {reg.status === 'ACTIVE' && (
-                      (() => {
-                        const ticket = tickets.find(t => t.periodId === reg.periodId)
-                        if (ticket) {
-                          return (
-                            <div className="space-y-4">
-                              <TicketQR token={ticket.qrTokenHash} title={reg.CoursePeriod.name} />
-                              <WalletButtons ticketId={ticket.id} type="course" />
-                            </div>
-                          )
-                        }
-                        return null
-                      })()
+                      <>
+                        {/* Attendance Stats */}
+                        <AttendanceStatsCard registrationId={reg.id} />
+                        
+                        {(() => {
+                          const ticket = tickets.find(t => t.periodId === reg.periodId)
+                          if (ticket) {
+                            return (
+                              <div className="space-y-4">
+                                <TicketQR token={ticket.qrTokenHash} title={reg.CoursePeriod.name} />
+                                <WalletButtons ticketId={ticket.id} type="course" />
+                              </div>
+                            )
+                          }
+                          return null
+                        })()}
+                      </>
                     )}
                   </div>
                 </CardContent>

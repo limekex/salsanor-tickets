@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Building2, Users, Calendar, DollarSign, Settings } from 'lucide-react'
+import { Building2, Users, Calendar, DollarSign, Settings, BarChart3 } from 'lucide-react'
 
 export default async function StaffAdminPage() {
     const supabase = await createClient()
@@ -61,11 +61,17 @@ export default async function StaffAdminPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid gap-rn-4 md:grid-cols-2 lg:grid-cols-4">
+                            <div className="grid gap-rn-4 md:grid-cols-2 lg:grid-cols-5">
                                 <Button asChild variant="outline" className="w-full">
                                     <Link href={`/staffadmin/periods`}>
                                         <Calendar className="h-4 w-4 mr-2" />
                                         Periods
+                                    </Link>
+                                </Button>
+                                <Button asChild variant="outline" className="w-full">
+                                    <Link href={`/staffadmin/attendance`}>
+                                        <BarChart3 className="h-4 w-4 mr-2" />
+                                        Attendance
                                     </Link>
                                 </Button>
                                 <Button asChild variant="outline" className="w-full">
