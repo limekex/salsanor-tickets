@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Trash2, Plus, CalendarOff } from 'lucide-react'
-import type { PeriodBreak } from '@salsanor/database'
+import type { PeriodBreak, CourseTrack } from '@salsanor/database'
 
 const dateFormatter = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' })
 
@@ -17,14 +18,17 @@ function toDateInputValue(date: Date | string): string {
     return d.toISOString().split('T')[0]
 }
 
+type BreakWithTrack = PeriodBreak & { CourseTrack?: { id: string; title: string } | null }
+
 interface BreakManagerProps {
     periodId: string
-    breaks: PeriodBreak[]
+    breaks: BreakWithTrack[]
+    tracks: Pick<CourseTrack, 'id' | 'title'>[]
     periodStartDate: Date | string
     periodEndDate: Date | string
 }
 
-export function BreakManager({ periodId, breaks, periodStartDate, periodEndDate }: BreakManagerProps) {
+export function BreakManager({ periodId, breaks, tracks, periodStartDate, periodEndDate }: BreakManagerProps) {
     const minDate = toDateInputValue(periodStartDate)
     const maxDate = toDateInputValue(periodEndDate)
     const [state, formAction, isPending] = useActionState(
@@ -58,13 +62,18 @@ export function BreakManager({ periodId, breaks, periodStartDate, periodEndDate 
                     <div className="space-y-2">
                         {breaks.map(b => (
                             <div key={b.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                                <div>
-                                    <span className="font-medium">
-                                        {dateFormatter.format(new Date(b.startDate))} – {dateFormatter.format(new Date(b.endDate))}
+                                <div className="flex flex-col gap-0.5">
+                                    <div>
+                                        <span className="font-medium">
+                                            {dateFormatter.format(new Date(b.startDate))} – {dateFormatter.format(new Date(b.endDate))}
+                                        </span>
+                                        {b.description && (
+                                            <span className="ml-2 text-muted-foreground">{b.description}</span>
+                                        )}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                        {b.CourseTrack ? b.CourseTrack.title : 'All tracks'}
                                     </span>
-                                    {b.description && (
-                                        <span className="ml-2 text-muted-foreground">{b.description}</span>
-                                    )}
                                 </div>
                                 <Button
                                     type="button"
@@ -101,6 +110,21 @@ export function BreakManager({ periodId, breaks, periodStartDate, periodEndDate 
                             )}
                         </div>
                     </div>
+                    {tracks.length > 0 && (
+                        <div className="space-y-1">
+                            <Label htmlFor="trackId" className="text-xs">Applies to</Label>
+                            <select
+                                id="trackId"
+                                name="trackId"
+                                className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                                <option value="">All tracks in period</option>
+                                {tracks.map(t => (
+                                    <option key={t.id} value={t.id}>{t.title}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <div className="space-y-1">
                         <Label htmlFor="description" className="text-xs">Description (optional)</Label>
                         <Input id="description" name="description" placeholder="e.g. Christmas break, Easter" />

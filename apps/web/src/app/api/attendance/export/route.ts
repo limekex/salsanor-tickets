@@ -66,12 +66,16 @@ export async function GET(req: Request) {
 
         const period = track.CoursePeriod
         
+        // Filter breaks to those applicable to this track (track-specific or period-wide)
+        type BreakWithTrackId = typeof period.PeriodBreak[number] & { trackId?: string | null }
+        const applicableBreaks = (period.PeriodBreak as BreakWithTrackId[]).filter(b => !b.trackId || b.trackId === track.id)
+        
         // Get all session dates (past only)
         const sessionDates = getSessionDates(
             period.startDate, 
             period.endDate, 
             track.weekday, 
-            period.PeriodBreak
+            applicableBreaks
         )
 
         // Build CSV

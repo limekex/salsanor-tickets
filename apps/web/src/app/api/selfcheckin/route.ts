@@ -67,10 +67,15 @@ export async function POST(req: Request) {
             return NextResponse.json({ valid: false, message: windowError, outsideWindow: true })
         }
 
-        // Break week check
+        // Break week check (period-wide or track-specific)
         const activeBreak = await prisma.periodBreak.findFirst({
             where: {
-                periodId: track.CoursePeriod.id,
+                OR: [
+                    // Period-wide break (no specific track)
+                    { periodId: track.CoursePeriod.id, trackId: null },
+                    // Track-specific break
+                    { trackId: track.id }
+                ],
                 startDate: { lte: sessionDate },
                 endDate: { gte: sessionDate }
             }

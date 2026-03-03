@@ -141,7 +141,10 @@ export async function getTrackAttendanceStats(trackId: string): Promise<TrackAtt
     await requireOrgAdminForOrganizer(track.CoursePeriod.organizerId)
 
     const period = track.CoursePeriod
-    const sessionDates = getSessionDates(period.startDate, period.endDate, track.weekday, period.PeriodBreak)
+    // Filter breaks to those applicable to this track (track-specific or period-wide)
+    type BreakWithTrackId = typeof period.PeriodBreak[number] & { trackId?: string | null }
+    const applicableBreaks = (period.PeriodBreak as BreakWithTrackId[]).filter(b => !b.trackId || b.trackId === track.id)
+    const sessionDates = getSessionDates(period.startDate, period.endDate, track.weekday, applicableBreaks)
     const totalRegistrations = track.Registration.length
 
     // Group attendance by session date
@@ -319,8 +322,12 @@ export async function getMyAttendanceForRegistration(registrationId: string, use
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
+    // Filter breaks to those applicable to this track (track-specific or period-wide)
+    type BreakWithTrackId = typeof period.PeriodBreak[number] & { trackId?: string | null }
+    const applicableBreaks = (period.PeriodBreak as BreakWithTrackId[]).filter(b => !b.trackId || b.trackId === track.id)
+
     // Get past sessions (for attendance rate)
-    const pastSessions = getSessionDates(period.startDate, period.endDate, track.weekday, period.PeriodBreak)
+    const pastSessions = getSessionDates(period.startDate, period.endDate, track.weekday, applicableBreaks)
     
     // Count upcoming sessions
     let upcomingSessions = 0
@@ -331,7 +338,7 @@ export async function getMyAttendanceForRegistration(registrationId: string, use
         const jsDay = current.getDay()
         const isoDay = jsDay === 0 ? 7 : jsDay
         if (isoDay === track.weekday) {
-            const isBreak = period.PeriodBreak.some(b => 
+            const isBreak = applicableBreaks.some(b => 
                 current >= new Date(b.startDate) && current <= new Date(b.endDate)
             )
             if (!isBreak) upcomingSessions++

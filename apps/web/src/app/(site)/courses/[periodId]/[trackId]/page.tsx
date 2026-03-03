@@ -307,7 +307,7 @@ export default async function TrackDetailPage({ params }: PageProps) {
                 </div>
 
                 {/* Breaks info - part of Schedule section */}
-                {period.PeriodBreak && period.PeriodBreak.length > 0 && (
+                {period.PeriodBreak && (period.PeriodBreak as Array<typeof period.PeriodBreak[number] & { trackId?: string | null }>).filter(b => !b.trackId || b.trackId === track.id).length > 0 && (
                     <Card className="mt-rn-4">
                         <CardHeader className="pb-rn-2">
                             <CardTitle className="rn-h4 flex items-center gap-rn-2">
@@ -317,7 +317,7 @@ export default async function TrackDetailPage({ params }: PageProps) {
                         </CardHeader>
                         <CardContent>
                             <ul className="space-y-rn-1">
-                                {period.PeriodBreak.map((breakPeriod) => (
+                                {(period.PeriodBreak as Array<typeof period.PeriodBreak[number] & { trackId?: string | null }>).filter(b => !b.trackId || b.trackId === track.id).map((breakPeriod) => (
                                     <li key={breakPeriod.id} className="rn-body text-rn-text-muted">
                                         {breakPeriod.description && <span className="font-medium">{breakPeriod.description}: </span>}
                                         {formatDateShort(breakPeriod.startDate)} – {formatDateShort(breakPeriod.endDate)}

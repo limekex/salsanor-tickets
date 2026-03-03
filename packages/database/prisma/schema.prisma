@@ -57,14 +57,17 @@ model Attendance {
 
 model PeriodBreak {
   id          String       @id @default(uuid())
-  periodId    String
+  periodId    String?
+  trackId     String?
   startDate   DateTime
   endDate     DateTime
   description String?
   createdAt   DateTime     @default(now())
-  CoursePeriod CoursePeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  CoursePeriod CoursePeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  CourseTrack CourseTrack?  @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@index([periodId, startDate, endDate])
+  @@index([trackId, startDate, endDate])
 }
 
 model Category {
@@ -168,6 +171,7 @@ model CourseTrack {
   Registration           Registration[]
   TrackSession           TrackSession[]
   Attendance             Attendance[]
+  PeriodBreak            PeriodBreak[]
 
   @@index([periodId])
   @@index([periodId, slug])

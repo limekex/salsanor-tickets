@@ -50,13 +50,17 @@ export default async function EditStaffPeriodPage({
         redirect('/dashboard')
     }
 
-    // Fetch the period with categories, tags, and breaks
+    // Fetch the period with categories, tags, breaks, and tracks
     const period = await prisma.coursePeriod.findUnique({
         where: { id: periodId },
         include: {
             Category: true,
             Tag: true,
+            CourseTrack: {
+                orderBy: { weekday: 'asc' }
+            },
             PeriodBreak: {
+                include: { CourseTrack: { select: { id: true, title: true } } },
                 orderBy: { startDate: 'asc' }
             }
         }
@@ -99,6 +103,7 @@ export default async function EditStaffPeriodPage({
             <BreakManager 
                 periodId={period.id} 
                 breaks={period.PeriodBreak}
+                tracks={period.CourseTrack}
                 periodStartDate={period.startDate}
                 periodEndDate={period.endDate}
             />

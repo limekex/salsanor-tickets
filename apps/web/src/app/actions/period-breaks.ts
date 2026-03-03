@@ -9,6 +9,7 @@ const periodBreakSchema = z.object({
     startDate: z.string().min(1, 'Start date required'),
     endDate: z.string().min(1, 'End date required'),
     description: z.string().optional(),
+    trackId: z.string().optional(),
 }).refine(data => new Date(data.startDate) <= new Date(data.endDate), {
     message: 'Start date must be on or before end date',
     path: ['endDate'],
@@ -25,6 +26,7 @@ export async function createPeriodBreak(periodId: string, prevState: any, formDa
             startDate: formData.get('startDate') as string,
             endDate: formData.get('endDate') as string,
             description: (formData.get('description') as string) || undefined,
+            trackId: (formData.get('trackId') as string) || undefined,
         }
 
         const result = periodBreakSchema.safeParse(raw)
@@ -35,6 +37,7 @@ export async function createPeriodBreak(periodId: string, prevState: any, formDa
         await prisma.periodBreak.create({
             data: {
                 periodId,
+                trackId: result.data.trackId || null,
                 startDate: new Date(result.data.startDate),
                 endDate: new Date(result.data.endDate),
                 description: result.data.description || null,
