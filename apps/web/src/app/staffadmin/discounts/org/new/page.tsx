@@ -1,39 +1,23 @@
 import { prisma } from '@/lib/db'
-import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
-import { StaffDiscountRuleForm } from '../../staff-discount-rule-form'
+import { ArrowLeft, Building2 } from 'lucide-react'
+import { OrgDiscountRuleForm } from '../org-discount-rule-form'
 import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
-type Params = Promise<{ periodId: string; ruleId: string }>
-
-export default async function EditDiscountRulePage({ params }: { params: Params }) {
-  const { periodId, ruleId } = await params
-  
+export default async function NewOrgDiscountRulePage() {
   // Get selected organization (from cookie or first available)
   const organizerId = await getSelectedOrganizerForAdmin()
 
-  // Verify period belongs to organization
-  const period = await prisma.coursePeriod.findFirst({
-    where: {
-      id: periodId,
-      organizerId
-    }
+  // Get organization details
+  const organizer = await prisma.organizer.findUnique({
+    where: { id: organizerId },
+    select: { id: true, name: true }
   })
 
-  if (!period) {
-    notFound()
-  }
-
-  // Get the discount rule and verify it belongs to this organization's period
-  const rule = await prisma.discountRule.findUnique({
-    where: { id: ruleId }
-  })
-  
-  if (!rule || rule.periodId !== periodId) {
-    notFound()
+  if (!organizer) {
+    return <div>Organization not found</div>
   }
 
   // Get membership tiers for this organization
@@ -56,8 +40,11 @@ export default async function EditDiscountRulePage({ params }: { params: Params 
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Edit Discount Rule</h1>
-          <p className="text-muted-foreground">For {period.name}</p>
+          <h1 className="rn-h2 flex items-center gap-2">
+            <Building2 className="h-6 w-6" />
+            New Organization Rule
+          </h1>
+          <p className="rn-meta text-rn-text-muted">For {organizer.name}</p>
         </div>
       </div>
 
@@ -66,7 +53,7 @@ export default async function EditDiscountRulePage({ params }: { params: Params 
           <CardTitle>Rule Configuration</CardTitle>
         </CardHeader>
         <CardContent>
-          <StaffDiscountRuleForm key={ruleId} periodId={periodId} tiers={tiers} existingRule={rule} />
+          <OrgDiscountRuleForm key={organizerId} organizerId={organizerId} tiers={tiers} />
         </CardContent>
       </Card>
     </div>

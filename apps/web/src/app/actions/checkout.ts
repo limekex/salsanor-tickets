@@ -2,10 +2,11 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { calculatePricing, CartItem, calculateOrderTotal } from '@/lib/pricing/engine'
+import { calculatePricing, CartItem, calculateOrderTotal, calculateEventPricing, EventCartItem } from '@/lib/pricing/engine'
 import { createAuditLog } from '@/lib/audit'
 import { redirect } from 'next/navigation'
 import { randomUUID } from 'crypto'
+import { getEffectiveDiscountRules, getEffectiveDiscountRulesForEvent } from './discounts'
 
 export async function getCartPricing(items: { trackId: string, role: string, hasPartner: boolean, partnerEmail?: string }[]) {
     if (!items.length) return null
@@ -32,11 +33,8 @@ export async function getCartPricing(items: { trackId: string, role: string, has
     // Get period ID from first track (assume all same period for MVP, or grouped)
     const periodId = tracks[0].periodId
 
-    // Get rules for this period
-    const rules = await prisma.discountRule.findMany({
-        where: { periodId, enabled: true },
-        orderBy: { priority: 'asc' }
-    })
+    // Get effective rules (org-level merged with period-level, considering overrides)
+    const rules = await getEffectiveDiscountRules(periodId)
 
     // Get User Context
     const supabase = await createClient()
@@ -313,22 +311,32 @@ export async function createEventOrderFromCart(items: { eventId: string, quantit
             personId,
             status: 'ACTIVE',
             validTo: { gte: new Date() }
-        }
+        },
+        select: { tierId: true }
     })
 
     const isMember = !!activeMembership
+    const membershipTierId = activeMembership?.tierId
 
-    // 6. Calculate total price
-    // Price is entered as final price (inclusive of any VAT if applicable)
-    // VAT is only calculated and documented when organizer is VAT-registered
-    let subtotalCents = 0
-    for (const item of items) {
+    // 6. Get effective discount rules for events
+    const discountRules = await getEffectiveDiscountRulesForEvent(organizerIds[0])
+
+    // 7. Calculate pricing using the pricing engine
+    const eventCartItems: EventCartItem[] = items.map(item => {
         const event = events.find(e => e.id === item.eventId)!
-        const pricePerTicket = (isMember && event.memberPriceCents) 
-            ? event.memberPriceCents 
-            : event.basePriceCents
-        subtotalCents += pricePerTicket * item.quantity
-    }
+        return {
+            eventId: item.eventId,
+            quantity: item.quantity,
+            event: {
+                id: event.id,
+                title: event.title,
+                basePriceCents: event.basePriceCents,
+                memberPriceCents: event.memberPriceCents
+            }
+        }
+    })
+
+    const pricing = calculateEventPricing(eventCartItems, discountRules, { isMember, membershipTierId })
 
     // Get organizer MVA settings
     const organizer = events[0].Organizer
@@ -336,7 +344,9 @@ export async function createEventOrderFromCart(items: { eventId: string, quantit
     // Calculate MVA only if organizer is VAT-registered
     // Price is already inclusive of VAT, so we calculate VAT component for documentation
     const mvaRate = organizer.mvaReportingRequired ? Number(organizer.mvaRate || 25) : 0
-    const subtotalAfterDiscountCents = subtotalCents // No discounts for events yet
+    const subtotalCents = pricing.subtotalCents
+    const discountCents = pricing.discountTotalCents
+    const subtotalAfterDiscountCents = pricing.finalTotalCents
     // Since price is VAT-inclusive, extract VAT from total: VAT = total - (total / (1 + rate))
     const mvaCents = mvaRate > 0 
         ? Math.round(subtotalAfterDiscountCents - (subtotalAfterDiscountCents / (1 + mvaRate / 100)))
@@ -344,7 +354,7 @@ export async function createEventOrderFromCart(items: { eventId: string, quantit
     // Total is the same as subtotal (price is already inclusive)
     const totalCents = subtotalAfterDiscountCents
 
-    // 7. Create Order with EventRegistrations
+    // 8. Create Order with EventRegistrations
     // Use a transaction to prevent race conditions on capacity
     try {
         // Check if user already has active registrations for these events
@@ -409,42 +419,42 @@ export async function createEventOrderFromCart(items: { eventId: string, quantit
                     organizerId: organizerIds[0],
                     status: 'DRAFT',
                     subtotalCents,
-                    discountCents: 0,
+                    discountCents,
                     subtotalAfterDiscountCents,
                     mvaRate,
                     mvaCents,
                     totalCents,
                     pricingSnapshot: JSON.stringify({
-                        events: items.map(item => {
-                            const event = events.find(e => e.id === item.eventId)!
+                        events: pricing.lineItems.map(lineItem => {
+                            const event = events.find(e => e.id === lineItem.eventId)!
                             return {
-                                eventId: item.eventId,
-                                quantity: item.quantity,
-                                pricePerTicket: (isMember && event.memberPriceCents) 
-                                    ? event.memberPriceCents 
-                                    : event.basePriceCents,
-                                isMember
+                                eventId: lineItem.eventId,
+                                eventTitle: event.title,
+                                quantity: lineItem.quantity,
+                                unitPriceCents: lineItem.unitPriceCents,
+                                basePriceCents: lineItem.basePriceCents,
+                                discountCents: lineItem.discountCents,
+                                finalPriceCents: lineItem.finalPriceCents,
+                                appliedRuleCodes: lineItem.appliedRuleCodes,
+                                usesFixedMemberPrice: lineItem.usesFixedMemberPrice
                             }
                         }),
+                        appliedRules: pricing.appliedRules,
+                        isMember,
                         mva: {
                             rate: mvaRate,
                             amount: mvaCents
                         }
                     }),
                     EventRegistration: {
-                        create: items.map(item => {
-                            const event = events.find(e => e.id === item.eventId)!
-                            const pricePerTicket = (isMember && event.memberPriceCents) 
-                                ? event.memberPriceCents 
-                                : event.basePriceCents
-                            
+                        create: pricing.lineItems.map(lineItem => {
                             return {
                                 id: randomUUID(),
                                 updatedAt: new Date(),
-                                eventId: item.eventId,
+                                eventId: lineItem.eventId,
                                 personId,
-                                quantity: item.quantity,
-                                unitPriceCents: pricePerTicket,
+                                quantity: lineItem.quantity,
+                                unitPriceCents: lineItem.unitPriceCents,
                                 status: 'PENDING_PAYMENT'
                             }
                         })

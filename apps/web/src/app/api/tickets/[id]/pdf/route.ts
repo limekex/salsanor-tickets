@@ -11,9 +11,10 @@ import {
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         const supabase = await createClient()
         const {
             data: { user },
@@ -25,7 +26,7 @@ export async function GET(
 
         // Fetch the ticket with all required data
         const ticket = await prisma.eventTicket.findUnique({
-            where: { id: params.id },
+            where: { id: id },
             include: {
                 Event: {
                     include: {

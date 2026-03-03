@@ -5,6 +5,7 @@ import { requireAdmin } from '@/utils/auth-admin'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { calculatePricing, CartItem } from '@/lib/pricing/engine'
+import { getEffectiveDiscountRules } from './discounts'
 
 // --- ADMIN ACTIONS ---
 
@@ -160,10 +161,7 @@ export async function acceptWaitlistOffer(registrationId: string) {
     const track = registration.CourseTrack
     const periodId = track.periodId
 
-    const rules = await prisma.discountRule.findMany({
-        where: { periodId, enabled: true },
-        orderBy: { priority: 'asc' }
-    })
+    const rules = await getEffectiveDiscountRules(periodId)
 
     // Check membership
     let isMember = false

@@ -52,6 +52,7 @@ export {
   getPublicCoursePeriods,
   getCoursePeriodsByOrganizer,
   getCourseTrackById,
+  getCourseTrackByIdOrSlug,
   getAvailableCourseLevels,
   getCourseTrackCapacity,
   isCoursePeriodSlugAvailable,

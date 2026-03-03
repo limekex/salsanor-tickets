@@ -436,16 +436,64 @@ export async function POST(req: Request) {
                             // Generate order receipt PDF
                             const { generateOrderReceiptPDF } = await import('@/lib/tickets/pdf-generator')
                             
-                            // Use pricePerTicket calculated earlier for price fallback
-                            const orderItems = order.EventRegistration.map(reg => {
-                                const unitPrice = reg.unitPriceCents || pricePerTicket
-                                return {
-                                    description: reg.Event?.title || 'Event',
-                                    quantity: reg.quantity,
-                                    unitPriceCents: unitPrice,
-                                    totalPriceCents: unitPrice * reg.quantity
+                            // Build line items from pricingSnapshot if available, otherwise fallback
+                            let orderItems: TicketLineItem[]
+                            
+                            if (order.pricingSnapshot) {
+                                try {
+                                    const snapshot = typeof order.pricingSnapshot === 'string'
+                                        ? JSON.parse(order.pricingSnapshot)
+                                        : order.pricingSnapshot
+                                    
+                                    if (snapshot.events && Array.isArray(snapshot.events)) {
+                                        // Event orders with new pricing snapshot format
+                                        orderItems = snapshot.events.map((item: any) => {
+                                            const reg = order.EventRegistration.find(r => r.eventId === item.eventId)
+                                            return {
+                                                description: item.eventTitle || reg?.Event?.title || 'Event',
+                                                quantity: item.quantity || reg?.quantity || 1,
+                                                unitPriceCents: item.unitPriceCents || reg?.unitPriceCents || pricePerTicket,
+                                                totalPriceCents: item.finalPriceCents || (item.unitPriceCents * item.quantity) || 0,
+                                                discountCents: item.discountCents || 0,
+                                                appliedRuleCodes: item.appliedRuleCodes || []
+                                            }
+                                        })
+                                    } else {
+                                        // Fallback
+                                        orderItems = order.EventRegistration.map(reg => {
+                                            const unitPrice = reg.unitPriceCents || pricePerTicket
+                                            return {
+                                                description: reg.Event?.title || 'Event',
+                                                quantity: reg.quantity,
+                                                unitPriceCents: unitPrice,
+                                                totalPriceCents: unitPrice * reg.quantity
+                                            }
+                                        })
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing pricingSnapshot:', e)
+                                    orderItems = order.EventRegistration.map(reg => {
+                                        const unitPrice = reg.unitPriceCents || pricePerTicket
+                                        return {
+                                            description: reg.Event?.title || 'Event',
+                                            quantity: reg.quantity,
+                                            unitPriceCents: unitPrice,
+                                            totalPriceCents: unitPrice * reg.quantity
+                                        }
+                                    })
                                 }
-                            })
+                            } else {
+                                // Fallback for orders without pricingSnapshot
+                                orderItems = order.EventRegistration.map(reg => {
+                                    const unitPrice = reg.unitPriceCents || pricePerTicket
+                                    return {
+                                        description: reg.Event?.title || 'Event',
+                                        quantity: reg.quantity,
+                                        unitPriceCents: unitPrice,
+                                        totalPriceCents: unitPrice * reg.quantity
+                                    }
+                                })
+                            }
 
                             let vatBreakdown: VatBreakdown | undefined
                             if (order.Organizer.mvaReportingRequired && order.mvaCents > 0) {
@@ -519,15 +567,58 @@ export async function POST(req: Request) {
                                     }
                                 }
 
-                                // Build line items from registrations
-                                // Since individual registration prices aren't stored, divide total by count
-                                const pricePerRegistration = Math.floor(order.subtotalAfterDiscountCents / order.Registration.length)
-                                const lineItems: TicketLineItem[] = order.Registration.map(reg => ({
-                                    description: reg.CourseTrack?.title || 'Kurs',
-                                    quantity: 1,
-                                    unitPriceCents: pricePerRegistration,
-                                    totalPriceCents: pricePerRegistration
-                                }))
+                                // Build line items from pricingSnapshot if available, otherwise fallback
+                                let lineItems: TicketLineItem[]
+                                
+                                if (order.pricingSnapshot) {
+                                    try {
+                                        const snapshot = typeof order.pricingSnapshot === 'string' 
+                                            ? JSON.parse(order.pricingSnapshot)
+                                            : order.pricingSnapshot
+                                        
+                                        if (snapshot.lineItems && Array.isArray(snapshot.lineItems)) {
+                                            // Course orders with new pricing snapshot format
+                                            lineItems = snapshot.lineItems.map((item: any) => {
+                                                const track = order.Registration.find(r => r.trackId === item.trackId)
+                                                return {
+                                                    description: track?.CourseTrack?.title || item.trackId || 'Kurs',
+                                                    quantity: 1,
+                                                    unitPriceCents: item.finalPriceCents || item.basePriceCents || 0,
+                                                    totalPriceCents: item.finalPriceCents || item.basePriceCents || 0,
+                                                    discountCents: item.discountCents || 0,
+                                                    appliedRuleCodes: item.appliedRuleCodes || []
+                                                }
+                                            })
+                                        } else {
+                                            // Fallback - divide total by count
+                                            const pricePerRegistration = Math.floor(order.subtotalAfterDiscountCents / order.Registration.length)
+                                            lineItems = order.Registration.map(reg => ({
+                                                description: reg.CourseTrack?.title || 'Kurs',
+                                                quantity: 1,
+                                                unitPriceCents: pricePerRegistration,
+                                                totalPriceCents: pricePerRegistration
+                                            }))
+                                        }
+                                    } catch (e) {
+                                        console.error('Error parsing pricingSnapshot:', e)
+                                        const pricePerRegistration = Math.floor(order.subtotalAfterDiscountCents / order.Registration.length)
+                                        lineItems = order.Registration.map(reg => ({
+                                            description: reg.CourseTrack?.title || 'Kurs',
+                                            quantity: 1,
+                                            unitPriceCents: pricePerRegistration,
+                                            totalPriceCents: pricePerRegistration
+                                        }))
+                                    }
+                                } else {
+                                    // Fallback for orders without pricingSnapshot
+                                    const pricePerRegistration = Math.floor(order.subtotalAfterDiscountCents / order.Registration.length)
+                                    lineItems = order.Registration.map(reg => ({
+                                        description: reg.CourseTrack?.title || 'Kurs',
+                                        quantity: 1,
+                                        unitPriceCents: pricePerRegistration,
+                                        totalPriceCents: pricePerRegistration
+                                    }))
+                                }
 
                                 const pdfBuffer = await generateCourseTicketPDF({
                                     periodName: period.name,

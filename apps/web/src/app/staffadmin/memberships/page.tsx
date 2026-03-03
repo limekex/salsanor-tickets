@@ -1,6 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +11,7 @@ import { formatDateTimeShort, formatDateShort } from '@/lib/formatters'
 import { ApproveMembershipButton, RejectMembershipButton, DeleteMembershipButton } from './membership-action-buttons'
 import { MembershipTableControls } from './membership-table-controls'
 import { MembershipStatusSelect } from './membership-status-select'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
 type SearchParams = Promise<{
   status?: string
@@ -23,30 +22,21 @@ type SearchParams = Promise<{
 
 export default async function StaffAdminMembershipsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
   
-  if (!user) {
-    redirect('/auth/login')
-  }
+  // Get selected organization (from cookie or first available)
+  const organizerId = await getSelectedOrganizerForAdmin()
 
-  // Get user's admin organizations
-  const userAccount = await prisma.userAccount.findUnique({
-    where: { supabaseUid: user.id },
-    include: {
-      UserAccountRole: {
-        where: {
-          OR: [
-            { role: 'ADMIN' },
-            { role: 'ORG_ADMIN' }
-          ]
-        },
-        include: { Organizer: true }
-      }
+  // Get organization details
+  const organizer = await prisma.organizer.findUnique({
+    where: { id: organizerId },
+    select: {
+      id: true,
+      name: true,
+      slug: true
     }
   })
 
-  if (!userAccount?.UserAccountRole?.[0]?.Organizer) {
+  if (!organizer) {
     return (
       <div className="space-y-rn-6">
         <h1 className="rn-h2">No Organization Access</h1>
@@ -54,8 +44,6 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
       </div>
     )
   }
-
-  const organizer = userAccount.UserAccountRole[0].Organizer
 
   // Fetch enabled tiers for import
   const tiers = await prisma.membershipTier.findMany({

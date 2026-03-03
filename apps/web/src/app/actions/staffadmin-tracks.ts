@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { courseTrackSchema } from '@/lib/schemas/track'
+import { slugify } from '@/lib/formatters'
 
 export async function createCourseTrackStaff(prevState: any, formData: FormData) {
     const supabase = await createClient()
@@ -45,10 +46,16 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
     const raw = {
         periodId,
         title: formData.get('title'),
+        description: formData.get('description') || undefined,
+        imageUrl: formData.get('imageUrl') || undefined,
         levelLabel: formData.get('levelLabel') || undefined,
         weekday: formData.get('weekday'),
         timeStart: formData.get('timeStart'),
         timeEnd: formData.get('timeEnd'),
+        locationName: formData.get('locationName') || undefined,
+        locationAddress: formData.get('locationAddress') || undefined,
+        latitude: formData.get('latitude') || undefined,
+        longitude: formData.get('longitude') || undefined,
         capacityTotal: formData.get('capacityTotal'),
         capacityLeaders: formData.get('capacityLeaders') || undefined,
         capacityFollowers: formData.get('capacityFollowers') || undefined,
@@ -79,10 +86,14 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
             ...trackData
         } = result.data
 
+        // Auto-generate slug from title if not provided
+        const slug = trackData.slug || slugify(trackData.title)
+
         await prisma.courseTrack.create({
             data: {
                 CoursePeriod: { connect: { id: periodId } },
-                ...trackData
+                ...trackData,
+                slug
             }
         })
     } catch (e: any) {
@@ -134,10 +145,16 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
     const raw = {
         periodId: formData.get('periodId'),
         title: formData.get('title'),
+        description: formData.get('description') || undefined,
+        imageUrl: formData.get('imageUrl') || undefined,
         levelLabel: formData.get('levelLabel') || undefined,
         weekday: formData.get('weekday'),
         timeStart: formData.get('timeStart'),
         timeEnd: formData.get('timeEnd'),
+        locationName: formData.get('locationName') || undefined,
+        locationAddress: formData.get('locationAddress') || undefined,
+        latitude: formData.get('latitude') || undefined,
+        longitude: formData.get('longitude') || undefined,
         capacityTotal: formData.get('capacityTotal'),
         capacityLeaders: formData.get('capacityLeaders') || undefined,
         capacityFollowers: formData.get('capacityFollowers') || undefined,
@@ -168,9 +185,17 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
             ...trackData
         } = result.data
 
+        // Auto-generate slug from title if not set and track doesn't have one
+        const existingTrack = await prisma.courseTrack.findUnique({
+            where: { id: trackId },
+            select: { slug: true }
+        })
+        
+        const slug = trackData.slug || existingTrack?.slug || slugify(trackData.title)
+
         await prisma.courseTrack.update({
             where: { id: trackId },
-            data: trackData
+            data: { ...trackData, slug }
         })
     } catch (e: any) {
         return { error: { _form: [e.message] } }

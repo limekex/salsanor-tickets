@@ -11,12 +11,22 @@ import type { PeriodBreak } from '@salsanor/database'
 
 const dateFormatter = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' })
 
+// Format date to YYYY-MM-DD for input min/max
+function toDateInputValue(date: Date | string): string {
+    const d = new Date(date)
+    return d.toISOString().split('T')[0]
+}
+
 interface BreakManagerProps {
     periodId: string
     breaks: PeriodBreak[]
+    periodStartDate: Date | string
+    periodEndDate: Date | string
 }
 
-export function BreakManager({ periodId, breaks }: BreakManagerProps) {
+export function BreakManager({ periodId, breaks, periodStartDate, periodEndDate }: BreakManagerProps) {
+    const minDate = toDateInputValue(periodStartDate)
+    const maxDate = toDateInputValue(periodEndDate)
     const [state, formAction, isPending] = useActionState(
         createPeriodBreak.bind(null, periodId),
         null
@@ -78,14 +88,14 @@ export function BreakManager({ periodId, breaks }: BreakManagerProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label htmlFor="startDate" className="text-xs">Start Date</Label>
-                            <Input id="startDate" name="startDate" type="date" required />
+                            <Input id="startDate" name="startDate" type="date" required min={minDate} max={maxDate} />
                             {fieldErrors?.startDate && (
                                 <p className="text-xs text-destructive">{fieldErrors.startDate[0]}</p>
                             )}
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="endDate" className="text-xs">End Date</Label>
-                            <Input id="endDate" name="endDate" type="date" required />
+                            <Input id="endDate" name="endDate" type="date" required min={minDate} max={maxDate} />
                             {fieldErrors?.endDate && (
                                 <p className="text-xs text-destructive">{fieldErrors.endDate[0]}</p>
                             )}

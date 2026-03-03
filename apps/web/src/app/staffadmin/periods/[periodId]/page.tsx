@@ -3,6 +3,17 @@ import { prisma } from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
 import { StaffPeriodForm } from '../staff-period-form'
 import { BreakManager } from '../break-manager'
+import type { Organizer } from '@prisma/client'
+
+// Helper to serialize Decimal fields to plain numbers for client components
+function serializeOrganizer(org: Organizer) {
+    return {
+        ...org,
+        mvaRate: org.mvaRate ? Number(org.mvaRate) : null,
+        stripeFeePercentage: org.stripeFeePercentage ? Number(org.stripeFeePercentage) : null,
+        platformFeePercent: org.platformFeePercent ? Number(org.platformFeePercent) : null,
+    }
+}
 
 export default async function EditStaffPeriodPage({ 
     params 
@@ -69,19 +80,28 @@ export default async function EditStaffPeriodPage({
         })
     ])
 
+    // Serialize organizers to convert Decimal to plain numbers
+    const serializedOrganizers = organizers.map(org => org ? serializeOrganizer(org) : null).filter(Boolean)
+
     return (
         <div className="max-w-3xl mx-auto space-y-rn-6 px-rn-4 sm:px-0">
             <div className="flex items-center justify-between">
                 <h2 className="rn-h2">Edit Course Period</h2>
             </div>
             <StaffPeriodForm 
+                key={period.id}
                 period={period as any}
                 organizerIds={adminOrgIds}
-                organizers={organizers as any}
+                organizers={serializedOrganizers as any}
                 categories={categories}
                 tags={tags}
             />
-            <BreakManager periodId={period.id} breaks={period.PeriodBreak} />
+            <BreakManager 
+                periodId={period.id} 
+                breaks={period.PeriodBreak}
+                periodStartDate={period.startDate}
+                periodEndDate={period.endDate}
+            />
         </div>
     )
 }

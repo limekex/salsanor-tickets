@@ -2,7 +2,7 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { discountRuleSchema, DiscountRuleFormData } from '@/lib/schemas/discount'
+import { orgDiscountRuleSchema, OrgDiscountRuleFormData, DiscountScope } from '@/lib/schemas/discount'
 import { Button } from '@/components/ui/button'
 import {
     Form,
@@ -24,12 +24,12 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useState, useTransition, useCallback } from 'react'
-import { createDiscountRuleForOrganizer, updateDiscountRuleForOrganizer } from '@/app/actions/discounts'
+import { createOrgDiscountRule, updateOrgDiscountRule } from '@/app/actions/discounts'
 import { useRouter } from 'next/navigation'
 import { MultiCourseTierEditor } from '@/components/discount/multi-course-tier-editor'
 
 interface Props {
-    periodId: string
+    organizerId: string
     tiers: Array<{
         id: string
         name: string
@@ -42,12 +42,12 @@ interface Props {
         priority: number
         enabled: boolean
         ruleType: string
-        config: any
-        overrideOrgRules?: boolean
+        config: Record<string, unknown>
+        appliesTo?: DiscountScope
     }
 }
 
-export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) {
+export function OrgDiscountRuleForm({ organizerId, tiers, existingRule }: Props) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
     const [submitError, setSubmitError] = useState<string | null>(null)
@@ -61,44 +61,46 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
     const discountPercent = (existingRule?.config?.discountPercent as number | undefined) ?? undefined
     const tiersJson = existingRule?.config?.tiers ?? undefined
 
-    const form = useForm<DiscountRuleFormData>({
-        resolver: zodResolver(discountRuleSchema),
+    const form = useForm<OrgDiscountRuleFormData>({
+        resolver: zodResolver(orgDiscountRuleSchema),
         defaultValues: {
-            periodId,
+            organizerId,
             code: existingRule?.code ?? '',
             name: existingRule?.name ?? '',
             priority: existingRule?.priority ?? 0,
             enabled: existingRule?.enabled ?? true,
-            ruleType: (existingRule?.ruleType as any) ?? 'MEMBERSHIP_TIER_PERCENT',
+            ruleType: (existingRule?.ruleType as 'MEMBERSHIP_TIER_PERCENT' | 'MULTI_COURSE_TIERED' | 'PROMO_CODE_FIXED') ?? 'MEMBERSHIP_TIER_PERCENT',
             config: existingRule?.config ?? {},
-            overrideOrgRules: existingRule?.overrideOrgRules ?? false
+            appliesTo: existingRule?.appliesTo ?? 'BOTH'
         }
     })
 
     const ruleType = form.watch('ruleType')
 
-    async function onSubmit(data: DiscountRuleFormData) {
+    async function onSubmit(data: OrgDiscountRuleFormData) {
         setSubmitError(null)
         const formData = new FormData()
         if (isEditMode) {
             formData.append('ruleId', existingRule.id)
         }
-        formData.append('periodId', data.periodId)
+        formData.append('organizerId', data.organizerId)
         formData.append('code', data.code)
         formData.append('name', data.name)
         formData.append('priority', String(data.priority))
         formData.append('enabled', data.enabled ? 'on' : 'off')
         formData.append('ruleType', data.ruleType)
         formData.append('config', JSON.stringify(data.config))
-        formData.append('overrideOrgRules', data.overrideOrgRules ? 'on' : 'off')
+        formData.append('appliesTo', data.appliesTo)
 
         startTransition(async () => {
             const result = isEditMode
-                ? await updateDiscountRuleForOrganizer(null, formData)
-                : await createDiscountRuleForOrganizer(null, formData)
+                ? await updateOrgDiscountRule(null, formData)
+                : await createOrgDiscountRule(null, formData)
             if (result?.error) {
                 if (result.error._form) {
                     setSubmitError(result.error._form[0])
+                } else if (result.error.code) {
+                    setSubmitError(result.error.code[0])
                 } else {
                     console.error(result.error)
                     setSubmitError(`Failed to ${isEditMode ? 'update' : 'create'} rule. Check your input.`)
@@ -129,6 +131,13 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
                         {submitError}
                     </div>
                 )}
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                        <strong>Organization-level rule:</strong> This rule will apply to all course periods 
+                        unless a period-specific rule is set to override it.
+                    </p>
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <FormField
@@ -192,6 +201,32 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
                                     <SelectItem value="MULTI_COURSE_TIERED">Multi-Course Tiered</SelectItem>
                                 </SelectContent>
                             </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="appliesTo"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Applies To</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select scope" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="BOTH">Course Periods & Events</SelectItem>
+                                    <SelectItem value="PERIODS">Course Periods Only</SelectItem>
+                                    <SelectItem value="EVENTS">Events Only</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormDescription>
+                                Choose where this discount should apply
+                            </FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -278,27 +313,6 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
                                 <FormLabel>Enabled</FormLabel>
                                 <FormDescription>
                                     Activate this rule immediately
-                                </FormDescription>
-                            </div>
-                            <FormControl>
-                                <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
-                />
-
-                <FormField
-                    control={form.control}
-                    name="overrideOrgRules"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 p-3 shadow-sm">
-                            <div className="space-y-0.5">
-                                <FormLabel className="text-orange-800 dark:text-orange-200">Override Organization Rules</FormLabel>
-                                <FormDescription className="text-orange-700 dark:text-orange-300">
-                                    If enabled, this rule will replace all organization-level rules of the same type for this period
                                 </FormDescription>
                             </div>
                             <FormControl>

@@ -1,6 +1,12 @@
 
-import { DiscountRule } from '@salsanor/database'
+import { DiscountRule, OrgDiscountRule } from '@salsanor/database'
 import { DiscountRuleFormData, membershipTierConfigSchema, multiCourseConfigSchema } from '@/lib/schemas/discount'
+
+// Type for effective rules that can come from either period or org level
+export type EffectiveDiscountRule = (DiscountRule | OrgDiscountRule) & {
+    source?: 'period' | 'organization'
+    overrideOrgRules?: boolean
+}
 
 /**
  * Norwegian Compliance: MVA/VAT Calculation
@@ -124,7 +130,7 @@ interface UserContext {
 
 export function calculatePricing(
     cartItems: CartItem[],
-    rules: DiscountRule[],
+    rules: EffectiveDiscountRule[],
     context: UserContext
 ): PricingResult {
     const appliedRules: AppliedRule[] = []
@@ -301,6 +307,141 @@ export function calculatePricing(
         return sum + (item.hasPartner && item.track.pricePairCents ? item.track.pricePairCents : item.track.priceSingleCents)
     }, 0)
 
+    const finalTotalCents = lineItems.reduce((sum, li) => sum + li.finalPriceCents, 0)
+    const discountTotalCents = subtotalCents - finalTotalCents
+
+    return {
+        subtotalCents,
+        discountTotalCents,
+        finalTotalCents,
+        lineItems,
+        appliedRules,
+        isMember: context.isMember
+    }
+}
+
+// ========== EVENT PRICING ==========
+
+export interface EventCartItem {
+    eventId: string
+    quantity: number
+    event: {
+        id: string
+        title: string
+        basePriceCents: number
+        memberPriceCents: number | null
+    }
+}
+
+export interface EventPricingLineItem {
+    eventId: string
+    quantity: number
+    unitPriceCents: number
+    basePriceCents: number  // Before discount
+    discountCents: number
+    finalPriceCents: number
+    appliedRuleCodes: string[]
+    usesFixedMemberPrice?: boolean
+}
+
+export interface EventPricingResult {
+    subtotalCents: number
+    discountTotalCents: number
+    finalTotalCents: number
+    lineItems: EventPricingLineItem[]
+    appliedRules: AppliedRule[]
+    isMember: boolean
+}
+
+/**
+ * Calculate pricing for event registrations.
+ * Supports org-level discount rules that apply to EVENTS or BOTH.
+ */
+export function calculateEventPricing(
+    items: EventCartItem[],
+    rules: EffectiveDiscountRule[],
+    context: UserContext
+): EventPricingResult {
+    const appliedRules: AppliedRule[] = []
+
+    // 1. Initialize line items with base price
+    // If user is a member and event has fixed member price, use that
+    let lineItems: EventPricingLineItem[] = items.map(item => {
+        let unitPrice: number
+        let usesFixedMemberPrice = false
+
+        if (context.isMember && item.event.memberPriceCents !== null && item.event.memberPriceCents > 0) {
+            unitPrice = item.event.memberPriceCents
+            usesFixedMemberPrice = true
+        } else {
+            unitPrice = item.event.basePriceCents
+        }
+
+        const totalPrice = unitPrice * item.quantity
+
+        return {
+            eventId: item.eventId,
+            quantity: item.quantity,
+            unitPriceCents: unitPrice,
+            basePriceCents: totalPrice,
+            discountCents: 0,
+            finalPriceCents: totalPrice,
+            appliedRuleCodes: [],
+            usesFixedMemberPrice
+        }
+    })
+
+    // 2. Apply discount rules
+    const activeRules = rules.filter(r => r.enabled).sort((a, b) => a.priority - b.priority)
+
+    for (const rule of activeRules) {
+        if (rule.ruleType === 'MEMBERSHIP_TIER_PERCENT') {
+            if (context.isMember && context.membershipTierId) {
+                const config = rule.config as any
+                const tierIds = config.tierIds || []
+                const percent = config.discountPercent || 0
+
+                // Check if this rule applies to the user's tier
+                const appliesToTier = tierIds.length === 0 || tierIds.includes(context.membershipTierId)
+                if (!appliesToTier) continue
+
+                let ruleTotalDiscount = 0
+
+                lineItems = lineItems.map(line => {
+                    // Skip if using fixed member price
+                    if (line.usesFixedMemberPrice) return line
+                    if (line.finalPriceCents <= 0) return line
+
+                    const discountAmount = Math.round(line.basePriceCents * (percent / 100))
+                    const safeDiscount = Math.min(discountAmount, line.finalPriceCents)
+
+                    if (safeDiscount > 0) {
+                        ruleTotalDiscount += safeDiscount
+                        return {
+                            ...line,
+                            discountCents: line.discountCents + safeDiscount,
+                            finalPriceCents: line.finalPriceCents - safeDiscount,
+                            appliedRuleCodes: [...line.appliedRuleCodes, rule.code]
+                        }
+                    }
+                    return line
+                })
+
+                if (ruleTotalDiscount > 0) {
+                    appliedRules.push({
+                        ruleId: rule.id,
+                        code: rule.code,
+                        name: rule.name,
+                        amountCents: ruleTotalDiscount,
+                        explanation: `${percent}% Member Discount`
+                    })
+                }
+            }
+        }
+        // Note: MULTI_COURSE_TIERED doesn't apply to events (it's for courses only)
+    }
+
+    const subtotalCents = items.reduce((sum, item) => sum + (item.event.basePriceCents * item.quantity), 0)
     const finalTotalCents = lineItems.reduce((sum, li) => sum + li.finalPriceCents, 0)
     const discountTotalCents = subtotalCents - finalTotalCents
 

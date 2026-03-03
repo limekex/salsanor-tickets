@@ -2,7 +2,7 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { courseTrackSchema, type CourseTrackFormValues } from '@/lib/schemas/track'
+import { courseTrackSchema, type CourseTrackFormValues, TRACK_IMAGE_CONSTRAINTS } from '@/lib/schemas/track'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import {
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
     Select,
     SelectContent,
@@ -24,17 +25,23 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { createCourseTrackStaff, updateCourseTrackStaff } from '@/app/actions/staffadmin-tracks'
+import { uploadTrackImage } from '@/app/actions/upload'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ImageUpload } from '@/components/image-upload'
+import { LocationPicker } from '@/components/location-picker'
+import { ExternalLink, Clock, MapPin, Users, CreditCard, Image as ImageIcon } from 'lucide-react'
+import Link from 'next/link'
 import type { CourseTrack } from '@salsanor/database'
 
 interface StaffTrackFormProps {
     periodId: string
     track?: CourseTrack
+    hasMembershipProduct?: boolean
 }
 
-export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
+export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }: StaffTrackFormProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
     const isEditing = !!track
@@ -42,16 +49,33 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
     // Determine initial pricing type based on whether member prices are set
     const hasMemberPricing = track?.memberPriceSingleCents !== null && track?.memberPriceSingleCents !== undefined && track.memberPriceSingleCents > 0
     const [memberPriceType, setMemberPriceType] = useState<'discount' | 'fixed'>(hasMemberPricing ? 'fixed' : 'discount')
+    
+    // Track imageUrl separately since it's uploaded separately from form submit
+    const [imageUrl, setImageUrl] = useState<string>(track?.imageUrl || '')
+
+    // Location state
+    const [location, setLocation] = useState({
+        locationName: track?.locationName || undefined,
+        locationAddress: track?.locationAddress || undefined,
+        latitude: track?.latitude || undefined,
+        longitude: track?.longitude || undefined,
+    })
 
     const form = useForm<CourseTrackFormValues>({
         resolver: zodResolver(courseTrackSchema),
         defaultValues: track ? {
             periodId: track.periodId,
             title: track.title,
+            description: track.description || '',
+            imageUrl: track.imageUrl || '',
             levelLabel: track.levelLabel || '',
             weekday: track.weekday,
             timeStart: track.timeStart,
             timeEnd: track.timeEnd,
+            locationName: track.locationName || undefined,
+            locationAddress: track.locationAddress || undefined,
+            latitude: track.latitude || undefined,
+            longitude: track.longitude || undefined,
             capacityTotal: track.capacityTotal,
             capacityLeaders: track.capacityLeaders || undefined,
             capacityFollowers: track.capacityFollowers || undefined,
@@ -64,10 +88,16 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
         } : {
             periodId,
             title: '',
+            description: '',
+            imageUrl: '',
             levelLabel: '',
             weekday: 1,
             timeStart: '18:00',
             timeEnd: '19:00',
+            locationName: undefined,
+            locationAddress: undefined,
+            latitude: undefined,
+            longitude: undefined,
             capacityTotal: 20,
             capacityLeaders: 10,
             capacityFollowers: 10,
@@ -80,19 +110,44 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
         },
     })
 
+    // Handle image upload
+    const handleImageUpload = async (file: File): Promise<string> => {
+        const formData = new FormData()
+        formData.append('file', file)
+        const result = await uploadTrackImage(formData)
+        if (result.error) {
+            throw new Error(result.error)
+        }
+        if (result.url) {
+            setImageUrl(result.url)
+            form.setValue('imageUrl', result.url)
+            return result.url
+        }
+        throw new Error('Upload failed')
+    }
+
     async function onSubmit(data: CourseTrackFormValues) {
         const formData = new FormData()
         formData.append('periodId', periodId)
         formData.append('title', data.title)
+        if (data.description) formData.append('description', data.description)
+        if (imageUrl) formData.append('imageUrl', imageUrl)
         if (data.levelLabel) formData.append('levelLabel', data.levelLabel)
         formData.append('weekday', data.weekday.toString())
         formData.append('timeStart', data.timeStart)
         formData.append('timeEnd', data.timeEnd)
+        // Location fields
+        if (location.locationName) formData.append('locationName', location.locationName)
+        if (location.locationAddress) formData.append('locationAddress', location.locationAddress)
+        if (location.latitude !== undefined) formData.append('latitude', location.latitude.toString())
+        if (location.longitude !== undefined) formData.append('longitude', location.longitude.toString())
+        // Capacity
         formData.append('capacityTotal', data.capacityTotal.toString())
         if (data.capacityLeaders) formData.append('capacityLeaders', data.capacityLeaders.toString())
         if (data.capacityFollowers) formData.append('capacityFollowers', data.capacityFollowers.toString())
         formData.append('rolePolicy', data.rolePolicy)
         if (data.waitlistEnabled) formData.append('waitlistEnabled', 'on')
+        // Pricing
         formData.append('priceSingleCents', data.priceSingleCents.toString())
         if (data.pricePairCents) formData.append('pricePairCents', data.pricePairCents.toString())
         if (data.memberPriceSingleCents) formData.append('memberPriceSingleCents', data.memberPriceSingleCents.toString())
@@ -121,10 +176,18 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
     }
 
     return (
-        <Card>
-            <CardContent className="pt-6">
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Basic Info Section */}
+                <Card>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <ImageIcon className="h-5 w-5" />
+                            Basic Information
+                        </CardTitle>
+                        <CardDescription>Course title, description, and hero image</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                         <FormField
                             control={form.control}
                             name="title"
@@ -139,47 +202,98 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
                             )}
                         />
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                                control={form.control}
-                                name="weekday"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Weekday</FormLabel>
-                                        <Select onValueChange={(val: string) => field.onChange(parseInt(val))} defaultValue={field.value.toString()}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select day" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="1">Monday</SelectItem>
-                                                <SelectItem value="2">Tuesday</SelectItem>
-                                                <SelectItem value="3">Wednesday</SelectItem>
-                                                <SelectItem value="4">Thursday</SelectItem>
-                                                <SelectItem value="5">Friday</SelectItem>
-                                                <SelectItem value="6">Saturday</SelectItem>
-                                                <SelectItem value="7">Sunday</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
+                        <FormField
+                            control={form.control}
+                            name="levelLabel"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Level Label (Optional)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Beginner" {...field} />
+                                    </FormControl>
+                                    <FormDescription>e.g., Beginner, Intermediate, Advanced</FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="description"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Description (Optional)</FormLabel>
+                                    <FormControl>
+                                        <Textarea 
+                                            placeholder="Describe what participants will learn in this course..."
+                                            rows={4}
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Brief description shown on the course detail page
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Hero Image */}
+                        <div className="space-y-2">
+                            <Label>Hero Image (Optional)</Label>
+                            <ImageUpload
+                                value={imageUrl}
+                                onChange={(url) => {
+                                    setImageUrl(url)
+                                    form.setValue('imageUrl', url)
+                                }}
+                                onUpload={handleImageUpload}
+                                constraints={TRACK_IMAGE_CONSTRAINTS}
+                                disabled={isPending}
                             />
-                            <FormField
-                                control={form.control}
-                                name="levelLabel"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Level Label (Optional)</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="Beginner" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            <p className="text-sm text-muted-foreground">
+                                Landscape image for the course header. Recommended: 1600x800px
+                            </p>
                         </div>
+                    </CardContent>
+                </Card>
+
+                {/* Schedule Section */}
+                <Card>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <Clock className="h-5 w-5" />
+                            Schedule
+                        </CardTitle>
+                        <CardDescription>When does the course take place?</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="weekday"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Weekday</FormLabel>
+                                    <Select onValueChange={(val: string) => field.onChange(parseInt(val))} defaultValue={field.value.toString()}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select day" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="1">Monday</SelectItem>
+                                            <SelectItem value="2">Tuesday</SelectItem>
+                                            <SelectItem value="3">Wednesday</SelectItem>
+                                            <SelectItem value="4">Thursday</SelectItem>
+                                            <SelectItem value="5">Friday</SelectItem>
+                                            <SelectItem value="6">Saturday</SelectItem>
+                                            <SelectItem value="7">Sunday</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                         <div className="grid grid-cols-2 gap-4">
                             <FormField
@@ -209,7 +323,36 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
                                 )}
                             />
                         </div>
+                    </CardContent>
+                </Card>
 
+                {/* Location Section */}
+                <Card>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <MapPin className="h-5 w-5" />
+                            Location
+                        </CardTitle>
+                        <CardDescription>Where does the course take place? Used for Wallet Tickets.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <LocationPicker
+                            value={location}
+                            onChange={setLocation}
+                        />
+                    </CardContent>
+                </Card>
+
+                {/* Capacity Section */}
+                <Card>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <Users className="h-5 w-5" />
+                            Capacity & Roles
+                        </CardTitle>
+                        <CardDescription>How many participants can join?</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                         <div className="grid grid-cols-3 gap-4">
                             <FormField
                                 control={form.control}
@@ -275,14 +418,38 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
                                 </FormItem>
                             )}
                         />
+                    </CardContent>
+                </Card>
 
+                {/* Pricing Section */}
+                <Card>
+                    <CardHeader className="pb-4">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <CreditCard className="h-5 w-5" />
+                                    Pricing & Discounts
+                                </CardTitle>
+                                <CardDescription>Set prices and member discounts</CardDescription>
+                            </div>
+                            {hasMembershipProduct && (
+                                <Button variant="outline" size="sm" asChild>
+                                    <Link href="/staffadmin/memberships/product" target="_blank">
+                                        <ExternalLink className="h-4 w-4 mr-2" />
+                                        Browse Memberships
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
                         <div className="grid grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
                                 name="priceSingleCents"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Single Price (Øre/Cents)</FormLabel>
+                                        <FormLabel>Single Price (øre/cents)</FormLabel>
                                         <FormControl>
                                             <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
                                         </FormControl>
@@ -296,7 +463,7 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
                                 name="pricePairCents"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Pair Price (Øre) - Optional</FormLabel>
+                                        <FormLabel>Pair Price (øre) - Optional</FormLabel>
                                         <FormControl>
                                             <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} />
                                         </FormControl>
@@ -307,95 +474,94 @@ export function StaffTrackForm({ periodId, track }: StaffTrackFormProps) {
                         </div>
 
                         {/* Member Pricing Section */}
-                        <div className="space-y-4 border-t pt-4">
-                            <div>
-                                <Label className="mb-3 block">Member Pricing</Label>
-                                <div className="space-y-3">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="memberPriceType"
-                                            value="discount"
-                                            checked={memberPriceType === 'discount'}
-                                            onChange={() => {
-                                                setMemberPriceType('discount')
-                                                form.setValue('memberPriceSingleCents', undefined)
-                                                form.setValue('memberPricePairCents', undefined)
-                                            }}
-                                            className="h-4 w-4"
-                                        />
-                                        <span className="text-sm">Use standard membership discount from discount engine</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="memberPriceType"
-                                            value="fixed"
-                                            checked={memberPriceType === 'fixed'}
-                                            onChange={() => setMemberPriceType('fixed')}
-                                            className="h-4 w-4"
-                                        />
-                                        <span className="text-sm">Set fixed member prices</span>
-                                    </label>
-                                    
-                                    {memberPriceType === 'fixed' && (
-                                        <div className="ml-6 space-y-4">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <FormField
-                                                    control={form.control}
-                                                    name="memberPriceSingleCents"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Member Single Price (Øre)</FormLabel>
-                                                            <FormControl>
-                                                                <Input 
-                                                                    type="number" 
-                                                                    {...field} 
-                                                                    value={field.value || ''} 
-                                                                    onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
-                                                                />
-                                                            </FormControl>
-                                                            <FormDescription>e.g. 15000 = 150 NOK</FormDescription>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <FormField
-                                                    control={form.control}
-                                                    name="memberPricePairCents"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Member Pair Price (Øre) - Optional</FormLabel>
-                                                            <FormControl>
-                                                                <Input 
-                                                                    type="number" 
-                                                                    {...field} 
-                                                                    value={field.value || ''} 
-                                                                    onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
-                                                                />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
+                        <div className="border-t pt-4">
+                            <Label className="mb-3 block">Member Pricing</Label>
+                            <div className="space-y-3">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="memberPriceType"
+                                        value="discount"
+                                        checked={memberPriceType === 'discount'}
+                                        onChange={() => {
+                                            setMemberPriceType('discount')
+                                            form.setValue('memberPriceSingleCents', undefined)
+                                            form.setValue('memberPricePairCents', undefined)
+                                        }}
+                                        className="h-4 w-4"
+                                    />
+                                    <span className="text-sm">Use standard membership discount from discount engine</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="memberPriceType"
+                                        value="fixed"
+                                        checked={memberPriceType === 'fixed'}
+                                        onChange={() => setMemberPriceType('fixed')}
+                                        className="h-4 w-4"
+                                    />
+                                    <span className="text-sm">Set fixed member prices</span>
+                                </label>
+                                
+                                {memberPriceType === 'fixed' && (
+                                    <div className="ml-6 space-y-4 pt-2">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField
+                                                control={form.control}
+                                                name="memberPriceSingleCents"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Member Single Price (øre)</FormLabel>
+                                                        <FormControl>
+                                                            <Input 
+                                                                type="number" 
+                                                                {...field} 
+                                                                value={field.value || ''} 
+                                                                onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
+                                                            />
+                                                        </FormControl>
+                                                        <FormDescription>e.g. 15000 = 150 NOK</FormDescription>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="memberPricePairCents"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Member Pair Price (øre) - Optional</FormLabel>
+                                                        <FormControl>
+                                                            <Input 
+                                                                type="number" 
+                                                                {...field} 
+                                                                value={field.value || ''} 
+                                                                onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
 
-                        <div className="flex justify-end gap-4">
-                            <Button type="button" variant="outline" onClick={() => router.push(`/staffadmin/periods/${periodId}/tracks`)}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={isPending}>
-                                {isPending ? 'Saving...' : (isEditing ? 'Update Track' : 'Create Track')}
-                            </Button>
-                        </div>
-                    </form>
-                </Form>
-            </CardContent>
-        </Card>
+                {/* Form Actions */}
+                <div className="flex justify-end gap-4">
+                    <Button type="button" variant="outline" onClick={() => router.push(`/staffadmin/periods/${periodId}/tracks`)}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={isPending}>
+                        {isPending ? 'Saving...' : (isEditing ? 'Update Track' : 'Create Track')}
+                    </Button>
+                </div>
+            </form>
+        </Form>
     )
 }

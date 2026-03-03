@@ -137,11 +137,19 @@ model CoursePeriod {
 model CourseTrack {
   id                     String         @id @default(uuid())
   periodId               String
+  slug                   String?
   title                  String
+  description            String?
+  imageUrl               String?
   levelLabel             String?
   weekday                Int
   timeStart              String
   timeEnd                String
+  // Location fields for Wallet Tickets integration
+  locationName           String?
+  locationAddress        String?
+  latitude               Float?
+  longitude              Float?
   capacityTotal          Int
   capacityLeaders        Int?
   capacityFollowers      Int?
@@ -162,6 +170,7 @@ model CourseTrack {
   Attendance             Attendance[]
 
   @@index([periodId])
+  @@index([periodId, slug])
 }
 
 model CreditNote {
@@ -207,19 +216,40 @@ model CreditNote {
 }
 
 model DiscountRule {
-  id           String       @id @default(uuid())
-  periodId     String
-  code         String
-  name         String
-  priority     Int
-  enabled      Boolean      @default(true)
-  ruleType     String
-  config       Json
-  createdAt    DateTime     @default(now())
-  CoursePeriod CoursePeriod @relation(fields: [periodId], references: [id])
+  id               String       @id @default(uuid())
+  periodId         String
+  code             String
+  name             String
+  priority         Int
+  enabled          Boolean      @default(true)
+  ruleType         String
+  config           Json
+  overrideOrgRules Boolean      @default(false) // If true, this period rule replaces org-level rules of same type
+  createdAt        DateTime     @default(now())
+  CoursePeriod     CoursePeriod @relation(fields: [periodId], references: [id])
 
   @@unique([periodId, code])
   @@index([periodId, priority])
+}
+
+/// Organization-level discount rules that apply to all periods under the organization
+/// unless a period-specific rule with overrideOrgRules=true exists
+model OrgDiscountRule {
+  id          String        @id @default(uuid())
+  organizerId String
+  code        String
+  name        String
+  priority    Int
+  enabled     Boolean       @default(true)
+  ruleType    String
+  config      Json
+  appliesTo   DiscountScope @default(BOTH)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  Organizer   Organizer     @relation(fields: [organizerId], references: [id])
+
+  @@unique([organizerId, code])
+  @@index([organizerId, priority])
 }
 
 model EmailLog {
@@ -599,6 +629,7 @@ model Organizer {
   Invoice                  Invoice[]
   Membership               Membership[]
   MembershipTier           MembershipTier[]
+  OrgDiscountRule          OrgDiscountRule[]
   Order                    Order[]
   Tag                      Tag[]
   UserAccountRole          UserAccountRole[]
@@ -847,6 +878,12 @@ enum CheckInMethod {
   MANUAL
   BULK_IMPORT
   SELF_CHECKIN
+}
+
+enum DiscountScope {
+  PERIODS
+  EVENTS
+  BOTH
 }
 
 enum CreditNoteStatus {

@@ -5,6 +5,7 @@ import { requireAdmin } from '@/utils/auth-admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { courseTrackSchema } from '@/lib/schemas/track'
+import { slugify } from '@/lib/formatters'
 
 export async function createCourseTrack(prevState: any, formData: FormData) {
     await requireAdmin()
@@ -38,10 +39,14 @@ export async function createCourseTrack(prevState: any, formData: FormData) {
             ...trackData
         } = result.data
 
+        // Auto-generate slug from title
+        const slug = trackData.slug || slugify(trackData.title)
+
         await prisma.courseTrack.create({
             data: {
                 CoursePeriod: { connect: { id: result.data.periodId } },
-                ...trackData
+                ...trackData,
+                slug
             }
         })
     } catch (e: any) {

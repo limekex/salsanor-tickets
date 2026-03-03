@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { requireOrganizerAccess } from '@/utils/auth-admin'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
 const membershipTierSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -154,12 +155,8 @@ export async function deleteMembershipTier(tierId: string) {
 }
 
 export async function listMembershipTiers() {
-  const { userAccount } = await requireOrganizerAccess()
-  const organizerId = userAccount.UserAccountRole.find(r => r.organizerId)?.organizerId
-  
-  if (!organizerId) {
-    throw new Error('No organization access')
-  }
+  // Use selected organization from context
+  const organizerId = await getSelectedOrganizerForAdmin()
 
   const tiers = await prisma.membershipTier.findMany({
     where: { organizerId },
