@@ -11,7 +11,8 @@ import { CancelOrderButton } from '@/app/(site)/profile/cancel-order-button'
 import { AcceptOfferButton, DeclineOfferButton } from '@/app/(site)/profile/offer-buttons'
 import { formatDateShort, formatPrice, formatRelativeTime } from '@/lib/formatters'
 import { UI_TEXT } from '@/lib/i18n'
-import { EyeOff, Eye, TrendingUp, CheckCircle2 } from 'lucide-react'
+import { EyeOff, Eye, TrendingUp, CheckCircle2, Award } from 'lucide-react'
+import { CERTIFICATE_MIN_RATE, CERTIFICATE_MIN_SESSIONS } from '@/lib/attendance-certificate'
 
 type Registration = {
     id: string
@@ -107,6 +108,18 @@ export function CoursesList({ registrations, tickets, totalSessions, attendedSes
             <div className="grid gap-rn-6 md:grid-cols-2">
                 {visibleRegistrations.map((reg) => {
                     const attended = reg.attendance.length
+
+                    // Certificate eligibility: compute weeks elapsed for this specific registration
+                    const today = new Date()
+                    const periodStart = new Date(reg.CoursePeriod.startDate)
+                    const periodEnd = new Date(reg.CoursePeriod.endDate)
+                    const refDate = periodEnd > today ? today : periodEnd
+                    const weeksElapsed = periodStart < refDate
+                        ? Math.max(Math.floor((refDate.getTime() - periodStart.getTime()) / (7 * 24 * 60 * 60 * 1000)), 0)
+                        : 0
+                    const attendanceRate = weeksElapsed > 0 ? attended / weeksElapsed : 0
+                    const certificateEligible = reg.status === 'ACTIVE' && attended > 0 && weeksElapsed >= CERTIFICATE_MIN_SESSIONS && attendanceRate >= CERTIFICATE_MIN_RATE
+
                     return (
                         <Card key={reg.id}>
                             <CardHeader>
@@ -181,6 +194,18 @@ export function CoursesList({ registrations, tickets, totalSessions, attendedSes
                                             }
                                             return null
                                         })()
+                                    )}
+
+                                    {/* Attendance Certificate */}
+                                    {certificateEligible && (
+                                        <a
+                                            href={`/api/attendance-certificate?registrationId=${reg.id}`}
+                                            className="flex items-center justify-center gap-2 w-full rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors"
+                                            download
+                                        >
+                                            <Award className="h-4 w-4" />
+                                            Download Attendance Certificate
+                                        </a>
                                     )}
                                 </div>
                             </CardContent>
