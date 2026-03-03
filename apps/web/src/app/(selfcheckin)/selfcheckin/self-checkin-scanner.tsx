@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CheckCircle2, XCircle, ScanLine, Phone, RotateCcw, Loader2 } from 'lucide-react'
+import { CheckCircle2, XCircle, ScanLine, Phone, RotateCcw, Loader2, Clock } from 'lucide-react'
 
 type CheckInResult = {
     valid: boolean
@@ -23,15 +23,51 @@ type TrackInfo = {
     allowSelfCheckIn: boolean
     weekday: number
     timeStart: string
+    checkInWindowBefore: number
+    checkInWindowAfter: number
 }
 
 type Props = {
     trackId: string
+    allowOverride?: boolean
 }
 
 const weekdayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-export default function SelfCheckInScanner({ trackId }: Props) {
+/**
+ * Calculate time until check-in window opens/closes
+ * Returns: { isOpen: boolean, secondsUntilOpen?: number, secondsUntilClose?: number }
+ */
+function calculateWindowStatus(track: TrackInfo) {
+    const [startHour, startMin] = track.timeStart.split(':').map(Number)
+    if (isNaN(startHour) || isNaN(startMin)) return { isOpen: true }
+
+    const now = new Date()
+    const classStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMin, 0)
+    const windowOpen = new Date(classStart.getTime() - track.checkInWindowBefore * 60 * 1000)
+    const windowClose = new Date(classStart.getTime() + track.checkInWindowAfter * 60 * 1000)
+
+    if (now < windowOpen) {
+        return { isOpen: false, secondsUntilOpen: Math.ceil((windowOpen.getTime() - now.getTime()) / 1000) }
+    }
+    if (now > windowClose) {
+        return { isOpen: false, isClosed: true }
+    }
+    return { isOpen: true, secondsUntilClose: Math.ceil((windowClose.getTime() - now.getTime()) / 1000) }
+}
+
+function formatCountdown(seconds: number): string {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    if (mins >= 60) {
+        const hrs = Math.floor(mins / 60)
+        const remainMins = mins % 60
+        return `${hrs}h ${remainMins}m ${secs}s`
+    }
+    return `${mins}m ${secs}s`
+}
+
+export default function SelfCheckInScanner({ trackId, allowOverride = false }: Props) {
     const [track, setTrack] = useState<TrackInfo | null>(null)
     const [loadingTrack, setLoadingTrack] = useState(true)
     const [trackError, setTrackError] = useState<string | null>(null)
@@ -40,8 +76,14 @@ export default function SelfCheckInScanner({ trackId }: Props) {
     const [result, setResult] = useState<CheckInResult | null>(null)
     const [loading, setLoading] = useState(false)
 
+    // Window timing
+    const [windowStatus, setWindowStatus] = useState<{ isOpen: boolean; secondsUntilOpen?: number; isClosed?: boolean }>({ isOpen: true })
+
     // Phone form
     const [phoneInput, setPhoneInput] = useState('')
+
+    // Auto-reset countdown for result screen
+    const [resetCountdown, setResetCountdown] = useState<number | null>(null)
 
     const scannerRef = useRef<Html5QrcodeScanner | null>(null)
     const isMounted = useRef(false)
@@ -74,6 +116,21 @@ export default function SelfCheckInScanner({ trackId }: Props) {
         loadTrack()
     }, [trackId])
 
+    // Update window status every second
+    useEffect(() => {
+        if (!track || allowOverride) return
+
+        const updateStatus = () => {
+            const status = calculateWindowStatus(track)
+            setWindowStatus(status)
+        }
+
+        updateStatus() // Initial check
+        const interval = setInterval(updateStatus, 1000)
+
+        return () => clearInterval(interval)
+    }, [track, allowOverride])
+
     const doCheckIn = useCallback(async (params: { token?: string; phone?: string }) => {
         if (loading) return
         setLoading(true)
@@ -96,12 +153,20 @@ export default function SelfCheckInScanner({ trackId }: Props) {
         }
     }, [loading, trackId])
 
+    // Derive stable boolean for scanner availability
+    const canShowScanner = windowStatus.isOpen || allowOverride
+
     // QR Scanner setup
     useEffect(() => {
-        if (mode !== 'qr' || result || loadingTrack || !!trackError) return
+        // Don't initialize if window not open (unless override)
+        if (!canShowScanner) return
+        if (mode !== 'qr' || result || loadingTrack || !!trackError || loading) return
 
-        const scannerId = 'self-checkin-qr-reader'
-        const scanner = new Html5QrcodeScanner(scannerId, {
+        // Ensure the DOM element exists before initializing scanner
+        const element = document.getElementById('self-checkin-qr-reader')
+        if (!element) return
+
+        const scanner = new Html5QrcodeScanner('self-checkin-qr-reader', {
             fps: 5,
             qrbox: { width: 260, height: 260 },
             aspectRatio: 1,
@@ -124,7 +189,38 @@ export default function SelfCheckInScanner({ trackId }: Props) {
             scanner.clear().catch(() => {})
             scannerRef.current = null
         }
-    }, [mode, result, loadingTrack, trackError, doCheckIn])
+    }, [mode, result, loadingTrack, trackError, loading, doCheckIn, canShowScanner])
+
+    // Auto-reset countdown after showing result
+    useEffect(() => {
+        if (!result) {
+            setResetCountdown(null)
+            return
+        }
+        // Start 5-second countdown when result is shown
+        setResetCountdown(5)
+        const interval = setInterval(() => {
+            setResetCountdown(prev => {
+                if (prev === null) {
+                    clearInterval(interval)
+                    return null
+                }
+                if (prev <= 1) {
+                    clearInterval(interval)
+                    return 0 // Set to 0 to trigger the reset effect
+                }
+                return prev - 1
+            })
+        }, 1000)
+        return () => clearInterval(interval)
+    }, [result])
+
+    // Auto-reset when countdown reaches 0
+    useEffect(() => {
+        if (resetCountdown === 0) {
+            reset()
+        }
+    }, [resetCountdown])
 
     function reset() {
         setResult(null)
@@ -142,8 +238,8 @@ export default function SelfCheckInScanner({ trackId }: Props) {
     // Loading state
     if (loadingTrack) {
         return (
-            <div className="flex-1 flex items-center justify-center p-4">
-                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            <div className="flex-1 flex items-center justify-center p-rn-4">
+                <Loader2 className="h-8 w-8 animate-spin text-rn-text-muted" />
             </div>
         )
     }
@@ -151,11 +247,48 @@ export default function SelfCheckInScanner({ trackId }: Props) {
     // Track error
     if (trackError || !track) {
         return (
-            <div className="flex-1 flex items-center justify-center p-4">
-                <Card className="w-full max-w-sm border-slate-700">
-                    <CardContent className="pt-6 text-center space-y-2">
-                        <XCircle className="h-12 w-12 text-red-400 mx-auto" />
-                        <p className="text-slate-300">{trackError || 'Unknown error'}</p>
+            <div className="flex-1 flex items-center justify-center p-rn-4">
+                <Card className="w-full max-w-sm">
+                    <CardContent className="pt-rn-6 text-center space-y-rn-2">
+                        <XCircle className="h-12 w-12 text-rn-danger mx-auto" />
+                        <p className="text-rn-text font-medium">{trackError || 'Unknown error'}</p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    // Countdown overlay (check-in window not yet open)
+    if (!canShowScanner) {
+        return (
+            <div className="flex-1 flex items-center justify-center p-rn-4">
+                <Card className="w-full max-w-sm">
+                    <CardHeader className="text-center pb-rn-2">
+                        <CardTitle className="rn-h3 text-rn-text">{track.title}</CardTitle>
+                        <p className="rn-caption text-rn-text-muted">
+                            {track.periodName} · {weekdayNames[track.weekday] ?? ''} {track.timeStart}
+                        </p>
+                    </CardHeader>
+                    <CardContent className="text-center space-y-rn-4">
+                        <Clock className="h-16 w-16 text-rn-text-muted mx-auto" />
+                        {windowStatus.isClosed ? (
+                            <>
+                                <p className="rn-h2 text-rn-danger">Check-in Closed</p>
+                                <p className="rn-body text-rn-text-muted">
+                                    The check-in window has ended for today.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <p className="rn-h2 text-rn-text">Check-in Opens In</p>
+                                <p className="text-4xl font-mono font-bold text-primary">
+                                    {formatCountdown(windowStatus.secondsUntilOpen ?? 0)}
+                                </p>
+                                <p className="rn-caption text-rn-text-muted">
+                                    Check-in opens {track.checkInWindowBefore} minutes before class at {track.timeStart}
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -166,29 +299,30 @@ export default function SelfCheckInScanner({ trackId }: Props) {
     if (result) {
         const isSuccess = result.valid || result.alreadyCheckedIn
         return (
-            <div className="flex-1 flex items-center justify-center p-4">
-                <Card className={`w-full max-w-sm border-slate-700 ${isSuccess ? 'border-green-700' : 'border-red-700'}`}>
-                    <CardContent className="pt-6 text-center space-y-4">
+            <div className="flex-1 flex items-center justify-center p-rn-4">
+                <Card className={`w-full max-w-sm ${isSuccess ? 'border-rn-success' : 'border-rn-danger'}`}>
+                    <CardContent className="pt-rn-6 text-center space-y-rn-4">
                         {result.valid ? (
-                            <CheckCircle2 className="h-16 w-16 text-green-400 mx-auto" />
+                            <CheckCircle2 className="h-16 w-16 text-rn-success mx-auto" />
                         ) : result.alreadyCheckedIn ? (
-                            <CheckCircle2 className="h-16 w-16 text-yellow-400 mx-auto" />
+                            <CheckCircle2 className="h-16 w-16 text-rn-warning mx-auto" />
                         ) : (
-                            <XCircle className="h-16 w-16 text-red-400 mx-auto" />
+                            <XCircle className="h-16 w-16 text-rn-danger mx-auto" />
                         )}
                         {result.personName && (
-                            <p className="text-xl font-semibold text-white">{result.personName}</p>
+                            <p className="rn-h2 text-rn-text">{result.personName}</p>
                         )}
-                        <p className={`text-sm ${result.valid ? 'text-green-300' : result.alreadyCheckedIn ? 'text-yellow-300' : 'text-red-300'}`}>
+                        <p className={`rn-body ${result.valid ? 'text-rn-success' : result.alreadyCheckedIn ? 'text-rn-warning' : 'text-rn-danger'}`}>
                             {result.message}
                         </p>
                         <Button
                             variant="outline"
+                            size="lg"
                             onClick={reset}
-                            className="w-full border-slate-600 mt-2"
+                            className="w-full mt-rn-2"
                         >
                             <RotateCcw className="h-4 w-4 mr-2" />
-                            Check in another
+                            Check in another {resetCountdown !== null && `(${resetCountdown}s)`}
                         </Button>
                     </CardContent>
                 </Card>
@@ -197,22 +331,23 @@ export default function SelfCheckInScanner({ trackId }: Props) {
     }
 
     return (
-        <div className="flex-1 flex flex-col items-center p-4 gap-4">
+        <div className="flex-1 flex flex-col items-center p-rn-4 gap-rn-4">
             {/* Track header */}
-            <Card className="w-full max-w-sm border-slate-700">
-                <CardHeader className="pb-2 pt-4">
-                    <CardTitle className="text-base text-center text-white">{track.title}</CardTitle>
-                    <p className="text-xs text-slate-400 text-center">
+            <Card className="w-full max-w-sm">
+                <CardHeader className="pb-rn-2 pt-rn-4">
+                    <CardTitle className="rn-h3 text-center text-rn-text">{track.title}</CardTitle>
+                    <p className="rn-caption text-rn-text-muted text-center">
                         {track.periodName} · {weekdayNames[track.weekday] ?? ''} {track.timeStart}
                     </p>
                 </CardHeader>
             </Card>
 
             {/* Mode toggle */}
-            <div className="flex gap-2 w-full max-w-sm">
+            <div className="flex gap-rn-2 w-full max-w-sm">
                 <Button
                     variant={mode === 'qr' ? 'default' : 'outline'}
-                    className={`flex-1 ${mode !== 'qr' ? 'border-slate-600 text-slate-300' : ''}`}
+                    size="lg"
+                    className="flex-1"
                     onClick={() => { setMode('qr'); reset() }}
                 >
                     <ScanLine className="h-4 w-4 mr-2" />
@@ -220,7 +355,8 @@ export default function SelfCheckInScanner({ trackId }: Props) {
                 </Button>
                 <Button
                     variant={mode === 'phone' ? 'default' : 'outline'}
-                    className={`flex-1 ${mode !== 'phone' ? 'border-slate-600 text-slate-300' : ''}`}
+                    size="lg"
+                    className="flex-1"
                     onClick={() => { setMode('phone'); reset() }}
                 >
                     <Phone className="h-4 w-4 mr-2" />
@@ -230,10 +366,10 @@ export default function SelfCheckInScanner({ trackId }: Props) {
 
             {/* QR Scanner */}
             {mode === 'qr' && !loading && (
-                <Card className="w-full max-w-sm border-slate-700">
-                    <CardContent className="pt-4">
+                <Card className="w-full max-w-sm">
+                    <CardContent className="pt-rn-4">
                         <div id="self-checkin-qr-reader" className="w-full" />
-                        <p className="text-xs text-slate-400 text-center mt-2">
+                        <p className="rn-caption text-rn-text-muted text-center mt-rn-2">
                             Scan the QR code from your course ticket
                         </p>
                     </CardContent>
@@ -242,23 +378,23 @@ export default function SelfCheckInScanner({ trackId }: Props) {
 
             {/* Phone number form */}
             {mode === 'phone' && (
-                <Card className="w-full max-w-sm border-slate-700">
-                    <CardContent className="pt-4">
-                        <form onSubmit={handlePhoneSubmit} className="space-y-3">
-                            <div className="space-y-1">
-                                <Label htmlFor="phone" className="text-slate-300">Your phone number</Label>
+                <Card className="w-full max-w-sm">
+                    <CardContent className="pt-rn-4">
+                        <form onSubmit={handlePhoneSubmit} className="space-y-rn-3">
+                            <div className="space-y-rn-1">
+                                <Label htmlFor="phone" className="text-rn-text">Your phone number</Label>
                                 <Input
                                     id="phone"
                                     type="tel"
                                     placeholder="+47 900 00 000"
                                     value={phoneInput}
                                     onChange={e => setPhoneInput(e.target.value)}
-                                    className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                                     autoFocus
                                 />
                             </div>
                             <Button
                                 type="submit"
+                                size="lg"
                                 disabled={loading || !phoneInput.trim()}
                                 className="w-full"
                             >
@@ -269,7 +405,7 @@ export default function SelfCheckInScanner({ trackId }: Props) {
                                 )}
                             </Button>
                         </form>
-                        <p className="text-xs text-slate-500 text-center mt-3">
+                        <p className="rn-caption text-rn-text-subtle text-center mt-rn-3">
                             Enter the phone number you registered with
                         </p>
                     </CardContent>
@@ -278,8 +414,8 @@ export default function SelfCheckInScanner({ trackId }: Props) {
 
             {/* Loading overlay for QR mode */}
             {mode === 'qr' && loading && (
-                <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                <div className="flex items-center justify-center py-rn-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-rn-text-muted" />
                 </div>
             )}
         </div>

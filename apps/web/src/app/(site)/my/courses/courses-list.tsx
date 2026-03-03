@@ -11,8 +11,9 @@ import { CancelOrderButton } from '@/app/(site)/profile/cancel-order-button'
 import { AcceptOfferButton, DeclineOfferButton } from '@/app/(site)/profile/offer-buttons'
 import { formatDateShort, formatPrice, formatRelativeTime } from '@/lib/formatters'
 import { UI_TEXT } from '@/lib/i18n'
-import { EyeOff, Eye, TrendingUp, CheckCircle2, Award } from 'lucide-react'
+import { EyeOff, Eye, Award, BarChart3, ChevronDown } from 'lucide-react'
 import { CERTIFICATE_MIN_RATE, CERTIFICATE_MIN_SESSIONS } from '@/lib/attendance-certificate'
+import { AttendanceStatsCard } from '@/components/attendance-stats-card'
 
 type Registration = {
     id: string
@@ -37,12 +38,23 @@ type Ticket = {
 interface CoursesListProps {
     registrations: Registration[]
     tickets: Ticket[]
-    totalSessions: number
-    attendedSessions: number
 }
 
-export function CoursesList({ registrations, tickets, totalSessions, attendedSessions }: CoursesListProps) {
+export function CoursesList({ registrations, tickets }: CoursesListProps) {
     const [showCanceled, setShowCanceled] = useState(false)
+    const [expandedStats, setExpandedStats] = useState<Set<string>>(new Set())
+
+    const toggleStats = (regId: string) => {
+        setExpandedStats(prev => {
+            const next = new Set(prev)
+            if (next.has(regId)) {
+                next.delete(regId)
+            } else {
+                next.add(regId)
+            }
+            return next
+        })
+    }
 
     const inactiveStatuses = ['CANCELLED', 'REFUNDED']
     const hasInactive = registrations.some(r => inactiveStatuses.includes(r.status))
@@ -51,35 +63,8 @@ export function CoursesList({ registrations, tickets, totalSessions, attendedSes
         ? registrations
         : registrations.filter(r => !inactiveStatuses.includes(r.status))
 
-    const attendanceRate = totalSessions > 0
-        ? Math.round((attendedSessions / totalSessions) * 100)
-        : null
-
     return (
         <div className="space-y-rn-6">
-            {/* Attendance stats summary */}
-            {attendedSessions > 0 && (
-                <Card className="border-primary/20 bg-primary/5">
-                    <CardContent className="pt-4 pb-4">
-                        <div className="flex items-center gap-3">
-                            <TrendingUp className="h-5 w-5 text-primary shrink-0" />
-                            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                                <span className="flex items-center gap-1.5">
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                    <strong>{attendedSessions}</strong>
-                                    {attendedSessions === 1 ? ' session attended' : ' sessions attended'}
-                                </span>
-                                {attendanceRate !== null && (
-                                    <span className="text-muted-foreground">
-                                        {attendanceRate}% attendance rate across all active courses
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
             {/* Hide/show canceled toggle */}
             {hasInactive && (
                 <div className="flex justify-end">
@@ -141,15 +126,6 @@ export function CoursesList({ registrations, tickets, totalSessions, attendedSes
                                             <span>{UI_TEXT.courses.role}</span>
                                             <span>{reg.chosenRole}</span>
                                         </div>
-                                        {reg.status === 'ACTIVE' && attended > 0 && (
-                                            <div className="flex justify-between text-muted-foreground">
-                                                <span className="flex items-center gap-1">
-                                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                                                    Sessions attended
-                                                </span>
-                                                <span className="font-medium">{attended}</span>
-                                            </div>
-                                        )}
                                         {reg.Order && (
                                             <div className="flex justify-between border-t pt-2">
                                                 <span>{UI_TEXT.courses.totalPaid}</span>
@@ -194,6 +170,36 @@ export function CoursesList({ registrations, tickets, totalSessions, attendedSes
                                             }
                                             return null
                                         })()
+                                    )}
+
+                                    {/* Stats Toggle Button + Animated Panel */}
+                                    {reg.status === 'ACTIVE' && (
+                                        <div className="relative">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => toggleStats(reg.id)}
+                                                className="w-full gap-2 transition-colors"
+                                            >
+                                                <BarChart3 className="h-4 w-4" />
+                                                <span>Attendance Stats</span>
+                                                {attended > 0 && (
+                                                    <Badge variant="secondary" className="ml-1 text-xs">
+                                                        {attended} {attended === 1 ? 'session' : 'sessions'}
+                                                    </Badge>
+                                                )}
+                                                <ChevronDown className={`h-4 w-4 ml-auto transition-transform duration-300 ${expandedStats.has(reg.id) ? 'rotate-180' : ''}`} />
+                                            </Button>
+                                            
+                                            {/* Animated Stats Panel */}
+                                            <div 
+                                                className={`grid transition-all duration-300 ease-in-out ${expandedStats.has(reg.id) ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0'}`}
+                                            >
+                                                <div className="overflow-hidden">
+                                                    <AttendanceStatsCard registrationId={reg.id} />
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
 
                                     {/* Attendance Certificate */}

@@ -97,18 +97,38 @@ export async function POST(req: Request) {
             }
             personId = ticket.personId
         } else if (phone) {
-            const normalized = phone.replace(/[\s\-().\+]/g, '')
-            const person = await prisma.personProfile.findFirst({
-                where: { phone: { contains: normalized } },
-                select: { id: true }
+            // Normalize input phone to digits only (keep leading country code digits)
+            const normalizedInput = phone.replace(/[\s\-().\+]/g, '')
+            
+            // Find person by checking registrations for this track - more efficient than scanning all profiles
+            const trackRegistrations = await prisma.registration.findMany({
+                where: {
+                    trackId,
+                    status: 'ACTIVE',
+                    PersonProfile: { phone: { not: null } }
+                },
+                select: {
+                    id: true,
+                    PersonProfile: { select: { id: true, phone: true } }
+                }
             })
-            if (!person) {
+            
+            const matchingReg = trackRegistrations.find(r => {
+                if (!r.PersonProfile.phone) return false
+                const normalizedDb = r.PersonProfile.phone.replace(/[\s\-().\+]/g, '')
+                // Match if normalized values are equal, or if one ends with the other (for country code variations)
+                return normalizedDb === normalizedInput || 
+                       normalizedDb.endsWith(normalizedInput) || 
+                       normalizedInput.endsWith(normalizedDb)
+            })
+            
+            if (!matchingReg) {
                 return NextResponse.json({
                     valid: false,
-                    message: 'No participant found with that phone number'
+                    message: 'No active registration found for this track with that phone number'
                 })
             }
-            personId = person.id
+            personId = matchingReg.PersonProfile.id
         }
 
         if (!personId) {
@@ -206,6 +226,8 @@ export async function GET(req: Request) {
                 allowSelfCheckIn: true,
                 weekday: true,
                 timeStart: true,
+                checkInWindowBefore: true,
+                checkInWindowAfter: true,
                 CoursePeriod: { select: { name: true } }
             }
         })
@@ -220,7 +242,9 @@ export async function GET(req: Request) {
             periodName: track.CoursePeriod.name,
             allowSelfCheckIn: track.allowSelfCheckIn,
             weekday: track.weekday,
-            timeStart: track.timeStart
+            timeStart: track.timeStart,
+            checkInWindowBefore: track.checkInWindowBefore ?? 30,
+            checkInWindowAfter: track.checkInWindowAfter ?? 30
         })
     } catch (error) {
         console.error('Self check-in track lookup error:', error)

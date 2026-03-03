@@ -4,9 +4,7 @@
  * The check-in window is:
  *   [class start - checkInWindowBefore minutes] → [class start + checkInWindowAfter minutes]
  *
- * NOTE: `timeStart` is treated as if it's in UTC for simplicity. For Norwegian venues this
- * means the window is 1–2 hours off during daylight saving time. A future enhancement could
- * accept a timezone (e.g., 'Europe/Oslo') and use a proper IANA tz library.
+ * Times are calculated in local time for easy comparison.
  *
  * @returns null if within the window (OK to check in), or a descriptive message string if outside.
  */
@@ -24,14 +22,14 @@ export function validateCheckInWindow(
 
     const now = new Date()
 
-    // Compute class start as a Date on today's date in UTC
-    const classStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), startHour, startMin, 0))
+    // Compute class start as a Date on today's date in LOCAL time
+    const classStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMin, 0)
 
     const windowOpen = new Date(classStart.getTime() - windowBefore * 60 * 1000)
     const windowClose = new Date(classStart.getTime() + windowAfter * 60 * 1000)
 
     const fmtTime = (d: Date) =>
-        d.toISOString().slice(11, 16) // HH:MM in UTC
+        d.toTimeString().slice(0, 5) // HH:MM in local time
 
     if (now < windowOpen) {
         const minutesUntilOpen = Math.ceil((windowOpen.getTime() - now.getTime()) / 60000)

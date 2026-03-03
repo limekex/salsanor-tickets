@@ -5,18 +5,19 @@ import SelfCheckInScanner from './self-checkin-scanner'
 export default async function SelfCheckInPage({
     searchParams,
 }: {
-    searchParams: Promise<{ trackId?: string }>
+    searchParams: Promise<{ trackId?: string; override?: string }>
 }) {
-    const { trackId } = await searchParams
+    const { trackId, override } = await searchParams
+    const allowOverride = override === '1'
 
     if (!trackId) {
         return (
-            <div className="flex-1 flex items-center justify-center p-4">
-                <Card className="w-full max-w-sm border-slate-700">
-                    <CardContent className="pt-6 text-center space-y-2">
-                        <XCircle className="h-12 w-12 text-red-400 mx-auto" />
-                        <p className="text-slate-300">No course specified.</p>
-                        <p className="text-sm text-slate-500">
+            <div className="flex-1 flex items-center justify-center p-rn-4">
+                <Card className="w-full max-w-sm">
+                    <CardContent className="pt-rn-6 text-center space-y-rn-2">
+                        <XCircle className="h-12 w-12 text-rn-danger mx-auto" />
+                        <p className="text-rn-text font-medium">No course specified.</p>
+                        <p className="rn-meta text-rn-text-muted">
                             Please scan the QR code posted at the venue or ask your instructor for the link.
                         </p>
                     </CardContent>
@@ -25,5 +26,5 @@ export default async function SelfCheckInPage({
         )
     }
 
-    return <SelfCheckInScanner trackId={trackId} />
+    return <SelfCheckInScanner trackId={trackId} allowOverride={allowOverride} />
 }

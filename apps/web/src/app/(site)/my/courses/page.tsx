@@ -3,10 +3,15 @@ import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft, GraduationCap } from 'lucide-react'
+import { ArrowLeft, GraduationCap, TrendingUp, CheckCircle2, Info } from 'lucide-react'
 import { EmptyState } from '@/components'
 import { UI_TEXT, getCountText } from '@/lib/i18n'
 import { CoursesList } from './courses-list'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export default async function MyCoursesPage() {
   const supabase = await createClient()
@@ -29,7 +34,12 @@ export default async function MyCoursesPage() {
             include: {
               CourseTrack: true,
               CoursePeriod: true,
-              Order: true,
+              Order: {
+                select: {
+                  id: true,
+                  totalCents: true
+                }
+              },
               WaitlistEntry: true,
               Attendance: {
                 where: { cancelled: false },
@@ -54,15 +64,12 @@ export default async function MyCoursesPage() {
   const registrations = userAccount.PersonProfile.Registration || []
   const tickets = userAccount.PersonProfile.Ticket || []
 
-  // Compute overall attendance stats across all ACTIVE registrations
-  const activeRegistrations = registrations.filter(r => r.status === 'ACTIVE')
-  const attendedSessions = activeRegistrations.reduce((sum, r) => sum + r.Attendance.length, 0)
+  // Compute overall attendance stats across ALL registrations (all time)
+  const attendedSessions = registrations.reduce((sum, r) => sum + r.Attendance.length, 0)
 
-  // Estimate total available sessions: weeks between period start/end × active registrations
-  // We use the actual attendance count per period as a proxy; expose the raw attended count
-  // and let the UI calculate the rate if we have a total
+  // Estimate total available sessions: weeks between period start/end for each registration
   const today = new Date()
-  const totalSessions = activeRegistrations.reduce((sum, r) => {
+  const totalSessions = registrations.reduce((sum, r) => {
     const start = r.CoursePeriod.startDate
     const end = r.CoursePeriod.endDate > today ? today : r.CoursePeriod.endDate
     if (start >= end) return sum
@@ -89,11 +96,46 @@ export default async function MyCoursesPage() {
           </Button>
         </div>
 
-        <div className="mb-rn-6">
-          <h1 className="rn-h1">{UI_TEXT.courses.title}</h1>
-          <p className="rn-meta text-rn-text-muted">
-            {registrations.length} {getCountText(UI_TEXT.courses.singular, UI_TEXT.courses.plural, registrations.length)}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-rn-6">
+          <div>
+            <h1 className="rn-h1">{UI_TEXT.courses.title}</h1>
+            <p className="rn-meta text-rn-text-muted">
+              {registrations.length} {getCountText(UI_TEXT.courses.singular, UI_TEXT.courses.plural, registrations.length)}
+            </p>
+          </div>
+          
+          {/* Overall attendance stats */}
+          {attendedSessions > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-sm shrink-0">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                <strong>{attendedSessions}</strong>
+                <span className="text-muted-foreground">
+                  {attendedSessions === 1 ? 'session' : 'sessions'}
+                  {totalSessions > 0 && ` (${Math.round((attendedSessions / totalSessions) * 100)}%)`}
+                </span>
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="ml-1 p-0.5 rounded hover:bg-primary/10 transition-colors">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 p-3">
+                  <div className="space-y-2 text-xs">
+                    <p className="font-medium">Lifetime Attendance</p>
+                    <p className="text-muted-foreground">
+                      This shows the total number of course sessions you have checked into across all your courses — both current and past.
+                    </p>
+                    <p className="text-muted-foreground">
+                      The percentage is based on all sessions that have occurred since each period started.
+                    </p>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
 
         {/* Course Registrations List */}
@@ -108,8 +150,6 @@ export default async function MyCoursesPage() {
           <CoursesList
             registrations={mappedRegistrations}
             tickets={tickets}
-            totalSessions={totalSessions}
-            attendedSessions={attendedSessions}
           />
         )}
       </div>

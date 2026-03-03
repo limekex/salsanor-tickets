@@ -1,5 +1,5 @@
 import '@/app/globals.css'
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter } from "next/font/google"
 import Image from 'next/image'
 import type { Metadata } from 'next'
 
@@ -11,13 +11,8 @@ export const metadata: Metadata = {
     },
 }
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
+const inter = Inter({
+    variable: "--font-inter",
     subsets: ["latin"],
 });
 
@@ -27,19 +22,19 @@ export default function SelfCheckInLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en" className="dark" suppressHydrationWarning>
-            <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-50`} suppressHydrationWarning>
+        <html lang="en" suppressHydrationWarning>
+            <body className={`${inter.variable} font-sans antialiased bg-rn-bg text-rn-text`} suppressHydrationWarning>
                 <div className="min-h-screen flex flex-col">
-                    <header className="p-4 bg-slate-900 border-b border-slate-800 flex justify-center">
+                    <header className="p-rn-4 bg-rn-surface border-b border-rn-border flex justify-center">
                         <Image
-                            src="/logo-light.svg"
+                            src="/logo-dark.svg"
                             alt="RegiNor Self Check-in"
                             width={160}
                             height={36}
                             priority
                         />
                     </header>
-                    <main className="flex-1 flex flex-col">
+                    <main className="flex-1 flex flex-col bg-rn-bg">
                         {children}
                     </main>
                 </div>
