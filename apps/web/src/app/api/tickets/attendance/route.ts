@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { createClient } from '@/utils/supabase/server'
+import { validateCheckInWindow } from '@/lib/checkin-window'
 
 async function authorizeCheckinUser() {
     const supabase = await createClient()
@@ -142,6 +143,12 @@ export async function POST(req: Request) {
         }
 
         const sessionDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+
+        // Check-in window enforcement
+        const windowError = validateCheckInWindow(track.timeStart, track.checkInWindowBefore, track.checkInWindowAfter)
+        if (windowError) {
+            return NextResponse.json({ success: false, message: windowError, outsideWindow: true }, { status: 422 })
+        }
 
         // Check for active break week
         const activeBreak = await prisma.periodBreak.findFirst({

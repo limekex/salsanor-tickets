@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { createClient } from '@/utils/supabase/server'
+import { validateCheckInWindow } from '@/lib/checkin-window'
 
 export async function POST(req: Request) {
     // Authenticate user and check roles
@@ -211,6 +212,20 @@ export async function POST(req: Request) {
     // BREAK WEEK CHECK
     // ================================================================
     const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+
+    // ================================================================
+    // CHECK-IN WINDOW ENFORCEMENT (for self-check-in tracks)
+    // Staff/QR check-in also respects the window when configured
+    // ================================================================
+    const windowError = validateCheckInWindow(
+        track.timeStart,
+        track.checkInWindowBefore,
+        track.checkInWindowAfter
+    )
+    if (windowError) {
+        return NextResponse.json({ valid: false, message: windowError, outsideWindow: true })
+    }
+
     const activeBreak = await prisma.periodBreak.findFirst({
         where: {
             periodId: registration.periodId,

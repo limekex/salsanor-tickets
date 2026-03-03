@@ -31,9 +31,11 @@ import { useTransition } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ImageUpload } from '@/components/image-upload'
 import { LocationPicker } from '@/components/location-picker'
-import { ExternalLink, Clock, MapPin, Users, CreditCard, Image as ImageIcon } from 'lucide-react'
+import { ExternalLink, Clock, MapPin, Users, CreditCard, Image as ImageIcon, ScanLine } from 'lucide-react'
 import Link from 'next/link'
 import type { CourseTrack } from '@salsanor/database'
+
+const DEFAULT_CHECK_IN_WINDOW = 30 // minutes
 
 interface StaffTrackFormProps {
     periodId: string
@@ -81,6 +83,9 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
             capacityFollowers: track.capacityFollowers || undefined,
             rolePolicy: track.rolePolicy,
             waitlistEnabled: track.waitlistEnabled,
+            allowSelfCheckIn: track.allowSelfCheckIn,
+            checkInWindowBefore: track.checkInWindowBefore ?? DEFAULT_CHECK_IN_WINDOW,
+            checkInWindowAfter: track.checkInWindowAfter ?? DEFAULT_CHECK_IN_WINDOW,
             priceSingleCents: track.priceSingleCents,
             pricePairCents: track.pricePairCents || undefined,
             memberPriceSingleCents: track.memberPriceSingleCents || undefined,
@@ -103,6 +108,9 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
             capacityFollowers: 10,
             rolePolicy: 'ANY',
             waitlistEnabled: true,
+            allowSelfCheckIn: false,
+            checkInWindowBefore: DEFAULT_CHECK_IN_WINDOW,
+            checkInWindowAfter: DEFAULT_CHECK_IN_WINDOW,
             priceSingleCents: 20000,
             pricePairCents: 35000,
             memberPriceSingleCents: undefined,
@@ -147,6 +155,9 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
         if (data.capacityFollowers) formData.append('capacityFollowers', data.capacityFollowers.toString())
         formData.append('rolePolicy', data.rolePolicy)
         if (data.waitlistEnabled) formData.append('waitlistEnabled', 'on')
+        if (data.allowSelfCheckIn) formData.append('allowSelfCheckIn', 'on')
+        if (data.checkInWindowBefore !== undefined) formData.append('checkInWindowBefore', data.checkInWindowBefore.toString())
+        if (data.checkInWindowAfter !== undefined) formData.append('checkInWindowAfter', data.checkInWindowAfter.toString())
         // Pricing
         formData.append('priceSingleCents', data.priceSingleCents.toString())
         if (data.pricePairCents) formData.append('pricePairCents', data.pricePairCents.toString())
@@ -418,6 +429,91 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                                 </FormItem>
                             )}
                         />
+                    </CardContent>
+                </Card>
+
+                {/* Self Check-in Section */}
+                <Card>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <ScanLine className="h-5 w-5" />
+                            Self Check-in
+                        </CardTitle>
+                        <CardDescription>Allow participants to check themselves in using a QR code or phone number</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="allowSelfCheckIn"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className="flex items-center gap-3">
+                                        <FormControl>
+                                            <input
+                                                type="checkbox"
+                                                id="allowSelfCheckIn"
+                                                checked={field.value}
+                                                onChange={field.onChange}
+                                                className="h-4 w-4 cursor-pointer"
+                                            />
+                                        </FormControl>
+                                        <FormLabel htmlFor="allowSelfCheckIn" className="cursor-pointer font-normal">
+                                            Enable self check-in for participants
+                                        </FormLabel>
+                                    </div>
+                                    <FormDescription>
+                                        When enabled, a public check-in page (<code>/selfcheckin?trackId=…</code>) lets participants scan their ticket QR or enter their phone number.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        {form.watch('allowSelfCheckIn') && (
+                            <div className="grid grid-cols-2 gap-4 pl-7">
+                                <FormField
+                                    control={form.control}
+                                    name="checkInWindowBefore"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Minutes before class</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={240}
+                                                    {...field}
+                                                    value={field.value ?? DEFAULT_CHECK_IN_WINDOW}
+                                                    onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : DEFAULT_CHECK_IN_WINDOW)}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>How early check-in opens (default: {DEFAULT_CHECK_IN_WINDOW})</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="checkInWindowAfter"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Minutes after class starts</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={240}
+                                                    {...field}
+                                                    value={field.value ?? DEFAULT_CHECK_IN_WINDOW}
+                                                    onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : DEFAULT_CHECK_IN_WINDOW)}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>How late check-in stays open (default: {DEFAULT_CHECK_IN_WINDOW})</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

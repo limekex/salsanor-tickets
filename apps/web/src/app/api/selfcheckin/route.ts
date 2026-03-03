@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { validateCheckInWindow } from '@/lib/checkin-window'
 
 /**
  * POST /api/selfcheckin
@@ -59,6 +60,12 @@ export async function POST(req: Request) {
         }
 
         const sessionDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+
+        // Check-in window enforcement
+        const windowError = validateCheckInWindow(track.timeStart, track.checkInWindowBefore, track.checkInWindowAfter)
+        if (windowError) {
+            return NextResponse.json({ valid: false, message: windowError, outsideWindow: true })
+        }
 
         // Break week check
         const activeBreak = await prisma.periodBreak.findFirst({
