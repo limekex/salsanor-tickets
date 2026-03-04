@@ -178,6 +178,12 @@ export default function ConversionTrackingDoc() {
                         <code className="block text-xs bg-rn-surface rounded p-3 break-all">
                             utm_source=facebook&amp;utm_medium=paid_social&amp;utm_campaign=&#123;&#123;campaign.name&#125;&#125;&amp;utm_content=&#123;&#123;ad.name&#125;&#125;
                         </code>
+                        <p className="text-xs text-rn-text-muted mt-2">
+                            The <code className="bg-rn-surface px-1 rounded">&#123;&#123; &#125;&#125;</code> placeholders are
+                            Meta's dynamic parameter syntax — the ad platform replaces them automatically
+                            with the actual campaign and ad names at the time each ad is served.
+                            You type them literally in the Meta Ads Manager URL parameters field.
+                        </p>
                     </CardContent>
                 </Card>
 
