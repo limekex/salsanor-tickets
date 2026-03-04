@@ -1,32 +1,71 @@
-'use client'
+import { prisma } from '@/lib/db'
+import { SuccessClient } from './success-client'
 
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
-import { CheckCircle2 } from 'lucide-react'
-import { useCart } from '@/hooks/use-cart'
-import { useEffect } from 'react'
+interface Props {
+    searchParams: Promise<{ orderId?: string }>
+}
 
-export default function SuccessPage() {
-    const { clearCart } = useCart()
-    
-    // Clear cart on successful payment (only once on mount)
-    useEffect(() => {
-        clearCart()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-    
-    return (
-        <main className="container max-w-md mx-auto py-rn-20 px-rn-4 text-center space-y-rn-6">
-            <div className="flex justify-center text-rn-success">
-                <CheckCircle2 className="h-16 w-16" />
-            </div>
-            <h1 className="rn-h1">Payment Successful!</h1>
-            <p className="rn-meta text-rn-text-muted">
-                Thank you for your registration. You can now view your active courses and tickets in your profile.
-            </p>
-            <Button asChild size="lg">
-                <Link href="/my">Go to My page</Link>
-            </Button>
-        </main>
-    )
+/**
+ * Success page – server component.
+ *
+ * Fetches the organizer's tracking IDs and the order value so that the
+ * client component can fire the appropriate conversion pixels (GA4, Meta
+ * Pixel, Google Ads).
+ */
+export default async function SuccessPage({ searchParams }: Props) {
+    const { orderId } = await searchParams
+
+    let trackingData: {
+        googleAnalyticsId: string | null
+        facebookPixelId: string | null
+        googleAdsConversionId: string | null
+        googleAdsConversionLabel: string | null
+        orderValueNOK: number
+        currency: string
+        utmSource: string | null
+        utmMedium: string | null
+        utmCampaign: string | null
+    } | null = null
+
+    if (orderId) {
+        try {
+            const order = await prisma.order.findUnique({
+                where: { id: orderId },
+                select: {
+                    totalCents: true,
+                    currency: true,
+                    utmSource: true,
+                    utmMedium: true,
+                    utmCampaign: true,
+                    Organizer: {
+                        select: {
+                            googleAnalyticsId: true,
+                            facebookPixelId: true,
+                            googleAdsConversionId: true,
+                            googleAdsConversionLabel: true,
+                        },
+                    },
+                },
+            })
+
+            if (order) {
+                trackingData = {
+                    googleAnalyticsId: order.Organizer.googleAnalyticsId,
+                    facebookPixelId: order.Organizer.facebookPixelId,
+                    googleAdsConversionId: order.Organizer.googleAdsConversionId,
+                    googleAdsConversionLabel: order.Organizer.googleAdsConversionLabel,
+                    // Convert øre → NOK for pixel values
+                    orderValueNOK: order.totalCents / 100,
+                    currency: order.currency,
+                    utmSource: order.utmSource,
+                    utmMedium: order.utmMedium,
+                    utmCampaign: order.utmCampaign,
+                }
+            }
+        } catch {
+            // Non-critical – proceed without tracking data
+        }
+    }
+
+    return <SuccessClient orderId={orderId} trackingData={trackingData} />
 }

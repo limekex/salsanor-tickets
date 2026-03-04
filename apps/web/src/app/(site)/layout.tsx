@@ -7,6 +7,8 @@ import { OnboardingCheck } from "@/components/onboarding-check";
 import { Toaster } from "sonner";
 import { PublicNav } from "@/components/public-nav";
 import { CartProvider } from "@/contexts/cart-context";
+import { Suspense } from "react";
+import { UtmCapture } from "@/components/utm-capture";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -65,6 +67,9 @@ export default async function RootLayout({
       >
         <CartProvider>
           <OnboardingCheck needsOnboarding={needsOnboarding} />
+          <Suspense fallback={null}>
+            <UtmCapture />
+          </Suspense>
           <PublicNav />
           {children}
           <Toaster position="top-right" richColors />

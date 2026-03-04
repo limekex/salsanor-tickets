@@ -45,6 +45,11 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
     const mvaRate = formData.get('mvaRate') ? Number(formData.get('mvaRate')) : 0
     const bankAccount = formData.get('bankAccount') as string
     const orderPrefix = formData.get('orderPrefix') as string
+    // Conversion tracking fields (analytics platform IDs)
+    const googleAnalyticsId = formData.get('googleAnalyticsId') as string | null
+    const facebookPixelId = formData.get('facebookPixelId') as string | null
+    const googleAdsConversionId = formData.get('googleAdsConversionId') as string | null
+    const googleAdsConversionLabel = formData.get('googleAdsConversionLabel') as string | null
 
     if (!name || name.trim().length === 0) {
         return { error: { name: ['Name is required'] } }
@@ -99,6 +104,10 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
                 mvaRate,
                 bankAccount: bankAccount?.trim() || null,
                 orderPrefix: orderPrefix?.trim() || 'ORD',
+                googleAnalyticsId: googleAnalyticsId?.trim() || null,
+                facebookPixelId: facebookPixelId?.trim() || null,
+                googleAdsConversionId: googleAdsConversionId?.trim() || null,
+                googleAdsConversionLabel: googleAdsConversionLabel?.trim() || null,
             }
         })
 
