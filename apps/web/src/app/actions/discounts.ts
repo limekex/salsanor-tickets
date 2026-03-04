@@ -77,9 +77,13 @@ export async function getDiscountRules(periodId: string) {
 export async function createDiscountRuleForOrganizer(prevState: any, formData: FormData): Promise<{ error?: ActionError } | undefined> {
     const { userAccount } = await requireOrganizerAccess()
 
-    // Get user's organizerId from their ORG_ADMIN role
-    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER')
-    if (!orgAdminRole?.organizerId) {
+    // Get all organizer IDs the user has ORG_ADMIN/ORGANIZER access to
+    const orgAdminOrgIds = userAccount.UserAccountRole
+        .filter(r => r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER')
+        .map(r => r.organizerId)
+        .filter((id): id is string => id !== null)
+        
+    if (orgAdminOrgIds.length === 0) {
         return { error: { _form: ['No organizer access found'] } }
     }
 
@@ -108,11 +112,11 @@ export async function createDiscountRuleForOrganizer(prevState: any, formData: F
         return { error: result.error.flatten().fieldErrors }
     }
 
-    // Verify period belongs to user's organization
+    // Verify period belongs to one of user's organizations
     const period = await prisma.coursePeriod.findFirst({
         where: {
             id: result.data.periodId,
-            organizerId: orgAdminRole.organizerId
+            organizerId: { in: orgAdminOrgIds }
         }
     })
 
@@ -144,9 +148,13 @@ export async function createDiscountRuleForOrganizer(prevState: any, formData: F
 export async function updateDiscountRuleForOrganizer(prevState: any, formData: FormData): Promise<{ error?: ActionError } | undefined> {
     const { userAccount } = await requireOrganizerAccess()
 
-    // Get user's organizerId from their ORG_ADMIN role
-    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER')
-    if (!orgAdminRole?.organizerId) {
+    // Get all organizer IDs the user has ORG_ADMIN/ORGANIZER access to
+    const orgAdminOrgIds = userAccount.UserAccountRole
+        .filter(r => r.role === 'ORG_ADMIN' || r.role === 'ORGANIZER')
+        .map(r => r.organizerId)
+        .filter((id): id is string => id !== null)
+        
+    if (orgAdminOrgIds.length === 0) {
         return { error: { _form: ['No organizer access found'] } }
     }
 
@@ -180,13 +188,13 @@ export async function updateDiscountRuleForOrganizer(prevState: any, formData: F
         return { error: result.error.flatten().fieldErrors }
     }
 
-    // Verify rule and period belong to user's organization
+    // Verify rule and period belong to one of user's organizations
     const rule = await prisma.discountRule.findUnique({
         where: { id: ruleId },
         include: { CoursePeriod: true }
     })
 
-    if (!rule || rule.CoursePeriod.organizerId !== orgAdminRole.organizerId) {
+    if (!rule || !orgAdminOrgIds.includes(rule.CoursePeriod.organizerId)) {
         return { error: { _form: ['Rule not found or access denied'] } }
     }
 
