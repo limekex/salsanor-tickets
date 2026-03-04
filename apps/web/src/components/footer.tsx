@@ -1,7 +1,23 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
+import { useUser } from '@/hooks'
 
 export function Footer() {
+  const { user, isGlobalAdmin, isOrgAdmin, hasRole } = useUser()
+
+  // Show docs link to anyone with an elevated role (not plain participants)
+  const showDocs = user && (
+    isGlobalAdmin() ||
+    isOrgAdmin() ||
+    hasRole('ORG_FINANCE') ||
+    hasRole('ORG_CHECKIN') ||
+    hasRole('INSTRUCTOR') ||
+    hasRole('STAFF') ||
+    hasRole('CHECKIN')
+  )
+
   return (
     <footer className="border-t border-rn-border bg-white">
       <div className="container mx-auto px-rn-4 py-rn-8">
@@ -56,6 +72,13 @@ export function Footer() {
                   Staff Admin
                 </Link>
               </li>
+              {showDocs && (
+                <li>
+                  <Link href="/docs" className="hover:text-rn-text transition-colors">
+                    Documentation
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 
@@ -81,3 +104,4 @@ export function Footer() {
     </footer>
   )
 }
+
