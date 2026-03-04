@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft, MousePointerClick, TrendingUp, ExternalLink } from 'lucide-react'
+import { ArrowLeft, TrendingUp, ShoppingCart } from 'lucide-react'
 import {
     Table,
     TableBody,
@@ -54,7 +54,6 @@ export default async function ConversionAnalyticsPage({
         redirect('/staffadmin')
     }
 
-    // Determine which organizer to show
     const orgId =
         organizerId ??
         userAccount.UserAccountRole.find((r) => r.organizerId)?.organizerId
@@ -82,38 +81,58 @@ export default async function ConversionAnalyticsPage({
     const since = new Date()
     since.setDate(since.getDate() - days)
 
-    const events = await prisma.conversionEvent.findMany({
-        where: { organizerId: orgId, createdAt: { gte: since } },
+    // Fetch paid orders with UTM data
+    const orders = await prisma.order.findMany({
+        where: {
+            organizerId: orgId,
+            status: 'PAID',
+            createdAt: { gte: since },
+        },
+        select: {
+            id: true,
+            orderNumber: true,
+            totalCents: true,
+            currency: true,
+            utmSource: true,
+            utmMedium: true,
+            utmCampaign: true,
+            utmContent: true,
+            utmTerm: true,
+            utmReferrer: true,
+            createdAt: true,
+        },
         orderBy: { createdAt: 'desc' },
-        take: 200,
     })
 
-    const clicks = events.filter((e) => e.eventType === 'OUTBOUND_CLICK')
-    const conversions = events.filter((e) => e.eventType === 'CONVERSION')
+    const totalRevenue = orders.reduce((sum, o) => sum + o.totalCents, 0)
+    const ordersWithUtm = orders.filter((o) => o.utmSource)
 
-    const convertedSessions = new Set(
-        conversions.map((c) => c.sessionId).filter(Boolean)
-    )
-    const correlatedCount = clicks.filter(
-        (c) => c.sessionId && convertedSessions.has(c.sessionId)
-    ).length
+    // Aggregate by UTM source
+    const sourceBreakdown: Record<string, { count: number; revenueCents: number }> = {}
+    for (const order of orders) {
+        const key = order.utmSource ?? '(direct / unknown)'
+        if (!sourceBreakdown[key]) sourceBreakdown[key] = { count: 0, revenueCents: 0 }
+        sourceBreakdown[key].count++
+        sourceBreakdown[key].revenueCents += order.totalCents
+    }
 
-    const conversionRate =
-        clicks.length > 0
-            ? Math.round((correlatedCount / clicks.length) * 10000) / 100
-            : 0
-
-    // UTM source breakdown
-    const utmBreakdown: Record<string, number> = {}
-    for (const click of clicks) {
-        const key = click.utmSource ?? '(direct)'
-        utmBreakdown[key] = (utmBreakdown[key] ?? 0) + 1
+    // Aggregate by campaign
+    const campaignBreakdown: Record<string, { count: number; revenueCents: number }> = {}
+    for (const order of orders.filter((o) => o.utmCampaign)) {
+        const key = order.utmCampaign!
+        if (!campaignBreakdown[key]) campaignBreakdown[key] = { count: 0, revenueCents: 0 }
+        campaignBreakdown[key].count++
+        campaignBreakdown[key].revenueCents += order.totalCents
     }
 
     const trackingConfigured =
         organizer.googleAnalyticsId ||
         organizer.facebookPixelId ||
         organizer.googleAdsConversionId
+
+    function formatNOK(cents: number) {
+        return `${(cents / 100).toLocaleString('nb-NO', { minimumFractionDigits: 0 })} NOK`
+    }
 
     return (
         <div className="space-y-rn-6">
@@ -156,7 +175,8 @@ export default async function ConversionAnalyticsPage({
                                 Organization Settings
                             </Link>{' '}
                             → <strong>Conversion Tracking</strong> to add your Google Analytics,
-                            Facebook Pixel, or Google Ads IDs.
+                            Facebook Pixel, or Google Ads IDs. These are needed so RegiNor can fire
+                            the conversion events when buyers complete their purchase.
                         </p>
                     </CardContent>
                 </Card>
@@ -167,14 +187,14 @@ export default async function ConversionAnalyticsPage({
                 <Card>
                     <CardHeader className="pb-rn-2">
                         <CardTitle className="rn-meta text-rn-text-muted flex items-center gap-2">
-                            <MousePointerClick className="h-4 w-4" />
-                            Outbound Clicks
+                            <ShoppingCart className="h-4 w-4" />
+                            Paid Orders
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="rn-h1">{clicks.length}</div>
+                        <div className="rn-h1">{orders.length}</div>
                         <p className="rn-caption text-rn-text-muted mt-1">
-                            Sign-up button clicks tracked
+                            {formatNOK(totalRevenue)} total
                         </p>
                     </CardContent>
                 </Card>
@@ -183,13 +203,15 @@ export default async function ConversionAnalyticsPage({
                     <CardHeader className="pb-rn-2">
                         <CardTitle className="rn-meta text-rn-text-muted flex items-center gap-2">
                             <TrendingUp className="h-4 w-4" />
-                            Conversions
+                            Orders with UTM
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="rn-h1">{conversions.length}</div>
+                        <div className="rn-h1">{ordersWithUtm.length}</div>
                         <p className="rn-caption text-rn-text-muted mt-1">
-                            Confirmed via webhook ({correlatedCount} correlated)
+                            {orders.length > 0
+                                ? `${Math.round((ordersWithUtm.length / orders.length) * 100)}% attributed`
+                                : 'no orders yet'}
                         </p>
                     </CardContent>
                 </Card>
@@ -197,40 +219,44 @@ export default async function ConversionAnalyticsPage({
                 <Card>
                     <CardHeader className="pb-rn-2">
                         <CardTitle className="rn-meta text-rn-text-muted">
-                            Conversion Rate
+                            Attributed Revenue
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="rn-h1">{conversionRate}%</div>
-                        <p className="rn-caption text-rn-text-muted mt-1">
-                            Correlated conversions / clicks
-                        </p>
+                        <div className="rn-h1">
+                            {formatNOK(ordersWithUtm.reduce((s, o) => s + o.totalCents, 0))}
+                        </div>
+                        <p className="rn-caption text-rn-text-muted mt-1">from tracked sources</p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* UTM breakdown */}
-            {Object.keys(utmBreakdown).length > 0 && (
+            {/* Source breakdown */}
+            {Object.keys(sourceBreakdown).length > 0 && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Traffic Sources (UTM)</CardTitle>
-                        <CardDescription>Outbound clicks by utm_source</CardDescription>
+                        <CardTitle>Orders by Traffic Source (utm_source)</CardTitle>
+                        <CardDescription>Paid orders grouped by the utm_source captured on arrival</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Source</TableHead>
-                                    <TableHead className="text-right">Clicks</TableHead>
+                                    <TableHead className="text-right">Orders</TableHead>
+                                    <TableHead className="text-right">Revenue</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {Object.entries(utmBreakdown)
-                                    .sort((a, b) => b[1] - a[1])
-                                    .map(([source, count]) => (
+                                {Object.entries(sourceBreakdown)
+                                    .sort((a, b) => b[1].revenueCents - a[1].revenueCents)
+                                    .map(([source, data]) => (
                                         <TableRow key={source}>
                                             <TableCell>{source}</TableCell>
-                                            <TableCell className="text-right">{count}</TableCell>
+                                            <TableCell className="text-right">{data.count}</TableCell>
+                                            <TableCell className="text-right">
+                                                {formatNOK(data.revenueCents)}
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                             </TableBody>
@@ -239,60 +265,86 @@ export default async function ConversionAnalyticsPage({
                 </Card>
             )}
 
-            {/* Recent events */}
+            {/* Campaign breakdown */}
+            {Object.keys(campaignBreakdown).length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Orders by Campaign (utm_campaign)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Campaign</TableHead>
+                                    <TableHead className="text-right">Orders</TableHead>
+                                    <TableHead className="text-right">Revenue</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {Object.entries(campaignBreakdown)
+                                    .sort((a, b) => b[1].revenueCents - a[1].revenueCents)
+                                    .map(([campaign, data]) => (
+                                        <TableRow key={campaign}>
+                                            <TableCell>{campaign}</TableCell>
+                                            <TableCell className="text-right">{data.count}</TableCell>
+                                            <TableCell className="text-right">
+                                                {formatNOK(data.revenueCents)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Recent orders */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Recent Events</CardTitle>
-                    <CardDescription>Latest 200 tracking events</CardDescription>
+                    <CardTitle>Recent Paid Orders</CardTitle>
+                    <CardDescription>Latest orders with UTM attribution data</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {events.length === 0 ? (
+                    {orders.length === 0 ? (
                         <p className="text-sm text-muted-foreground py-4 text-center">
-                            No events recorded in the last {days} days. Use the outbound
-                            tracking link on your landing page to start collecting data.
+                            No paid orders in the last {days} days.
                         </p>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Type</TableHead>
+                                    <TableHead>Order</TableHead>
                                     <TableHead>Source</TableHead>
+                                    <TableHead>Medium</TableHead>
                                     <TableHead>Campaign</TableHead>
-                                    <TableHead>Destination</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
                                     <TableHead>Date</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {events.map((event) => (
-                                    <TableRow key={event.id}>
-                                        <TableCell>
-                                            {event.eventType === 'OUTBOUND_CLICK' ? (
-                                                <Badge variant="outline">Click</Badge>
+                                {orders.slice(0, 50).map((order) => (
+                                    <TableRow key={order.id}>
+                                        <TableCell className="font-mono text-xs">
+                                            {order.orderNumber ?? order.id.slice(0, 8)}
+                                        </TableCell>
+                                        <TableCell className="text-sm">
+                                            {order.utmSource ? (
+                                                <Badge variant="outline">{order.utmSource}</Badge>
                                             ) : (
-                                                <Badge variant="success">Conversion</Badge>
+                                                <span className="text-muted-foreground">—</span>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-sm">
-                                            {event.utmSource ?? '—'}
+                                            {order.utmMedium ?? '—'}
                                         </TableCell>
                                         <TableCell className="text-sm">
-                                            {event.utmCampaign ?? '—'}
+                                            {order.utmCampaign ?? '—'}
                                         </TableCell>
-                                        <TableCell className="text-sm max-w-xs truncate">
-                                            {event.externalUrl ? (
-                                                <span className="flex items-center gap-1">
-                                                    <ExternalLink className="h-3 w-3 shrink-0" />
-                                                    <span className="truncate">{event.externalUrl}</span>
-                                                </span>
-                                            ) : (
-                                                '—'
-                                            )}
+                                        <TableCell className="text-right text-sm">
+                                            {formatNOK(order.totalCents)}
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                                            {event.createdAt.toLocaleString('nb-NO', {
-                                                dateStyle: 'short',
-                                                timeStyle: 'short',
-                                            })}
+                                            {order.createdAt.toLocaleDateString('nb-NO')}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -302,37 +354,49 @@ export default async function ConversionAnalyticsPage({
                 </CardContent>
             </Card>
 
-            {/* Setup guide */}
+            {/* How it works */}
             <Card>
                 <CardHeader>
-                    <CardTitle>How to Set Up Cross-Domain Tracking</CardTitle>
+                    <CardTitle>How Conversion Tracking Works</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                    <ol className="list-decimal list-inside space-y-3 text-muted-foreground">
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                    <p>
+                        The full funnel is:{' '}
+                        <strong className="text-foreground">Ad platform</strong> (Google / Meta){' '}
+                        →{' '}
+                        <strong className="text-foreground">Your website</strong>{' '}
+                        →{' '}
+                        <strong className="text-foreground">RegiNor registration page</strong>{' '}
+                        →{' '}
+                        <strong className="text-foreground">Payment = Conversion</strong>
+                    </p>
+                    <ol className="list-decimal list-inside space-y-2">
                         <li>
-                            <strong className="text-foreground">Replace sign-up links</strong>{' '}
-                            on your landing page (salsanor.no) with the RegiNor tracking URL:
-                            <pre className="mt-1 bg-muted p-2 rounded text-xs overflow-x-auto">
-                                {`/api/track/outbound?url=https://www.letsreg.com/…&organizerId=${orgId}&utm_source=google&utm_medium=cpc&utm_campaign=salsa-spring`}
-                            </pre>
+                            Create an ad on Google or Meta that points to a page on{' '}
+                            <strong className="text-foreground">your own website</strong> with UTM
+                            parameters (e.g.{' '}
+                            <code className="bg-muted px-1 rounded text-xs">
+                                https://salsanor.no/courses?utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=salsa-spring
+                            </code>
+                            ).
                         </li>
                         <li>
-                            <strong className="text-foreground">Forward the session ID</strong>{' '}
-                            – the redirect appends <code>_rn_session=&lt;uuid&gt;</code> to
-                            the destination URL. Configure letsreg (or your ticketing
-                            platform) to echo this parameter back when a booking completes.
+                            On your website, the "Register" link should forward the UTM parameters
+                            to RegiNor (e.g.{' '}
+                            <code className="bg-muted px-1 rounded text-xs">
+                                https://reginor.no/org/{organizer.slug}/courses?utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=salsa-spring
+                            </code>
+                            ). You can do this with a simple JavaScript snippet or by keeping the
+                            UTM params in your static links.
                         </li>
                         <li>
-                            <strong className="text-foreground">Send a conversion webhook</strong>{' '}
-                            from your ticketing platform to:
-                            <pre className="mt-1 bg-muted p-2 rounded text-xs overflow-x-auto">
-                                {`POST https://app.reginor.no/api/track/conversion\nContent-Type: application/json\nX-RegiNor-Signature: sha256=<hmac>\n\n{"organizerId":"${orgId}","sessionId":"<_rn_session value>","value":599,"currency":"NOK"}`}
-                            </pre>
+                            When the buyer lands on RegiNor with UTM parameters, they are
+                            automatically stored in a browser cookie.
                         </li>
                         <li>
-                            <strong className="text-foreground">Add your tracking IDs</strong>{' '}
-                            in Organization Settings → Conversion Tracking so the platform
-                            can fire GA4 / Meta Pixel / Google Ads events on your behalf.
+                            When the buyer completes checkout, the UTM data is saved on the Order
+                            (visible in this report) and conversion events are fired to the
+                            tracking platforms you configured above.
                         </li>
                     </ol>
                 </CardContent>

@@ -486,6 +486,13 @@ model Order {
   stripeChargeId             String?
   stripeTransactionId        String?
   organizerId                String
+  // UTM attribution – captured when the buyer first lands on our platform
+  utmSource                  String?
+  utmMedium                  String?
+  utmCampaign                String?
+  utmContent                 String?
+  utmTerm                    String?
+  utmReferrer                String?
   CreditNote                 CreditNote[]
   EventRegistration          EventRegistration[]
   Invoice                    Invoice?
@@ -498,6 +505,7 @@ model Order {
 
   @@index([organizerId, status])
   @@index([periodId, status])
+  @@index([organizerId, utmSource])
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -544,15 +552,13 @@ model Organizer {
   nextMemberNumber         Int               @default(1)
   platformFeeFixed         Int?
   platformFeePercent       Decimal?
-  // Conversion tracking
+  // Conversion tracking – organizer's analytics/ad-platform IDs
   googleAnalyticsId        String?           // GA4 Measurement ID (e.g. G-XXXXXXXXXX)
   facebookPixelId          String?           // Meta/Facebook Pixel ID
-  googleAdsConversionId    String?           // Google Ads Conversion tracking ID
+  googleAdsConversionId    String?           // Google Ads Conversion tracking ID (AW-XXXXXXXXX)
   googleAdsConversionLabel String?           // Google Ads Conversion label
-  conversionWebhookSecret  String?           // HMAC secret for verifying conversion webhooks
   AuditLog                 AuditLog[]
   CoursePeriod             CoursePeriod[]
-  ConversionEvent          ConversionEvent[]
   CreditNote               CreditNote[]
   EmailLog                 EmailLog[]
   EmailSettings            EmailSettings?
@@ -567,27 +573,6 @@ model Organizer {
   UserInvitation           UserInvitation[]
 
   @@index([slug])
-}
-
-model ConversionEvent {
-  id          String              @id @default(uuid())
-  organizerId String
-  eventType   ConversionEventType
-  sessionId   String?             // Opaque token linking click → conversion
-  externalUrl String?             // Destination URL that was clicked
-  utmSource   String?
-  utmMedium   String?
-  utmCampaign String?
-  utmContent  String?
-  utmTerm     String?
-  referrer    String?
-  metadata    Json?               // Additional data (e.g. order value from webhook)
-  createdAt   DateTime            @default(now())
-  Organizer   Organizer           @relation(fields: [organizerId], references: [id])
-
-  @@index([organizerId, createdAt])
-  @@index([sessionId])
-  @@index([eventType, organizerId])
 }
 
 model PairGroup {
@@ -1005,9 +990,4 @@ enum PdfTemplateType {
   INVOICE
   MEMBERSHIP_CARD
   CREDIT_NOTE
-}
-
-enum ConversionEventType {
-  OUTBOUND_CLICK  // User clicked an external sign-up/registration link
-  CONVERSION      // External service confirmed a completed registration/purchase
 }

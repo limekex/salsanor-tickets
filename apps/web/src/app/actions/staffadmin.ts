@@ -45,12 +45,11 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
     const mvaRate = formData.get('mvaRate') ? Number(formData.get('mvaRate')) : 0
     const bankAccount = formData.get('bankAccount') as string
     const orderPrefix = formData.get('orderPrefix') as string
-    // Conversion tracking fields
+    // Conversion tracking fields (analytics platform IDs)
     const googleAnalyticsId = formData.get('googleAnalyticsId') as string | null
     const facebookPixelId = formData.get('facebookPixelId') as string | null
     const googleAdsConversionId = formData.get('googleAdsConversionId') as string | null
     const googleAdsConversionLabel = formData.get('googleAdsConversionLabel') as string | null
-    const conversionWebhookSecret = formData.get('conversionWebhookSecret') as string | null
 
     if (!name || name.trim().length === 0) {
         return { error: { name: ['Name is required'] } }
@@ -109,10 +108,6 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
                 facebookPixelId: facebookPixelId?.trim() || null,
                 googleAdsConversionId: googleAdsConversionId?.trim() || null,
                 googleAdsConversionLabel: googleAdsConversionLabel?.trim() || null,
-                // Only overwrite the secret if a new non-empty value was provided
-                ...(conversionWebhookSecret?.trim()
-                    ? { conversionWebhookSecret: conversionWebhookSecret.trim() }
-                    : {}),
             }
         })
 

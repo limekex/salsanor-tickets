@@ -5,8 +5,9 @@ import { createClient } from '@/utils/supabase/server'
 /**
  * GET /api/staffadmin/analytics/conversions?organizerId=<id>&days=30
  *
- * Returns aggregated conversion tracking data for an organizer.
- * Requires the caller to be authenticated as ORG_ADMIN for the given organizer.
+ * Returns aggregated UTM attribution data for paid orders belonging to an
+ * organizer. Requires the caller to be authenticated as ORG_ADMIN (or global
+ * ADMIN) for the given organizer.
  */
 export async function GET(request: NextRequest) {
     const supabase = await createClient()
@@ -48,55 +49,49 @@ export async function GET(request: NextRequest) {
     const since = new Date()
     since.setDate(since.getDate() - days)
 
-    const events = await prisma.conversionEvent.findMany({
+    const orders = await prisma.order.findMany({
         where: {
             organizerId,
+            status: 'PAID',
             createdAt: { gte: since },
         },
-        orderBy: { createdAt: 'asc' },
         select: {
             id: true,
-            eventType: true,
-            sessionId: true,
+            orderNumber: true,
+            totalCents: true,
+            currency: true,
             utmSource: true,
             utmMedium: true,
             utmCampaign: true,
-            externalUrl: true,
-            metadata: true,
+            utmContent: true,
+            utmTerm: true,
+            utmReferrer: true,
             createdAt: true,
         },
+        orderBy: { createdAt: 'desc' },
     })
 
-    const clicks = events.filter((e) => e.eventType === 'OUTBOUND_CLICK')
-    const conversions = events.filter((e) => e.eventType === 'CONVERSION')
+    const totalRevenue = orders.reduce((sum, o) => sum + o.totalCents, 0)
+    const ordersWithUtm = orders.filter((o) => o.utmSource)
 
-    // Correlate conversions to clicks by sessionId
-    const convertedSessions = new Set(
-        conversions.map((c) => c.sessionId).filter(Boolean)
-    )
-    const correlatedCount = clicks.filter(
-        (c) => c.sessionId && convertedSessions.has(c.sessionId)
-    ).length
-
-    // UTM source breakdown for clicks
-    const utmBreakdown: Record<string, number> = {}
-    for (const click of clicks) {
-        const key = click.utmSource ?? '(direct)'
-        utmBreakdown[key] = (utmBreakdown[key] ?? 0) + 1
+    // UTM source breakdown
+    const utmBreakdown: Record<string, { count: number; revenueCents: number }> = {}
+    for (const order of orders) {
+        const key = order.utmSource ?? '(direct)'
+        if (!utmBreakdown[key]) utmBreakdown[key] = { count: 0, revenueCents: 0 }
+        utmBreakdown[key].count++
+        utmBreakdown[key].revenueCents += order.totalCents
     }
 
     return NextResponse.json({
         period: { days, since: since.toISOString() },
         summary: {
-            totalClicks: clicks.length,
-            totalConversions: conversions.length,
-            correlatedConversions: correlatedCount,
-            conversionRate:
-                clicks.length > 0
-                    ? Math.round((correlatedCount / clicks.length) * 10000) / 100
-                    : 0,
+            totalOrders: orders.length,
+            totalRevenueCents: totalRevenue,
+            ordersWithUtm: ordersWithUtm.length,
+            attributedRevenueCents: ordersWithUtm.reduce((s, o) => s + o.totalCents, 0),
         },
         utmBreakdown,
-        events,
+        orders,
     })
 }

@@ -43,7 +43,6 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
         facebookPixelId: organizer.facebookPixelId || '',
         googleAdsConversionId: organizer.googleAdsConversionId || '',
         googleAdsConversionLabel: organizer.googleAdsConversionLabel || '',
-        conversionWebhookSecret: '',
     })
     const [error, setError] = useState<string | null>(null)
 
@@ -105,9 +104,6 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
         data.append('facebookPixelId', formData.facebookPixelId)
         data.append('googleAdsConversionId', formData.googleAdsConversionId)
         data.append('googleAdsConversionLabel', formData.googleAdsConversionLabel)
-        if (formData.conversionWebhookSecret) {
-            data.append('conversionWebhookSecret', formData.conversionWebhookSecret)
-        }
 
         startTransition(async () => {
             const result = await updateOrganizerSettings(organizer.id, data)
@@ -140,7 +136,6 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
             facebookPixelId: organizer.facebookPixelId || '',
             googleAdsConversionId: organizer.googleAdsConversionId || '',
             googleAdsConversionLabel: organizer.googleAdsConversionLabel || '',
-            conversionWebhookSecret: '',
         })
         setIsEditing(false)
         setError(null)
@@ -418,13 +413,19 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
                 <div className="border-t pt-4 space-y-4">
                     <h3 className="text-lg font-semibold">Conversion Tracking</h3>
                     <p className="text-sm text-muted-foreground">
-                        Configure your tracking IDs so RegiNor can fire the correct pixels
-                        when visitors click outbound links (e.g. to letsreg). Use the
-                        outbound link format{' '}
+                        When a buyer arrives on RegiNor from your website (carrying UTM parameters
+                        from a Google or Meta ad), we automatically capture those UTM values and
+                        store them on the order. When payment succeeds, we fire the appropriate
+                        conversion events to the platforms configured below — closing the loop
+                        between your ad spend and actual registrations.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        Make sure the links on your website that lead to RegiNor include the UTM
+                        parameters from the ad (e.g.{' '}
                         <code className="bg-muted px-1 rounded text-xs">
-                            /api/track/outbound?url=&lt;dest&gt;&amp;organizerId={organizer.id}&amp;utm_source=…
-                        </code>{' '}
-                        on your landing page sign-up buttons.
+                            https://reginor.no/org/{organizer.slug}/courses?utm_source=google&amp;utm_medium=cpc&amp;utm_campaign=salsa-spring
+                        </code>
+                        ).
                     </p>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -475,30 +476,6 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
                                 placeholder="XXXXXXXXXXXXXXXXXXX"
                             />
                         </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor={`webhookSecret-${organizer.id}`}>Conversion Webhook Secret</Label>
-                        <Input
-                            id={`webhookSecret-${organizer.id}`}
-                            type="password"
-                            value={formData.conversionWebhookSecret}
-                            onChange={(e) => setFormData({ ...formData, conversionWebhookSecret: e.target.value })}
-                            disabled={!isEditing || isPending}
-                            placeholder={
-                                organizer.conversionWebhookSecret
-                                    ? '••••••••  (set – enter new value to change)'
-                                    : 'Enter a secret to secure the webhook'
-                            }
-                            autoComplete="off"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            HMAC-SHA256 secret used to verify conversion callbacks from your
-                            ticketing platform. POST to{' '}
-                            <code className="bg-muted px-1 rounded text-xs">/api/track/conversion</code>{' '}
-                            with header{' '}
-                            <code className="bg-muted px-1 rounded text-xs">X-RegiNor-Signature: sha256=&lt;hex&gt;</code>.
-                        </p>
                     </div>
 
                     <div className="pt-2">
