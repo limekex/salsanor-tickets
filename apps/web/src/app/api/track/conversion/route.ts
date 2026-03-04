@@ -65,12 +65,10 @@ export async function POST(request: NextRequest) {
             .digest('hex')
         const expected = `sha256=${expectedHex}`
 
-        const sigBuffer = Buffer.from(signature.padEnd(expected.length))
-        const expBuffer = Buffer.from(expected)
-
+        // Reject immediately if lengths differ to avoid timing leaks
         if (
-            sigBuffer.length !== expBuffer.length ||
-            !timingSafeEqual(sigBuffer, expBuffer)
+            signature.length !== expected.length ||
+            !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
         ) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
         }

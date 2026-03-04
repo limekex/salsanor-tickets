@@ -39,10 +39,10 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
         mvaRate: organizer.mvaRate ? Number(organizer.mvaRate) : 25,
         bankAccount: organizer.bankAccount || '',
         orderPrefix: organizer.orderPrefix || 'ORD',
-        googleAnalyticsId: (organizer as any).googleAnalyticsId || '',
-        facebookPixelId: (organizer as any).facebookPixelId || '',
-        googleAdsConversionId: (organizer as any).googleAdsConversionId || '',
-        googleAdsConversionLabel: (organizer as any).googleAdsConversionLabel || '',
+        googleAnalyticsId: organizer.googleAnalyticsId || '',
+        facebookPixelId: organizer.facebookPixelId || '',
+        googleAdsConversionId: organizer.googleAdsConversionId || '',
+        googleAdsConversionLabel: organizer.googleAdsConversionLabel || '',
         conversionWebhookSecret: '',
     })
     const [error, setError] = useState<string | null>(null)
@@ -136,10 +136,10 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
             mvaRate: organizer.mvaRate ? Number(organizer.mvaRate) : 25,
             bankAccount: organizer.bankAccount || '',
             orderPrefix: organizer.orderPrefix || 'ORD',
-            googleAnalyticsId: (organizer as any).googleAnalyticsId || '',
-            facebookPixelId: (organizer as any).facebookPixelId || '',
-            googleAdsConversionId: (organizer as any).googleAdsConversionId || '',
-            googleAdsConversionLabel: (organizer as any).googleAdsConversionLabel || '',
+            googleAnalyticsId: organizer.googleAnalyticsId || '',
+            facebookPixelId: organizer.facebookPixelId || '',
+            googleAdsConversionId: organizer.googleAdsConversionId || '',
+            googleAdsConversionLabel: organizer.googleAdsConversionLabel || '',
             conversionWebhookSecret: '',
         })
         setIsEditing(false)
@@ -486,7 +486,7 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
                             onChange={(e) => setFormData({ ...formData, conversionWebhookSecret: e.target.value })}
                             disabled={!isEditing || isPending}
                             placeholder={
-                                (organizer as any).conversionWebhookSecret
+                                organizer.conversionWebhookSecret
                                     ? '••••••••  (set – enter new value to change)'
                                     : 'Enter a secret to secure the webhook'
                             }

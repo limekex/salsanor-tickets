@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
 
 /**
  * GET /api/staffadmin/analytics/conversions?organizerId=<id>&days=30
