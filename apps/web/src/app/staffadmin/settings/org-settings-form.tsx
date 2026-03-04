@@ -39,6 +39,11 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
         mvaRate: organizer.mvaRate ? Number(organizer.mvaRate) : 25,
         bankAccount: organizer.bankAccount || '',
         orderPrefix: organizer.orderPrefix || 'ORD',
+        googleAnalyticsId: (organizer as any).googleAnalyticsId || '',
+        facebookPixelId: (organizer as any).facebookPixelId || '',
+        googleAdsConversionId: (organizer as any).googleAdsConversionId || '',
+        googleAdsConversionLabel: (organizer as any).googleAdsConversionLabel || '',
+        conversionWebhookSecret: '',
     })
     const [error, setError] = useState<string | null>(null)
 
@@ -96,6 +101,13 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
         data.append('mvaRate', formData.mvaRate.toString())
         data.append('bankAccount', formData.bankAccount)
         data.append('orderPrefix', formData.orderPrefix)
+        data.append('googleAnalyticsId', formData.googleAnalyticsId)
+        data.append('facebookPixelId', formData.facebookPixelId)
+        data.append('googleAdsConversionId', formData.googleAdsConversionId)
+        data.append('googleAdsConversionLabel', formData.googleAdsConversionLabel)
+        if (formData.conversionWebhookSecret) {
+            data.append('conversionWebhookSecret', formData.conversionWebhookSecret)
+        }
 
         startTransition(async () => {
             const result = await updateOrganizerSettings(organizer.id, data)
@@ -124,6 +136,11 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
             mvaRate: organizer.mvaRate ? Number(organizer.mvaRate) : 25,
             bankAccount: organizer.bankAccount || '',
             orderPrefix: organizer.orderPrefix || 'ORD',
+            googleAnalyticsId: (organizer as any).googleAnalyticsId || '',
+            facebookPixelId: (organizer as any).facebookPixelId || '',
+            googleAdsConversionId: (organizer as any).googleAdsConversionId || '',
+            googleAdsConversionLabel: (organizer as any).googleAdsConversionLabel || '',
+            conversionWebhookSecret: '',
         })
         setIsEditing(false)
         setError(null)
@@ -395,6 +412,101 @@ export function OrgSettingsForm({ organizer }: OrgSettingsFormProps) {
                                 </Button>
                             </>
                         )}
+                    </div>
+                </div>
+
+                <div className="border-t pt-4 space-y-4">
+                    <h3 className="text-lg font-semibold">Conversion Tracking</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Configure your tracking IDs so RegiNor can fire the correct pixels
+                        when visitors click outbound links (e.g. to letsreg). Use the
+                        outbound link format{' '}
+                        <code className="bg-muted px-1 rounded text-xs">
+                            /api/track/outbound?url=&lt;dest&gt;&amp;organizerId={organizer.id}&amp;utm_source=…
+                        </code>{' '}
+                        on your landing page sign-up buttons.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor={`gaId-${organizer.id}`}>Google Analytics 4 ID</Label>
+                            <Input
+                                id={`gaId-${organizer.id}`}
+                                value={formData.googleAnalyticsId}
+                                onChange={(e) => setFormData({ ...formData, googleAnalyticsId: e.target.value })}
+                                disabled={!isEditing || isPending}
+                                placeholder="G-XXXXXXXXXX"
+                            />
+                            <p className="text-xs text-muted-foreground">GA4 Measurement ID</p>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor={`fbPixel-${organizer.id}`}>Meta / Facebook Pixel ID</Label>
+                            <Input
+                                id={`fbPixel-${organizer.id}`}
+                                value={formData.facebookPixelId}
+                                onChange={(e) => setFormData({ ...formData, facebookPixelId: e.target.value })}
+                                disabled={!isEditing || isPending}
+                                placeholder="1234567890"
+                            />
+                            <p className="text-xs text-muted-foreground">Facebook/Instagram Pixel ID</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor={`gadsId-${organizer.id}`}>Google Ads Conversion ID</Label>
+                            <Input
+                                id={`gadsId-${organizer.id}`}
+                                value={formData.googleAdsConversionId}
+                                onChange={(e) => setFormData({ ...formData, googleAdsConversionId: e.target.value })}
+                                disabled={!isEditing || isPending}
+                                placeholder="AW-XXXXXXXXX"
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor={`gadsLabel-${organizer.id}`}>Google Ads Conversion Label</Label>
+                            <Input
+                                id={`gadsLabel-${organizer.id}`}
+                                value={formData.googleAdsConversionLabel}
+                                onChange={(e) => setFormData({ ...formData, googleAdsConversionLabel: e.target.value })}
+                                disabled={!isEditing || isPending}
+                                placeholder="XXXXXXXXXXXXXXXXXXX"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor={`webhookSecret-${organizer.id}`}>Conversion Webhook Secret</Label>
+                        <Input
+                            id={`webhookSecret-${organizer.id}`}
+                            type="password"
+                            value={formData.conversionWebhookSecret}
+                            onChange={(e) => setFormData({ ...formData, conversionWebhookSecret: e.target.value })}
+                            disabled={!isEditing || isPending}
+                            placeholder={
+                                (organizer as any).conversionWebhookSecret
+                                    ? '••••••••  (set – enter new value to change)'
+                                    : 'Enter a secret to secure the webhook'
+                            }
+                            autoComplete="off"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            HMAC-SHA256 secret used to verify conversion callbacks from your
+                            ticketing platform. POST to{' '}
+                            <code className="bg-muted px-1 rounded text-xs">/api/track/conversion</code>{' '}
+                            with header{' '}
+                            <code className="bg-muted px-1 rounded text-xs">X-RegiNor-Signature: sha256=&lt;hex&gt;</code>.
+                        </p>
+                    </div>
+
+                    <div className="pt-2">
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={`/staffadmin/analytics/conversions?organizerId=${organizer.id}`}>
+                                View Conversion Analytics
+                            </Link>
+                        </Button>
                     </div>
                 </div>
 
