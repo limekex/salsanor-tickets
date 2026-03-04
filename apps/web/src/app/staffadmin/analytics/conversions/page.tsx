@@ -15,6 +15,10 @@ import {
     TableRow,
 } from '@/components/ui/table'
 
+function formatNOK(cents: number) {
+    return `${(cents / 100).toLocaleString('nb-NO', { minimumFractionDigits: 0 })} NOK`
+}
+
 export default async function ConversionAnalyticsPage({
     searchParams,
 }: {
@@ -129,10 +133,6 @@ export default async function ConversionAnalyticsPage({
         organizer.googleAnalyticsId ||
         organizer.facebookPixelId ||
         organizer.googleAdsConversionId
-
-    function formatNOK(cents: number) {
-        return `${(cents / 100).toLocaleString('nb-NO', { minimumFractionDigits: 0 })} NOK`
-    }
 
     return (
         <div className="space-y-rn-6">

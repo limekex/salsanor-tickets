@@ -115,7 +115,17 @@ export function ConversionPixels({
                 currency,
             })
         }
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [
+        googleAnalyticsId,
+        facebookPixelId,
+        googleAdsConversionId,
+        googleAdsConversionLabel,
+        orderValueNOK,
+        currency,
+        orderId,
+        utmSource,
+        utmCampaign,
+    ])
 
     return null
 }

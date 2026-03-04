@@ -31,6 +31,10 @@ export function UtmCapture() {
         // Only overwrite the cookie when at least one UTM param is present
         if (!source && !medium && !campaign && !content && !term) return
 
+        // First-touch attribution: don't overwrite an existing cookie so the
+        // original acquisition source is preserved through the checkout flow.
+        if (document.cookie.includes(`${COOKIE_NAME}=`)) return
+
         const referrer = document.referrer || ''
 
         const value = JSON.stringify({
