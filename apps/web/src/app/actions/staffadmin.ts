@@ -121,6 +121,57 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
     }
 }
 
+export async function updateConversionTracking(organizerId: string, data: {
+    googleAnalyticsId: string | null
+    facebookPixelId: string | null
+    googleAdsConversionId: string | null
+    googleAdsConversionLabel: string | null
+}) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        redirect('/auth/login')
+    }
+
+    // Verify user has ORG_ADMIN role for this organizer
+    const userAccount = await prisma.userAccount.findUnique({
+        where: { supabaseUid: user.id },
+        include: {
+            UserAccountRole: {
+                where: {
+                    role: 'ORG_ADMIN',
+                    organizerId: organizerId
+                }
+            }
+        }
+    })
+
+    if (!userAccount?.UserAccountRole.length) {
+        return { error: 'Unauthorized: You do not have access to edit this organization' }
+    }
+
+    try {
+        await prisma.organizer.update({
+            where: { id: organizerId },
+            data: {
+                googleAnalyticsId: data.googleAnalyticsId?.trim() || null,
+                facebookPixelId: data.facebookPixelId?.trim() || null,
+                googleAdsConversionId: data.googleAdsConversionId?.trim() || null,
+                googleAdsConversionLabel: data.googleAdsConversionLabel?.trim() || null,
+            }
+        })
+
+        revalidatePath('/staffadmin/settings')
+        revalidatePath('/staffadmin/settings/conversion-tracking')
+        
+        return { success: true }
+    } catch (error: any) {
+        console.error('Failed to update conversion tracking:', error)
+        return { error: 'Failed to update conversion tracking settings' }
+    }
+}
+
 export async function addUserRoleStaff(userId: string, role: string, organizerId: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

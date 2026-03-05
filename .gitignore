@@ -419,3 +419,5 @@ package-lock.json
 packages/database/prisma/schema.prisma
 packages/database/prisma/migrations/20260303000000_add_org_discount_rules/migration.sql
 packages/database/prisma/migrations/20260303100000_add_discount_scope/migration.sql
+apps/web/next.config.ts
+apps/web/next.config.ts

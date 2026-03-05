@@ -194,9 +194,9 @@ For trusted participants or specific scenarios:
 - [x] Phone number lookup for participants without QR codes
 - [x] Auto-reset after check-in result (5 second countdown)
 
-### 7. Absence Management
-- [ ] Pre-registered absences (participant notifies in advance)
-- [ ] Absence reasons (illness, travel, etc.)
+### 7. Absence Management ✅ MOSTLY COMPLETE
+- [x] Pre-registered absences (participant notifies in advance)
+- [x] Absence reasons (illness, travel, etc.)
 - [ ] Make-up sessions (if applicable)
 - [ ] Absence notifications to instructors
 
@@ -211,11 +211,24 @@ model PlannedAbsence {
 }
 ```
 
+**Implemented:**
+- `PlannedAbsenceDialog` component for participants to register absences
+- `createPlannedAbsence`, `deletePlannedAbsence`, `getPlannedAbsencesForRegistration` server actions
+- Absences displayed in attendance stats and participant portal
+
 ### 8. Notifications & Reminders
-- [ ] Session reminder before class (configurable hours before)
-- [ ] Missed session notification
-- [x] Low attendance warning (< X% attendance) - email sent to participant
-- [ ] Break period reminders (no class next week)
+- [x] Session reminder before class (configurable hours before) - **via Scheduled Tasks**
+- [ ] Missed session notification - **scheduled task created, needs testing**
+- [x] Low attendance warning (< X% attendance) - **via Scheduled Tasks**
+- [x] Break period reminders (no class next week) - **via Scheduled Tasks**
+
+**Implemented:**
+- Full scheduled task administration system at `/staffadmin/tasks`
+- Global cron management at `/admin/tasks` (platform admin)
+- Email templates: `session-reminder`, `break-reminder`, `attendance-low-warning`
+- API endpoints: `/api/cron/run-all` (global), `/api/cron/run-task` (per-task)
+- See [SCHEDULED_TASKS_SETUP.md](../SCHEDULED_TASKS_SETUP.md) for cron configuration
+- See [SCHEDULED_TASKS_STAFFADMIN.md](../SCHEDULED_TASKS_STAFFADMIN.md) for UI guide
 
 ### 9. Instructor View
 - [ ] Real-time attendance display for current session
@@ -386,12 +399,21 @@ generateParticipantCertificate(registrationId: string): Promise<Blob>
 2. ✅ Participant attendance view
 3. ✅ Basic reports and exports (CSV + certificates)
 
-### Phase 4 - Advanced Features 🔄 PARTIAL
+### Phase 4 - Advanced Features ✅ MOSTLY COMPLETE
 1. ✅ Self check-in (QR + phone lookup)
 2. ✅ Time windows (configurable per track)
-3. 🔄 Notifications (low-attendance warning implemented)
+3. ✅ Notifications (full scheduled task system with session reminders, break reminders, low attendance warnings)
 4. ❌ Advanced analytics
 5. ✅ Attendance certificates
+6. ✅ Absence management (PlannedAbsence model, dialog, server actions)
+7. ✅ Scheduled task admin (`/staffadmin/tasks`, `/admin/tasks`)
+8. ✅ Cron infrastructure (`/api/cron/run-all`, `/api/cron/run-task`)
+
+### Remaining Work (Suggested Next Tasks)
+1. **Per-period stats dashboard** - Overall attendance across all tracks in a period
+2. **Attendance calendar view** - Monthly color-coded view for participants
+3. **Advanced analytics** - Seasonal patterns, retention analytics
+4. **Cron deployment** - Configure Vercel cron jobs (see SCHEDULED_TASKS_SETUP.md)
 
 ## Related Issues
 - [04-ORG_CHECKIN-checkin-staff.md](04-ORG_CHECKIN-checkin-staff.md) - Check-in staff role

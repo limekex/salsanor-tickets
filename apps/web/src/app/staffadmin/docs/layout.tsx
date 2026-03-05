@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BookOpen, BarChart2, ChevronRight } from 'lucide-react'
+import { BookOpen, BarChart2, ChevronRight, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // All available documentation articles, used to build the sidebar.
@@ -13,6 +13,18 @@ export const docCategories = [
                 slug: 'conversion-tracking',
                 title: 'How to enable conversion tracking',
                 summary: 'Set up GA4, Facebook Pixel, and Google Ads so purchases on RegiNor are reported back to your ad platforms.',
+            },
+        ],
+    },
+    {
+        id: 'automation',
+        label: 'Automation & Tasks',
+        icon: Clock,
+        articles: [
+            {
+                slug: 'scheduled-tasks',
+                title: 'Scheduled tasks & notifications',
+                summary: 'Configure automated reminders, alerts, and maintenance tasks for your organization.',
             },
         ],
     },

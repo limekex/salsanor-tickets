@@ -671,6 +671,7 @@ model Organizer {
   Tag                      Tag[]
   UserAccountRole          UserAccountRole[]
   UserInvitation           UserInvitation[]
+  ScheduledTask            ScheduledTask[]
 
   @@index([slug])
 }
@@ -845,6 +846,7 @@ model UserAccount {
   UserAccountRole UserAccountRole[]
   UserInvitation  UserInvitation[]  // Invitations sent by this user
   Attendance      Attendance[]
+  ScheduledTasksCreated ScheduledTask[] // Scheduled tasks created by this user
 }
 
 model UserAccountRole {
@@ -1115,4 +1117,70 @@ enum PdfTemplateType {
   INVOICE
   MEMBERSHIP_CARD
   CREDIT_NOTE
+}
+
+/// Scheduled task for cron job administration
+model ScheduledTask {
+  id              String            @id @default(uuid())
+  organizerId     String?           // null = platform-wide task
+  name            String            // Human-readable name
+  taskType        ScheduledTaskType
+  cronExpression  String            // Standard cron expression (e.g., "0 8 * * *")
+  isActive        Boolean           @default(true)
+  
+  // Configuration (JSON with task-specific settings)
+  config          Json?             // e.g., { hoursBefore: 24, templateSlug: "session-reminder" }
+  
+  // Execution tracking
+  lastRunAt       DateTime?
+  lastRunStatus   TaskRunStatus?
+  lastRunMessage  String?
+  nextRunAt       DateTime?
+  runCount        Int               @default(0)
+  failCount       Int               @default(0)
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  createdById     String?
+  
+  Organizer       Organizer?        @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  CreatedBy       UserAccount?      @relation(fields: [createdById], references: [id])
+  TaskRuns        ScheduledTaskRun[]
+  
+  @@unique([organizerId, taskType]) // One task per type per org (or platform)
+  @@index([isActive, nextRunAt])
+  @@index([organizerId])
+}
+
+model ScheduledTaskRun {
+  id              String          @id @default(uuid())
+  taskId          String
+  startedAt       DateTime        @default(now())
+  completedAt     DateTime?
+  status          TaskRunStatus
+  message         String?
+  itemsProcessed  Int             @default(0)
+  itemsFailed     Int             @default(0)
+  details         Json?           // Additional run details (e.g., list of sent emails)
+  
+  Task            ScheduledTask   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@index([taskId, startedAt])
+}
+
+enum ScheduledTaskType {
+  SESSION_REMINDER        // Send reminders before class
+  BREAK_REMINDER          // Notify about upcoming break periods
+  MISSED_SESSION_NOTIFY   // Notify participants who missed a session
+  LOW_ATTENDANCE_WARN     // Weekly low attendance warnings
+  MEMBERSHIP_EXPIRY_WARN  // Membership expiration reminders
+  WAITLIST_CLEANUP        // Clean up expired waitlist offers
+  REPORT_GENERATION       // Generate periodic reports
+}
+
+enum TaskRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL   // Some items processed, some failed
+  FAILED
 }
