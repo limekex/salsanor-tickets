@@ -55,6 +55,25 @@ model Attendance {
   @@index([periodId, sessionDate])
 }
 
+model PlannedAbsence {
+  id             String        @id @default(uuid())
+  registrationId String
+  trackId        String
+  sessionDate    DateTime      // The date of the planned absence (date only)
+  reason         AbsenceReason @default(OTHER)
+  reasonText     String?       // Additional details / custom reason
+  notifiedAt     DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  Registration   Registration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  CourseTrack    CourseTrack   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId, trackId, sessionDate]) // One absence per session per registration
+  @@index([trackId, sessionDate])
+  @@index([registrationId])
+}
+
 model PeriodBreak {
   id          String       @id @default(uuid())
   periodId    String?
@@ -172,6 +191,7 @@ model CourseTrack {
   TrackSession           TrackSession[]
   Attendance             Attendance[]
   PeriodBreak            PeriodBreak[]
+  PlannedAbsence         PlannedAbsence[]
 
   @@index([periodId])
   @@index([periodId, slug])
@@ -766,6 +786,7 @@ model Registration {
   CourseTrack        CourseTrack        @relation(fields: [trackId], references: [id])
   WaitlistEntry      WaitlistEntry?
   Attendance         Attendance[]
+  PlannedAbsence     PlannedAbsence[]
 
   @@unique([trackId, personId])
   @@index([periodId, trackId])
@@ -895,6 +916,15 @@ enum CheckInMethod {
   MANUAL
   BULK_IMPORT
   SELF_CHECKIN
+}
+
+enum AbsenceReason {
+  ILLNESS
+  TRAVEL
+  WORK
+  FAMILY
+  PERSONAL
+  OTHER
 }
 
 enum DiscountScope {

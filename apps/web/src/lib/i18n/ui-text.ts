@@ -90,6 +90,46 @@ export const UI_TEXT = {
     spotOffered: 'Spot Offered!',
     expires: 'Expires',
   },
+
+  // Planned Absence
+  absence: {
+    title: 'Planned Absence',
+    description: (trackTitle: string) => `Notify in advance if you cannot attend a session in ${trackTitle}`,
+    registerNew: 'Register New Absence',
+    noUpcomingSessions: 'No upcoming sessions to register absence for.',
+    date: 'Date',
+    selectDate: 'Select date',
+    reason: 'Reason',
+    selectReason: 'Select reason',
+    additionalInfo: 'Additional information',
+    additionalInfoPlaceholder: 'Write a brief description...',
+    registerButton: 'Register Absence',
+    registeredAbsences: 'Registered Absences',
+    successCreated: 'Absence registered',
+    successDeleted: 'Absence deleted',
+    errorLoad: 'Could not load data',
+    errorCreate: 'Could not register absence',
+    errorDelete: 'Could not delete absence',
+    reasons: {
+      ILLNESS: 'Illness',
+      TRAVEL: 'Travel',
+      WORK: 'Work',
+      FAMILY: 'Family',
+      PERSONAL: 'Personal',
+      OTHER: 'Other',
+    },
+  },
+
+  // Course Filters
+  courseFilters: {
+    search: 'Search courses...',
+    sortBy: 'Sort by',
+    sortOptions: {
+      current: 'Current/Upcoming first',
+      dateAsc: 'Date (oldest first)',
+      dateDesc: 'Date (newest first)',
+    },
+  },
 } as const
 
 // Helper function to get count-aware text

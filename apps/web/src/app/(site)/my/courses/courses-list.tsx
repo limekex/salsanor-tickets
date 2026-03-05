@@ -1,9 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { TicketQR } from '@/components/ticket-qr'
 import { WalletButtons } from '@/components/wallet-buttons'
 import { PayButton } from '@/components/pay-button'
@@ -11,9 +19,19 @@ import { CancelOrderButton } from '@/app/(site)/profile/cancel-order-button'
 import { AcceptOfferButton, DeclineOfferButton } from '@/app/(site)/profile/offer-buttons'
 import { formatDateShort, formatPrice, formatRelativeTime } from '@/lib/formatters'
 import { UI_TEXT } from '@/lib/i18n'
-import { EyeOff, Eye, Award, BarChart3, ChevronDown } from 'lucide-react'
+import { EyeOff, Eye, Award, BarChart3, ChevronDown, Search } from 'lucide-react'
 import { CERTIFICATE_MIN_RATE, CERTIFICATE_MIN_SESSIONS } from '@/lib/attendance-certificate'
 import { AttendanceStatsCard } from '@/components/attendance-stats-card'
+import { PlannedAbsenceDialog } from '@/components/planned-absence-dialog'
+
+type SortOption = 'current' | 'dateAsc' | 'dateDesc'
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function getWeekdayName(weekday: number | undefined): string | null {
+    if (weekday === undefined || weekday === null) return null
+    return WEEKDAY_NAMES[weekday] ?? null
+}
 
 type Registration = {
     id: string
@@ -21,8 +39,8 @@ type Registration = {
     status: string
     chosenRole: string
     createdAt: Date | string
-    CourseTrack: { id: string; title: string }
-    CoursePeriod: { id: string; name: string; startDate: Date | string; endDate: Date | string; weekday?: number }
+    CourseTrack: { id: string; title: string; weekday: number }
+    CoursePeriod: { id: string; name: string; startDate: Date | string; endDate: Date | string }
     Order: { id: string; totalCents: number } | null
     WaitlistEntry: { status: string; offeredUntil: Date | string | null } | null
     attendance: { sessionDate: Date | string }[]
@@ -43,6 +61,8 @@ interface CoursesListProps {
 export function CoursesList({ registrations, tickets }: CoursesListProps) {
     const [showCanceled, setShowCanceled] = useState(false)
     const [expandedStats, setExpandedStats] = useState<Set<string>>(new Set())
+    const [searchTerm, setSearchTerm] = useState('')
+    const [sortBy, setSortBy] = useState<SortOption>('current')
 
     const toggleStats = (regId: string) => {
         setExpandedStats(prev => {
@@ -59,9 +79,54 @@ export function CoursesList({ registrations, tickets }: CoursesListProps) {
     const inactiveStatuses = ['CANCELLED', 'REFUNDED']
     const hasInactive = registrations.some(r => inactiveStatuses.includes(r.status))
 
-    const visibleRegistrations = showCanceled
-        ? registrations
-        : registrations.filter(r => !inactiveStatuses.includes(r.status))
+    // Filter and sort registrations
+    const filteredAndSortedRegistrations = useMemo(() => {
+        let filtered = showCanceled
+            ? registrations
+            : registrations.filter(r => !inactiveStatuses.includes(r.status))
+
+        // Apply search filter
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase()
+            filtered = filtered.filter(r =>
+                r.CourseTrack.title.toLowerCase().includes(term) ||
+                r.CoursePeriod.name.toLowerCase().includes(term) ||
+                r.chosenRole.toLowerCase().includes(term)
+            )
+        }
+
+        // Apply sorting
+        const today = new Date()
+        return [...filtered].sort((a, b) => {
+            const aStart = new Date(a.CoursePeriod.startDate)
+            const aEnd = new Date(a.CoursePeriod.endDate)
+            const bStart = new Date(b.CoursePeriod.startDate)
+            const bEnd = new Date(b.CoursePeriod.endDate)
+
+            switch (sortBy) {
+                case 'current': {
+                    // Current/ongoing courses first, then upcoming, then past
+                    const aIsCurrent = aStart <= today && aEnd >= today
+                    const bIsCurrent = bStart <= today && bEnd >= today
+                    const aIsUpcoming = aStart > today
+                    const bIsUpcoming = bStart > today
+
+                    if (aIsCurrent && !bIsCurrent) return -1
+                    if (!aIsCurrent && bIsCurrent) return 1
+                    if (aIsUpcoming && !bIsUpcoming) return -1
+                    if (!aIsUpcoming && bIsUpcoming) return 1
+                    // Within same category, sort by start date
+                    return aStart.getTime() - bStart.getTime()
+                }
+                case 'dateAsc':
+                    return aStart.getTime() - bStart.getTime()
+                case 'dateDesc':
+                    return bStart.getTime() - aStart.getTime()
+                default:
+                    return 0
+            }
+        })
+    }, [registrations, showCanceled, searchTerm, sortBy, inactiveStatuses])
 
     return (
         <div className="space-y-rn-6">
@@ -89,9 +154,39 @@ export function CoursesList({ registrations, tickets }: CoursesListProps) {
                 </div>
             )}
 
+            {/* Search and Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder={UI_TEXT.courseFilters.search}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9"
+                    />
+                </div>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                    <SelectTrigger className="w-full sm:w-[200px]">
+                        <SelectValue placeholder={UI_TEXT.courseFilters.sortBy} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="current">{UI_TEXT.courseFilters.sortOptions.current}</SelectItem>
+                        <SelectItem value="dateAsc">{UI_TEXT.courseFilters.sortOptions.dateAsc}</SelectItem>
+                        <SelectItem value="dateDesc">{UI_TEXT.courseFilters.sortOptions.dateDesc}</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {/* No results message */}
+            {filteredAndSortedRegistrations.length === 0 && searchTerm && (
+                <div className="text-center py-8 text-muted-foreground">
+                    No courses found matching &quot;{searchTerm}&quot;
+                </div>
+            )}
+
             {/* Course cards */}
             <div className="grid gap-rn-6 md:grid-cols-2">
-                {visibleRegistrations.map((reg) => {
+                {filteredAndSortedRegistrations.map((reg) => {
                     const attended = reg.attendance.length
 
                     // Certificate eligibility: compute weeks elapsed for this specific registration
@@ -108,10 +203,17 @@ export function CoursesList({ registrations, tickets }: CoursesListProps) {
                     return (
                         <Card key={reg.id}>
                             <CardHeader>
-                                <div className="flex justify-between">
-                                    <Badge variant={reg.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                                        {reg.status}
-                                    </Badge>
+                                <div className="flex justify-between items-start">
+                                    <div className="flex gap-2 flex-wrap">
+                                        <Badge variant={reg.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                                            {reg.status}
+                                        </Badge>
+                                        {getWeekdayName(reg.CourseTrack.weekday) && (
+                                            <Badge variant="outline" className="font-medium">
+                                                {getWeekdayName(reg.CourseTrack.weekday)}
+                                            </Badge>
+                                        )}
+                                    </div>
                                     <span className="text-sm text-muted-foreground">
                                         {formatDateShort(reg.createdAt)}
                                     </span>
@@ -172,31 +274,41 @@ export function CoursesList({ registrations, tickets }: CoursesListProps) {
                                         })()
                                     )}
 
-                                    {/* Stats Toggle Button + Animated Panel */}
+                                    {/* Separator between wallet ticket and action buttons */}
                                     {reg.status === 'ACTIVE' && (
-                                        <div className="relative">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => toggleStats(reg.id)}
-                                                className="w-full gap-2 transition-colors"
-                                            >
-                                                <BarChart3 className="h-4 w-4" />
-                                                <span>Attendance Stats</span>
-                                                {attended > 0 && (
-                                                    <Badge variant="secondary" className="ml-1 text-xs">
-                                                        {attended} {attended === 1 ? 'session' : 'sessions'}
-                                                    </Badge>
-                                                )}
-                                                <ChevronDown className={`h-4 w-4 ml-auto transition-transform duration-300 ${expandedStats.has(reg.id) ? 'rotate-180' : ''}`} />
-                                            </Button>
-                                            
-                                            {/* Animated Stats Panel */}
-                                            <div 
-                                                className={`grid transition-all duration-300 ease-in-out ${expandedStats.has(reg.id) ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0'}`}
-                                            >
-                                                <div className="overflow-hidden">
-                                                    <AttendanceStatsCard registrationId={reg.id} />
+                                        <div className="border-t pt-4 space-y-3">
+                                            {/* Planned Absence */}
+                                            <PlannedAbsenceDialog
+                                                registrationId={reg.id}
+                                                trackId={reg.CourseTrack.id}
+                                                trackTitle={reg.CourseTrack.title}
+                                            />
+
+                                            {/* Stats Toggle Button + Animated Panel */}
+                                            <div className="relative">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => toggleStats(reg.id)}
+                                                    className="w-full gap-2 transition-colors"
+                                                >
+                                                    <BarChart3 className="h-4 w-4" />
+                                                    <span>Attendance Stats</span>
+                                                    {attended > 0 && (
+                                                        <Badge variant="secondary" className="ml-1 text-xs">
+                                                            {attended} {attended === 1 ? 'session' : 'sessions'}
+                                                        </Badge>
+                                                    )}
+                                                    <ChevronDown className={`h-4 w-4 ml-auto transition-transform duration-300 ${expandedStats.has(reg.id) ? 'rotate-180' : ''}`} />
+                                                </Button>
+                                                
+                                                {/* Animated Stats Panel */}
+                                                <div 
+                                                    className={`grid transition-all duration-300 ease-in-out ${expandedStats.has(reg.id) ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0'}`}
+                                                >
+                                                    <div className="overflow-hidden">
+                                                        <AttendanceStatsCard registrationId={reg.id} />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

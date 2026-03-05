@@ -1,4 +1,3 @@
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -14,6 +13,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { requireOrgAdmin } from '@/utils/auth-org-admin'
+import { getStaffAdminSelectedOrg } from '@/utils/staff-admin-org-context'
 
 function formatNOK(cents: number) {
     return `${(cents / 100).toLocaleString('nb-NO', { minimumFractionDigits: 0 })} NOK`
@@ -24,47 +25,29 @@ export default async function ConversionAnalyticsPage({
 }: {
     searchParams: Promise<{ organizerId?: string; days?: string }>
 }) {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-        redirect('/auth/login')
-    }
-
-    const { organizerId, days: daysParam } = await searchParams
+    const userAccount = await requireOrgAdmin()
+    
+    const { organizerId: urlOrgId, days: daysParam } = await searchParams
     const days = Math.min(Math.max(Number(daysParam ?? '30'), 1), 365)
 
-    // Verify user has access
-    const userAccount = await prisma.userAccount.findUnique({
-        where: { supabaseUid: user.id },
-        include: {
-            UserAccountRole: {
-                where: organizerId
-                    ? {
-                          OR: [
-                              { role: 'ADMIN' },
-                              { role: 'ORG_ADMIN', organizerId },
-                          ],
-                      }
-                    : { role: 'ADMIN' },
-                include: { Organizer: { select: { id: true, name: true, slug: true } } },
-            },
-        },
-    })
-
-    if (!userAccount?.UserAccountRole.length) {
-        redirect('/staffadmin')
+    // Get org from cookie (nav selector) - this is the source of truth
+    let selectedOrgId = await getStaffAdminSelectedOrg()
+    
+    // Fallback to user's first org if no cookie selection
+    if (!selectedOrgId && userAccount.UserAccountRole.length > 0) {
+        selectedOrgId = userAccount.UserAccountRole[0].organizerId
     }
 
-    const orgId =
-        organizerId ??
-        userAccount.UserAccountRole.find((r) => r.organizerId)?.organizerId
-
-    if (!orgId) {
+    if (!selectedOrgId) {
         redirect('/staffadmin')
     }
+    
+    // If URL org differs from nav selection, redirect to sync URL with nav
+    if (urlOrgId && urlOrgId !== selectedOrgId) {
+        redirect(`/staffadmin/analytics/conversions?days=${days}`)
+    }
+    
+    const orgId = selectedOrgId
 
     const organizer = await prisma.organizer.findUnique({
         where: { id: orgId },
@@ -157,7 +140,7 @@ export default async function ConversionAnalyticsPage({
                             variant={days === d ? 'default' : 'outline'}
                             size="sm"
                         >
-                            <Link href={`?organizerId=${orgId}&days=${d}`}>{d}d</Link>
+                            <Link href={`?days=${d}`}>{d}d</Link>
                         </Button>
                     ))}
                 </div>

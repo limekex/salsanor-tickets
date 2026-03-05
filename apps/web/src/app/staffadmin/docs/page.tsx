@@ -4,7 +4,7 @@ import { docCategories } from './layout'
 import { BookOpen } from 'lucide-react'
 
 export const metadata = {
-    title: 'Documentation – RegiNor',
+    title: 'Documentation – RegiNor Staff Admin',
     description: 'Guides and reference docs for organizers, staff, and administrators.',
 }
 
@@ -30,7 +30,7 @@ export default function DocsIndexPage() {
 
                     <div className="grid gap-rn-4 md:grid-cols-2">
                         {cat.articles.map(art => (
-                            <Link key={art.slug} href={`/docs/${art.slug}`} className="block group">
+                            <Link key={art.slug} href={`/staffadmin/docs/${art.slug}`} className="block group">
                                 <Card className="h-full transition-shadow group-hover:shadow-md">
                                     <CardHeader className="pb-rn-2">
                                         <CardTitle className="text-base">{art.title}</CardTitle>

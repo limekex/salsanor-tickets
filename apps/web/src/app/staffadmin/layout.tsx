@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { StaffAdminNav } from '@/components/staff-admin-nav'
+import { StaffAdminFooter } from '@/components/staff-admin-footer'
 import { OrgAutoSelector } from '@/components/org-auto-selector'
 import { Toaster } from "sonner";
 import { getStaffAdminSelectedOrg, setStaffAdminSelectedOrg } from '@/utils/staff-admin-org-context'
@@ -44,16 +45,16 @@ export default async function StaffAdminLayout({
         redirect('/auth/login')
     }
 
-    // Check if user has ORG_ADMIN or ORG_FINANCE role for at least one organization
+    // Define all elevated roles that can access staffadmin
+    const ELEVATED_ROLES = ['ORG_ADMIN', 'ORG_FINANCE', 'ORG_CHECKIN', 'INSTRUCTOR', 'STAFF', 'CHECKIN', 'ADMIN']
+    
+    // Check if user has any elevated role for at least one organization
     const userAccount = await prisma.userAccount.findUnique({
         where: { supabaseUid: user.id },
         include: {
             UserAccountRole: {
                 where: {
-                    OR: [
-                        { role: 'ORG_ADMIN' },
-                        { role: 'ORG_FINANCE' }
-                    ]
+                    role: { in: ELEVATED_ROLES }
                 },
                 include: {
                     Organizer: true
@@ -65,12 +66,12 @@ export default async function StaffAdminLayout({
     const hasStaffRole = userAccount?.UserAccountRole && userAccount.UserAccountRole.length > 0
     
     if (!hasStaffRole) {
-        throw new Error('Unauthorized: Organization admin or finance access required')
+        throw new Error('Unauthorized: Staff access required')
     }
 
-    // Get list of organizations user has access to
+    // Get list of organizations user has access to (only from ORG_ADMIN/ORG_FINANCE roles for org selector)
     const organizers = userAccount.UserAccountRole
-        .filter(r => r.Organizer)
+        .filter(r => r.Organizer && (r.role === 'ORG_ADMIN' || r.role === 'ORG_FINANCE'))
         .map(r => ({
             id: r.Organizer!.id,
             name: r.Organizer!.name,
@@ -101,7 +102,7 @@ export default async function StaffAdminLayout({
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
                 suppressHydrationWarning
             >
-                <div className="min-h-screen">
+                <div className="min-h-screen flex flex-col">
                     <StaffAdminNav 
                         organizers={organizers}
                         currentOrgId={currentOrgId}
@@ -112,9 +113,10 @@ export default async function StaffAdminLayout({
                         organizers={organizers}
                         onOrgChange={handleOrgChange}
                     />
-                    <main className="container mx-auto py-6">
+                    <main className="container mx-auto py-6 flex-1">
                         {children}
                     </main>
+                    <StaffAdminFooter />
                 </div>
                 <Toaster position="top-right" richColors />
             </body>

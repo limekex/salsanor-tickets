@@ -1,6 +1,3 @@
-import { createClient } from '@/utils/supabase/server'
-import { prisma } from '@/lib/db'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, BarChart2, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -21,47 +18,16 @@ export const docCategories = [
     },
 ] as const
 
-const NON_PARTICIPANT_ROLES = [
-    'ADMIN',
-    'ORG_ADMIN',
-    'ORG_FINANCE',
-    'ORG_CHECKIN',
-    'INSTRUCTOR',
-    'STAFF',
-    'CHECKIN',
-]
-
 export default async function DocsLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
-    // Guard: only non-participant users may access /docs
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-        redirect('/auth/login?next=/docs')
-    }
-
-    const userAccount = await prisma.userAccount.findUnique({
-        where: { supabaseUid: user.id },
-        select: { UserAccountRole: { select: { role: true } } },
-    })
-
-    const hasElevatedRole = userAccount?.UserAccountRole.some(r =>
-        NON_PARTICIPANT_ROLES.includes(r.role)
-    )
-
-    if (!hasElevatedRole) {
-        redirect('/')
-    }
-
     return (
-        <div className="container mx-auto px-rn-4 py-rn-8">
-            <div className="flex items-center gap-rn-2 mb-rn-6 text-rn-text-muted">
+        <div className="space-y-rn-6">
+            <div className="flex items-center gap-rn-2 text-rn-text-muted">
                 <BookOpen className="h-5 w-5 text-rn-primary" />
-                <Link href="/docs" className="hover:text-rn-text transition-colors font-medium">
+                <Link href="/staffadmin/docs" className="hover:text-rn-text transition-colors font-medium">
                     Documentation
                 </Link>
             </div>
@@ -80,7 +46,7 @@ export default async function DocsLayout({
                                     {cat.articles.map(art => (
                                         <li key={art.slug}>
                                             <Link
-                                                href={`/docs/${art.slug}`}
+                                                href={`/staffadmin/docs/${art.slug}`}
                                                 className={cn(
                                                     'flex items-center gap-1 rounded px-2 py-1.5 text-sm transition-colors',
                                                     'text-rn-text-muted hover:bg-rn-surface hover:text-rn-text'

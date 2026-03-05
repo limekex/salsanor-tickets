@@ -289,7 +289,11 @@ export interface MyAttendanceStats {
     attendanceRate: number
     lastCheckIn: Date | null
     upcomingSessions: number
+    plannedAbsences: number
 }
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Note: Using 'any' temporarily for PlannedAbsence model until Prisma client regenerates
 
 export async function getMyAttendanceForRegistration(registrationId: string, userId: string): Promise<MyAttendanceStats | null> {
     const registration = await prisma.registration.findUnique({
@@ -321,6 +325,14 @@ export async function getMyAttendanceForRegistration(registrationId: string, use
     const track = registration.CourseTrack
     const today = new Date()
     today.setHours(0, 0, 0, 0)
+
+    // Get upcoming planned absences count
+    const plannedAbsences = await (prisma as any).plannedAbsence.count({
+        where: {
+            registrationId,
+            sessionDate: { gte: today }
+        }
+    })
 
     // Filter breaks to those applicable to this track (track-specific or period-wide)
     type BreakWithTrackId = typeof period.PeriodBreak[number] & { trackId?: string | null }
@@ -360,6 +372,7 @@ export async function getMyAttendanceForRegistration(registrationId: string, use
         totalSessions,
         attendanceRate: totalSessions > 0 ? Math.round((totalAttended / totalSessions) * 100) : 0,
         lastCheckIn,
-        upcomingSessions
+        upcomingSessions,
+        plannedAbsences
     }
 }

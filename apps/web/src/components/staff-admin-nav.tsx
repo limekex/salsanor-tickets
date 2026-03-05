@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins, Download, FileText, UserCheck } from 'lucide-react'
+import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins, Download, FileText, UserCheck, BookOpen } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import {
@@ -235,6 +235,20 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                             </Link>
                         )}
 
+                        {/* Documentation (Icon Only) */}
+                        <Link
+                            href="/staffadmin/docs"
+                            className={cn(
+                                "flex items-center justify-center p-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                pathname === '/staffadmin/docs' || pathname.startsWith('/staffadmin/docs/')
+                                    ? "bg-rn-primary text-white"
+                                    : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
+                            )}
+                            title="Documentation"
+                        >
+                            <BookOpen className="h-4 w-4" />
+                        </Link>
+
                         {/* Back to Site (Icon Only) */}
                         <Link
                             href="/"
@@ -367,6 +381,21 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                                             Settings
                                         </Link>
                                     )}
+
+                                    {/* Documentation */}
+                                    <Link
+                                        href="/staffadmin/docs"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className={cn(
+                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                            pathname === '/staffadmin/docs' || pathname.startsWith('/staffadmin/docs/')
+                                                ? "bg-rn-primary text-white"
+                                                : "text-rn-text hover:bg-rn-surface-2"
+                                        )}
+                                    >
+                                        <BookOpen className="h-5 w-5" />
+                                        Documentation
+                                    </Link>
 
                                     {/* Back to Site */}
                                     <Link

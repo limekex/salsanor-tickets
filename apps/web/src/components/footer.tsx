@@ -2,22 +2,8 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useUser } from '@/hooks'
 
 export function Footer() {
-  const { user, isGlobalAdmin, isOrgAdmin, hasRole } = useUser()
-
-  // Show docs link to anyone with an elevated role (not plain participants)
-  const showDocs = user && (
-    isGlobalAdmin() ||
-    isOrgAdmin() ||
-    hasRole('ORG_FINANCE') ||
-    hasRole('ORG_CHECKIN') ||
-    hasRole('INSTRUCTOR') ||
-    hasRole('STAFF') ||
-    hasRole('CHECKIN')
-  )
-
   return (
     <footer className="border-t border-rn-border bg-white">
       <div className="container mx-auto px-rn-4 py-rn-8">
@@ -36,9 +22,9 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Product */}
+          {/* Products */}
           <div className="space-y-rn-3">
-            <h4 className="rn-meta font-semibold uppercase tracking-wide">Product</h4>
+            <h4 className="rn-meta font-semibold uppercase tracking-wide">Products</h4>
             <ul className="space-y-rn-2 rn-body text-rn-text-muted">
               <li>
                 <Link href="/courses" className="hover:text-rn-text transition-colors">
@@ -46,13 +32,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/my" className="hover:text-rn-text transition-colors">
-                  My page
+                <Link href="/events" className="hover:text-rn-text transition-colors">
+                  Events
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-rn-text transition-colors">
-                  Dashboard
+                <Link href="/my" className="hover:text-rn-text transition-colors">
+                  My page
                 </Link>
               </li>
             </ul>
@@ -63,22 +49,15 @@ export function Footer() {
             <h4 className="rn-meta font-semibold uppercase tracking-wide">For Organizers</h4>
             <ul className="space-y-rn-2 rn-body text-rn-text-muted">
               <li>
-                <Link href="/admin" className="hover:text-rn-text transition-colors">
-                  Admin
+                <Link href="/staffadmin" className="hover:text-rn-text transition-colors">
+                  Organization Admin
                 </Link>
               </li>
               <li>
-                <Link href="/staffadmin" className="hover:text-rn-text transition-colors">
-                  Staff Admin
+                <Link href="/register-organization" className="hover:text-rn-text transition-colors">
+                  Register as Organization
                 </Link>
               </li>
-              {showDocs && (
-                <li>
-                  <Link href="/docs" className="hover:text-rn-text transition-colors">
-                    Documentation
-                  </Link>
-                </li>
-              )}
             </ul>
           </div>
 

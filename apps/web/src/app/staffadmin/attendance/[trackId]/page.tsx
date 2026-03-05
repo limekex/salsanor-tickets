@@ -11,8 +11,10 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import Link from 'next/link'
-import { ArrowLeft, Users, CalendarDays, TrendingUp, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Users, CalendarDays, TrendingUp, CheckCircle2, CalendarOff } from 'lucide-react'
 import { getTrackAttendanceStats, getTrackParticipantAttendance } from '@/app/actions/attendance-stats'
+import { getUpcomingAbsencesForTrack } from '@/app/actions/absences'
+import { getAbsenceReasonLabel } from '@/lib/absence-utils'
 import { AttendanceExportButton } from './export-button'
 
 function formatDate(date: Date): string {
@@ -36,9 +38,10 @@ export default async function TrackAttendanceDetailPage({
 }) {
     const { trackId } = await params
     
-    const [stats, participants] = await Promise.all([
+    const [stats, participants, upcomingAbsences] = await Promise.all([
         getTrackAttendanceStats(trackId),
-        getTrackParticipantAttendance(trackId)
+        getTrackParticipantAttendance(trackId),
+        getUpcomingAbsencesForTrack(trackId)
     ])
 
     if (!stats) {
@@ -117,6 +120,50 @@ export default async function TrackAttendanceDetailPage({
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Planned Absences */}
+            {upcomingAbsences.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <CalendarOff className="h-5 w-5 text-orange-500" />
+                            <CardTitle>Planned Absences</CardTitle>
+                        </div>
+                        <CardDescription>
+                            Participants who have notified they will miss upcoming sessions
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {upcomingAbsences.map((group) => (
+                                <div key={group.sessionDate.toISOString()} className="space-y-2">
+                                    <h4 className="font-medium text-sm flex items-center gap-2">
+                                        <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                                        {formatDate(group.sessionDate)}
+                                        <Badge variant="secondary" className="ml-2">
+                                            {group.absences.length} {group.absences.length === 1 ? 'absence' : 'absences'}
+                                        </Badge>
+                                    </h4>
+                                    <div className="pl-6 space-y-1">
+                                        {group.absences.map((absence) => (
+                                            <div 
+                                                key={absence.id} 
+                                                className="flex items-center justify-between text-sm py-1.5 px-3 rounded-md bg-orange-50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-800/50"
+                                            >
+                                                <span className="font-medium">{absence.personName}</span>
+                                                <span className="text-muted-foreground text-xs">
+                                                    {getAbsenceReasonLabel(absence.reason)}
+                                                    {absence.reasonText && `: ${absence.reasonText}`}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Session-by-Session Stats */}
             <Card>

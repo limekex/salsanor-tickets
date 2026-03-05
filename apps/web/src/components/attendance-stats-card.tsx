@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, CalendarDays, TrendingUp } from 'lucide-react'
+import { CheckCircle2, CalendarDays, TrendingUp, CalendarOff } from 'lucide-react'
 
 interface AttendanceStatsCardProps {
     registrationId: string
@@ -13,6 +13,7 @@ interface AttendanceData {
     attendanceRate: number
     upcomingSessions: number
     lastCheckIn: string | null
+    plannedAbsences?: number
 }
 
 export function AttendanceStatsCard({ registrationId }: AttendanceStatsCardProps) {
@@ -75,7 +76,7 @@ export function AttendanceStatsCard({ registrationId }: AttendanceStatsCardProps
                 />
             </div>
             
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className={`grid gap-2 text-center text-xs ${data.plannedAbsences && data.plannedAbsences > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 <div className="space-y-1">
                     <div className="flex justify-center">
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -97,6 +98,15 @@ export function AttendanceStatsCard({ registrationId }: AttendanceStatsCardProps
                     <p className="font-bold">{data.upcomingSessions}</p>
                     <p className="text-muted-foreground">Upcoming</p>
                 </div>
+                {data.plannedAbsences && data.plannedAbsences > 0 && (
+                    <div className="space-y-1">
+                        <div className="flex justify-center">
+                            <CalendarOff className="h-4 w-4 text-orange-500" />
+                        </div>
+                        <p className="font-bold">{data.plannedAbsences}</p>
+                        <p className="text-muted-foreground">Absences</p>
+                    </div>
+                )}
             </div>
         </div>
     )
