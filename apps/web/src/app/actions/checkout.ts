@@ -7,6 +7,7 @@ import { createAuditLog } from '@/lib/audit'
 import { redirect } from 'next/navigation'
 import { randomUUID } from 'crypto'
 import { getEffectiveDiscountRules, getEffectiveDiscountRulesForEvent } from './discounts'
+import { readUtmCookie } from '@/lib/utm'
 
 export async function getCartPricing(items: { trackId: string, role: string, hasPartner: boolean, partnerEmail?: string }[]) {
     if (!items.length) return null
@@ -190,6 +191,9 @@ export async function createOrderFromCart(items: { trackId: string, role: string
             discountCents: pricing.discountTotalCents,
             mvaRate
         })
+
+        // Read UTM attribution from cookie (set by UtmCapture component)
+        const utm = await readUtmCookie()
         
         const order = await prisma.order.create({
             data: {
@@ -210,6 +214,13 @@ export async function createOrderFromCart(items: { trackId: string, role: string
                         amount: orderPricing.mvaCents
                     }
                 }),
+                // UTM attribution
+                utmSource: utm?.utmSource ?? null,
+                utmMedium: utm?.utmMedium ?? null,
+                utmCampaign: utm?.utmCampaign ?? null,
+                utmContent: utm?.utmContent ?? null,
+                utmTerm: utm?.utmTerm ?? null,
+                utmReferrer: utm?.utmReferrer ?? null,
                 Registration: {
                     create: items.map(item => ({
                         periodId,
@@ -354,6 +365,9 @@ export async function createEventOrderFromCart(items: { eventId: string, quantit
     // Total is the same as subtotal (price is already inclusive)
     const totalCents = subtotalAfterDiscountCents
 
+    // Read UTM attribution from cookie before creating the order
+    const utm = await readUtmCookie()
+
     // 8. Create Order with EventRegistrations
     // Use a transaction to prevent race conditions on capacity
     try {
@@ -446,6 +460,13 @@ export async function createEventOrderFromCart(items: { eventId: string, quantit
                             amount: mvaCents
                         }
                     }),
+                    // UTM attribution (read outside the transaction to avoid async issues)
+                    utmSource: utm?.utmSource ?? null,
+                    utmMedium: utm?.utmMedium ?? null,
+                    utmCampaign: utm?.utmCampaign ?? null,
+                    utmContent: utm?.utmContent ?? null,
+                    utmTerm: utm?.utmTerm ?? null,
+                    utmReferrer: utm?.utmReferrer ?? null,
                     EventRegistration: {
                         create: pricing.lineItems.map(lineItem => {
                             return {

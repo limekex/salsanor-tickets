@@ -565,6 +565,13 @@ model Order {
   stripeChargeId             String?
   stripeTransactionId        String?
   organizerId                String
+  // UTM attribution – captured when the buyer first lands on our platform
+  utmSource                  String?
+  utmMedium                  String?
+  utmCampaign                String?
+  utmContent                 String?
+  utmTerm                    String?
+  utmReferrer                String?
   CreditNote                 CreditNote[]
   EventRegistration          EventRegistration[]
   Invoice                    Invoice?
@@ -577,6 +584,7 @@ model Order {
 
   @@index([organizerId, status])
   @@index([periodId, status])
+  @@index([organizerId, utmSource])
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -623,6 +631,11 @@ model Organizer {
   nextMemberNumber         Int               @default(1)
   platformFeeFixed         Int?
   platformFeePercent       Decimal?
+  // Conversion tracking – organizer's analytics/ad-platform IDs
+  googleAnalyticsId        String?           // GA4 Measurement ID (e.g. G-XXXXXXXXXX)
+  facebookPixelId          String?           // Meta/Facebook Pixel ID
+  googleAdsConversionId    String?           // Google Ads Conversion tracking ID (AW-XXXXXXXXX)
+  googleAdsConversionLabel String?           // Google Ads Conversion label
   AuditLog                 AuditLog[]
   CoursePeriod             CoursePeriod[]
   CreditNote               CreditNote[]
