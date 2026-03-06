@@ -496,6 +496,54 @@ cd apps/web && npm run build
 
 ---
 
+## 🛡️ Proactive Error Prevention
+
+### Pre-commit Hook (Recommended)
+
+Add to `.husky/pre-commit`:
+```bash
+#!/bin/sh
+cd apps/web && npx tsc --noEmit || exit 1
+```
+
+### CI Type Check
+
+GitHub Actions workflow at `.github/workflows/typecheck.yml`:
+```yaml
+name: TypeScript Check
+on: [push, pull_request]
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: cd apps/web && npx tsc --noEmit
+```
+
+### Package Version Pinning
+
+For SDKs with breaking API changes (Stripe, etc.), pin exact versions:
+```json
+// ❌ RISKY - May pull breaking changes
+"stripe": "^17.5.0"
+
+// ✅ SAFE - Pinned version
+"stripe": "17.5.0"
+```
+
+### After Any `npm update`
+
+Always run type check after updating packages:
+```bash
+npm update && cd apps/web && npx tsc --noEmit
+```
+
+---
+
 ## Related Documentation
 
 - **[CODE_INVENTORY.md](../docs/CODE_INVENTORY.md)** - Complete inventory of all reusable code
