@@ -22,6 +22,7 @@ export const courseTrackSchema = z.object({
     rolePolicy: z.enum(['LEADER', 'FOLLOWER', 'ANY']),
     waitlistEnabled: z.boolean(),
     allowSelfCheckIn: z.boolean(),
+    allowDashboardCheckIn: z.boolean(),
     checkInWindowBefore: z.coerce.number().min(0).max(240).optional(),
     checkInWindowAfter: z.coerce.number().min(0).max(240).optional(),
     priceSingleCents: z.coerce.number().min(0),

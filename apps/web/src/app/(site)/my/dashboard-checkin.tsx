@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Clock, Loader2, MapPin, AlertCircle } from 'lucide-react'
+import { CheckCircle2, Clock, Loader2, MapPin, AlertCircle, Calendar } from 'lucide-react'
 
 type TrackWithStatus = {
   id: string
@@ -17,6 +17,11 @@ type TrackWithStatus = {
   registrationId: string
   alreadyCheckedIn: boolean
   checkedInTime?: string
+}
+
+type UpcomingDay = {
+  dayLabel: string
+  courses: { title: string; time: string; periodName: string }[]
 }
 
 type WindowStatus = {
@@ -188,9 +193,10 @@ function CheckInItem({ track, onCheckIn, loading }: CheckInItemProps) {
 
 type Props = {
   initialTracks: TrackWithStatus[]
+  upcomingCourses?: UpcomingDay[]
 }
 
-export function DashboardCheckin({ initialTracks }: Props) {
+export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props) {
   const [tracks, setTracks] = useState<TrackWithStatus[]>(initialTracks)
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -232,9 +238,42 @@ export function DashboardCheckin({ initialTracks }: Props) {
     }
   }, [])
 
-  // No tracks for today
-  if (tracks.length === 0) {
+  // No tracks for today and no upcoming courses
+  if (tracks.length === 0 && upcomingCourses.length === 0) {
     return null
+  }
+
+  // Only upcoming courses (no classes today)
+  if (tracks.length === 0) {
+    return (
+      <Card className="border-slate-200 dark:border-slate-800">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-base">Upcoming Classes</CardTitle>
+          </div>
+          <CardDescription>
+            No classes scheduled for today
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {upcomingCourses.slice(0, 4).map((day, idx) => (
+            <div key={idx} className="text-sm">
+              <p className="font-medium text-slate-600 dark:text-slate-400 mb-1">{day.dayLabel}</p>
+              <div className="space-y-1 pl-3">
+                {day.courses.map((course, courseIdx) => (
+                  <p key={courseIdx} className="text-slate-500 dark:text-slate-500">
+                    <span className="font-mono text-xs">{formatTime(course.time)}</span>
+                    <span className="mx-2">·</span>
+                    {course.title}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    )
   }
 
   // All tracks already checked in
@@ -291,6 +330,35 @@ export function DashboardCheckin({ initialTracks }: Props) {
           />
         ))}
       </CardContent>
+
+      {/* Upcoming Classes Section */}
+      {upcomingCourses.length > 0 && (
+        <>
+          <div className="border-t border-slate-200 dark:border-slate-700" />
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <h4 className="text-sm font-medium text-muted-foreground">Upcoming Classes</h4>
+            </div>
+            <div className="space-y-3">
+              {upcomingCourses.slice(0, 3).map((day, idx) => (
+                <div key={idx} className="text-sm">
+                  <p className="font-medium text-slate-600 dark:text-slate-400 mb-1">{day.dayLabel}</p>
+                  <div className="space-y-1 pl-3">
+                    {day.courses.map((course, courseIdx) => (
+                      <p key={courseIdx} className="text-slate-500 dark:text-slate-500">
+                        <span className="font-mono text-xs">{formatTime(course.time)}</span>
+                        <span className="mx-2">·</span>
+                        {course.title}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </>
+      )}
     </Card>
   )
 }

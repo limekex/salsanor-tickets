@@ -186,6 +186,7 @@ model CourseTrack {
   checkInWindowBefore    Int            @default(30)
   checkInWindowAfter     Int            @default(30)
   allowSelfCheckIn       Boolean        @default(false)
+  allowDashboardCheckIn  Boolean        @default(false)  // Allow participants to check in from /my dashboard
   CoursePeriod           CoursePeriod   @relation(fields: [periodId], references: [id])
   Registration           Registration[]
   TrackSession           TrackSession[]

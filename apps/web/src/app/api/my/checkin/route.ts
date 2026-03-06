@@ -39,7 +39,7 @@ export async function GET() {
         }
 
         // Get active registrations for tracks that:
-        // 1. Allow self check-in
+        // 1. Allow dashboard check-in (button on /my)
         // 2. Are scheduled for today's weekday
         // 3. Period is currently active
         const registrations = await prisma.registration.findMany({
@@ -47,7 +47,7 @@ export async function GET() {
                 personId: userAccount.PersonProfile.id,
                 status: 'ACTIVE',
                 CourseTrack: {
-                    allowSelfCheckIn: true,
+                    allowDashboardCheckIn: true,
                     weekday: isoDayOfWeek
                 },
                 CoursePeriod: {
@@ -187,6 +187,7 @@ export async function POST(req: Request) {
                 id: true,
                 title: true,
                 allowSelfCheckIn: true,
+                allowDashboardCheckIn: true,
                 weekday: true,
                 timeStart: true,
                 checkInWindowBefore: true,
@@ -201,10 +202,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Track not found' }, { status: 404 })
         }
 
-        if (!track.allowSelfCheckIn) {
+        if (!track.allowDashboardCheckIn) {
             return NextResponse.json({ 
                 success: false, 
-                error: 'Self check-in is not enabled for this course' 
+                error: 'Dashboard check-in is not enabled for this course' 
             }, { status: 403 })
         }
 

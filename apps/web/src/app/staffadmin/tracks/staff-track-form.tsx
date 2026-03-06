@@ -84,6 +84,7 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
             rolePolicy: track.rolePolicy,
             waitlistEnabled: track.waitlistEnabled,
             allowSelfCheckIn: track.allowSelfCheckIn,
+            allowDashboardCheckIn: track.allowDashboardCheckIn,
             checkInWindowBefore: track.checkInWindowBefore ?? DEFAULT_CHECK_IN_WINDOW,
             checkInWindowAfter: track.checkInWindowAfter ?? DEFAULT_CHECK_IN_WINDOW,
             priceSingleCents: track.priceSingleCents,
@@ -109,6 +110,7 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
             rolePolicy: 'ANY',
             waitlistEnabled: true,
             allowSelfCheckIn: false,
+            allowDashboardCheckIn: false,
             checkInWindowBefore: DEFAULT_CHECK_IN_WINDOW,
             checkInWindowAfter: DEFAULT_CHECK_IN_WINDOW,
             priceSingleCents: 20000,
@@ -156,6 +158,7 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
         formData.append('rolePolicy', data.rolePolicy)
         if (data.waitlistEnabled) formData.append('waitlistEnabled', 'on')
         if (data.allowSelfCheckIn) formData.append('allowSelfCheckIn', 'on')
+        if (data.allowDashboardCheckIn) formData.append('allowDashboardCheckIn', 'on')
         if (data.checkInWindowBefore !== undefined) formData.append('checkInWindowBefore', data.checkInWindowBefore.toString())
         if (data.checkInWindowAfter !== undefined) formData.append('checkInWindowAfter', data.checkInWindowAfter.toString())
         // Pricing
@@ -513,6 +516,34 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                                     )}
                                 />
                             </div>
+                        )}
+                        {form.watch('allowSelfCheckIn') && (
+                            <FormField
+                                control={form.control}
+                                name="allowDashboardCheckIn"
+                                render={({ field }) => (
+                                    <FormItem className="pl-7 mt-4">
+                                        <div className="flex items-center gap-3">
+                                            <FormControl>
+                                                <input
+                                                    type="checkbox"
+                                                    id="allowDashboardCheckIn"
+                                                    checked={field.value}
+                                                    onChange={field.onChange}
+                                                    className="h-4 w-4 cursor-pointer"
+                                                />
+                                            </FormControl>
+                                            <FormLabel htmlFor="allowDashboardCheckIn" className="cursor-pointer font-normal">
+                                                Allow check-in from participant portal
+                                            </FormLabel>
+                                        </div>
+                                        <FormDescription>
+                                            When enabled, participants can check in directly from their &quot;My Dashboard&quot; page without scanning a QR code.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         )}
                     </CardContent>
                 </Card>

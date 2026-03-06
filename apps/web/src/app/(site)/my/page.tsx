@@ -76,7 +76,7 @@ export default async function MyDashboardPage() {
       personId: userAccount.PersonProfile.id,
       status: 'ACTIVE',
       CourseTrack: {
-        allowSelfCheckIn: true,
+        allowDashboardCheckIn: true,
         weekday: isoDayOfWeek
       },
       CoursePeriod: {
@@ -150,6 +150,57 @@ export default async function MyDashboardPage() {
     .filter((t): t is NonNullable<typeof t> => t !== null)
     .sort((a, b) => a.timeStart.localeCompare(b.timeStart))
 
+  // Fetch upcoming courses for the next 7 days (all active registrations with their tracks)
+  const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const upcomingCourses: { dayLabel: string; courses: { title: string; time: string; periodName: string }[] }[] = []
+  
+  // Get all active registrations with track info
+  const activeRegistrations = await prisma.registration.findMany({
+    where: {
+      personId: userAccount.PersonProfile.id,
+      status: 'ACTIVE',
+      CoursePeriod: {
+        startDate: { lte: sessionDate },
+        endDate: { gte: sessionDate }
+      }
+    },
+    include: {
+      CourseTrack: {
+        select: {
+          title: true,
+          weekday: true,
+          timeStart: true
+        }
+      },
+      CoursePeriod: {
+        select: { id: true, name: true, endDate: true }
+      }
+    }
+  })
+
+  // Build list of upcoming days with courses (next 7 days, excluding today)
+  for (let i = 1; i <= 7; i++) {
+    const futureDate = new Date(today)
+    futureDate.setDate(today.getDate() + i)
+    const futureDayJs = futureDate.getDay()
+    const futureDayIso = futureDayJs === 0 ? 7 : futureDayJs
+    
+    // Find courses scheduled for this weekday
+    const coursesOnDay = activeRegistrations
+      .filter(r => r.CourseTrack.weekday === futureDayIso && new Date(r.CoursePeriod.endDate) >= futureDate)
+      .map(r => ({
+        title: r.CourseTrack.title,
+        time: r.CourseTrack.timeStart,
+        periodName: r.CoursePeriod.name
+      }))
+      .sort((a, b) => a.time.localeCompare(b.time))
+    
+    if (coursesOnDay.length > 0) {
+      const dayLabel = i === 1 ? 'Tomorrow' : weekdayNames[futureDayJs]
+      upcomingCourses.push({ dayLabel, courses: coursesOnDay })
+    }
+  }
+
   // Calculate event ticket stats
   const eventRegistrations = userAccount.PersonProfile.EventRegistration || []
   const eventStats = {
@@ -190,8 +241,8 @@ export default async function MyDashboardPage() {
         </div>
 
         {/* Self Check-in Widget */}
-        {checkInTracks.length > 0 && (
-          <DashboardCheckin initialTracks={checkInTracks} />
+        {(checkInTracks.length > 0 || upcomingCourses.length > 0) && (
+          <DashboardCheckin initialTracks={checkInTracks} upcomingCourses={upcomingCourses} />
         )}
 
         {/* Notices/Announcements Section */}
