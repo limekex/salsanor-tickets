@@ -17,6 +17,9 @@ export { OrganizerCard } from './organizer-card'
 // Order components
 export { OrderCard } from './order-card'
 
+// Membership components
+export { MembershipCard } from './membership-card'
+
 // Layout components
 export { EventGrid, CourseGrid, TwoColumnGrid, FourColumnGrid } from './grids'
 export type { GridProps } from './grids'

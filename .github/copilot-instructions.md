@@ -1,6 +1,6 @@
 # Agent Development Instructions
 
-**Last Updated**: February 11, 2026  
+**Last Updated**: March 7, 2026  
 **Status**: ✅ Current with Issue #10 refactor
 
 ## 🚨 MANDATORY: Read Before Coding
@@ -17,7 +17,7 @@ Before writing ANY code, you MUST:
 
 ```tsx
 // 📦 Components - ALWAYS check these first
-import { EventCard, CourseCard, OrganizerCard, OrderCard, EmptyState, EventGrid, CourseGrid } from '@/components'
+import { EventCard, CourseCard, OrganizerCard, OrderCard, MembershipCard, EmptyState, EventGrid, CourseGrid } from '@/components'
 
 // 💰 Formatters - NEVER use inline formatting
 import { formatPrice, formatEventDate, formatDateRange, formatRelativeTime, formatWeekday, truncate } from '@/lib/formatters'
