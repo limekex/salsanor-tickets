@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { UI_TEXT, getCountText } from '@/lib/i18n'
 import { EmptyState } from '@/components'
+import { DashboardCheckin } from './dashboard-checkin'
 
 export default async function MyDashboardPage() {
   const supabase = await createClient()
@@ -65,6 +66,90 @@ export default async function MyDashboardPage() {
     redirect('/onboarding')
   }
 
+  // Fetch today's self check-in tracks
+  const jsDayOfWeek = today.getDay()
+  const isoDayOfWeek = jsDayOfWeek === 0 ? 7 : jsDayOfWeek
+  const sessionDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
+
+  const selfCheckInRegistrations = await prisma.registration.findMany({
+    where: {
+      personId: userAccount.PersonProfile.id,
+      status: 'ACTIVE',
+      CourseTrack: {
+        allowSelfCheckIn: true,
+        weekday: isoDayOfWeek
+      },
+      CoursePeriod: {
+        startDate: { lte: sessionDate },
+        endDate: { gte: sessionDate }
+      }
+    },
+    include: {
+      CourseTrack: {
+        select: {
+          id: true,
+          title: true,
+          weekday: true,
+          timeStart: true,
+          checkInWindowBefore: true,
+          checkInWindowAfter: true
+        }
+      },
+      CoursePeriod: {
+        select: { id: true, name: true }
+      },
+      Attendance: {
+        where: {
+          sessionDate,
+          cancelled: false
+        },
+        select: {
+          id: true,
+          checkInTime: true
+        }
+      }
+    }
+  })
+
+  // Check for breaks and format tracks
+  const checkInTracksPromises = selfCheckInRegistrations.map(async (reg) => {
+    const activeBreak = await prisma.periodBreak.findFirst({
+      where: {
+        OR: [
+          { periodId: reg.CoursePeriod.id, trackId: null },
+          { trackId: reg.CourseTrack.id }
+        ],
+        startDate: { lte: sessionDate },
+        endDate: { gte: sessionDate }
+      }
+    })
+
+    if (activeBreak) return null
+
+    const attendance = reg.Attendance[0]
+    const checkedInTime = attendance 
+      ? new Intl.DateTimeFormat('en-GB', { timeStyle: 'short' }).format(attendance.checkInTime)
+      : undefined
+
+    return {
+      id: reg.CourseTrack.id,
+      title: reg.CourseTrack.title,
+      periodName: reg.CoursePeriod.name,
+      weekday: reg.CourseTrack.weekday,
+      timeStart: reg.CourseTrack.timeStart,
+      checkInWindowBefore: reg.CourseTrack.checkInWindowBefore ?? 30,
+      checkInWindowAfter: reg.CourseTrack.checkInWindowAfter ?? 30,
+      registrationId: reg.id,
+      alreadyCheckedIn: !!attendance,
+      checkedInTime
+    }
+  })
+
+  const checkInTracksResolved = await Promise.all(checkInTracksPromises)
+  const checkInTracks = checkInTracksResolved
+    .filter((t): t is NonNullable<typeof t> => t !== null)
+    .sort((a, b) => a.timeStart.localeCompare(b.timeStart))
+
   // Calculate event ticket stats
   const eventRegistrations = userAccount.PersonProfile.EventRegistration || []
   const eventStats = {
@@ -103,6 +188,11 @@ export default async function MyDashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Self Check-in Widget */}
+        {checkInTracks.length > 0 && (
+          <DashboardCheckin initialTracks={checkInTracks} />
+        )}
 
         {/* Notices/Announcements Section */}
         <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
