@@ -189,7 +189,6 @@ interface CheckInWindow {
 For trusted participants or specific scenarios:
 - [x] Enable/disable per track or period
 - [x] Geofencing (check-in only when at venue) - with configurable radius
-- [ ] Time-limited self check-in codes
 - [x] QR code displayed at venue for self-scan
 - [x] Phone number lookup for participants without QR codes
 - [x] Auto-reset after check-in result (5 second countdown)
@@ -198,7 +197,6 @@ For trusted participants or specific scenarios:
 ### 7. Absence Management ✅ MOSTLY COMPLETE
 - [x] Pre-registered absences (participant notifies in advance)
 - [x] Absence reasons (illness, travel, etc.)
-- [ ] Make-up sessions (if applicable)
 - [ ] Absence notifications to instructors
 
 ```prisma
@@ -219,7 +217,7 @@ model PlannedAbsence {
 
 ### 8. Notifications & Reminders
 - [x] Session reminder before class (configurable hours before) - **via Scheduled Tasks**
-- [ ] Missed session notification - **scheduled task created, needs testing**
+- [x] Missed session notification - **fully implemented in cron handler**
 - [x] Low attendance warning (< X% attendance) - **via Scheduled Tasks**
 - [x] Break period reminders (no class next week) - **via Scheduled Tasks**
 

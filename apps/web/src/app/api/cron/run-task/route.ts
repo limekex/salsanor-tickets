@@ -83,6 +83,9 @@ export async function POST(req: Request) {
             case 'WAITLIST_CLEANUP':
                 result = await runWaitlistCleanup(task.organizerId)
                 break
+            case 'MISSED_SESSION_NOTIFY':
+                result = await runMissedSessionNotifications(task.organizerId, task.config as Record<string, unknown> | null)
+                break
             default:
                 result = { processed: 0, failed: 0, message: `Unknown task type: ${task.taskType}` }
         }
@@ -518,6 +521,135 @@ async function runWaitlistCleanup(
         processed,
         failed: 0,
         message: `Cleaned up ${processed} expired waitlist offers`,
+    }
+}
+
+async function runMissedSessionNotifications(
+    organizerId: string | null,
+    config: Record<string, unknown> | null
+): Promise<{ processed: number; failed: number; message: string }> {
+    const hoursAfter = (config?.hoursAfter as number) ?? 2 // Default: 2 hours after session ends
+    const now = new Date()
+    const todayDow = now.getDay()
+    
+    // Get today's date at midnight for session lookup
+    const todayStart = new Date(now)
+    todayStart.setHours(0, 0, 0, 0)
+    const todayEnd = new Date(now)
+    todayEnd.setHours(23, 59, 59, 999)
+
+    // Find tracks that had a session today
+    const tracks = await prisma.courseTrack.findMany({
+        where: {
+            weekday: todayDow,
+            CoursePeriod: {
+                organizerId: organizerId ?? undefined,
+                startDate: { lte: now },
+                endDate: { gte: now },
+            },
+        },
+        include: {
+            CoursePeriod: {
+                include: { Organizer: true },
+            },
+            Registration: {
+                where: { status: 'ACTIVE' },
+                include: { PersonProfile: true },
+            },
+            Attendance: {
+                where: {
+                    sessionDate: { gte: todayStart, lte: todayEnd },
+                    cancelled: false,
+                },
+                select: { registrationId: true },
+            },
+        },
+    })
+
+    // Filter tracks whose session has ended + hoursAfter buffer
+    const tracksToNotify = tracks.filter(track => {
+        const [hours, minutes] = (track.timeEnd || track.timeStart || '21:00').split(':').map(Number)
+        const sessionEnd = new Date(now)
+        sessionEnd.setHours(hours, minutes, 0, 0)
+        sessionEnd.setTime(sessionEnd.getTime() + hoursAfter * 60 * 60 * 1000)
+        
+        return now >= sessionEnd
+    })
+
+    let processed = 0
+    let failed = 0
+
+    for (const track of tracksToNotify) {
+        // Check for break periods
+        const isBreak = await prisma.periodBreak.findFirst({
+            where: {
+                OR: [
+                    { periodId: track.periodId },
+                    { trackId: track.id },
+                ],
+                startDate: { lte: now },
+                endDate: { gte: now },
+            },
+        })
+
+        if (isBreak) continue // Skip if today is a break
+
+        // Get registration IDs that already checked in
+        const checkedInIds = new Set(track.Attendance.map(a => a.registrationId))
+
+        // Find participants who didn't check in
+        const missedParticipants = track.Registration.filter(
+            reg => !checkedInIds.has(reg.id)
+        )
+
+        for (const reg of missedParticipants) {
+            if (!reg.PersonProfile?.email) continue
+
+            // Check if already has a planned absence
+            const hasAbsence = await prisma.plannedAbsence.findFirst({
+                where: {
+                    registrationId: reg.id,
+                    sessionDate: { gte: todayStart, lte: todayEnd },
+                },
+            })
+
+            if (hasAbsence) continue // Don't notify if absence was planned
+
+            try {
+                const result = await emailService.sendTransactional({
+                    organizerId: track.CoursePeriod.organizerId,
+                    templateSlug: 'missed-session',
+                    recipientEmail: reg.PersonProfile.email,
+                    recipientName: `${reg.PersonProfile.firstName} ${reg.PersonProfile.lastName}`,
+                    variables: {
+                        firstName: reg.PersonProfile.firstName,
+                        courseName: track.title,
+                        sessionDate: formatDateShort(now),
+                        sessionTime: track.timeStart || '19:00',
+                        location: track.locationName || 'TBA',
+                        periodName: track.CoursePeriod.name,
+                        myCoursesUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/my/courses`,
+                        myAttendanceUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/my/attendance`,
+                        organizerName: track.CoursePeriod.Organizer.name,
+                        currentYear: new Date().getFullYear().toString(),
+                    },
+                })
+
+                if (result.success) {
+                    processed++
+                } else {
+                    failed++
+                }
+            } catch {
+                failed++
+            }
+        }
+    }
+
+    return {
+        processed,
+        failed,
+        message: `Sent ${processed} missed session notifications, ${failed} failed`,
     }
 }
 

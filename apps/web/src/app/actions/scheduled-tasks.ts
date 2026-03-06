@@ -426,15 +426,16 @@ export async function sendTestEmail(
             variables: {},
         },
         MISSED_SESSION_NOTIFY: {
-            templateSlug: 'session-reminder', // Placeholder until dedicated template exists
+            templateSlug: 'missed-session',
             variables: {
                 firstName: adminName.split(' ')[0],
-                courseName: 'Salsa Beginner - Test Course (Missed Session)',
+                courseName: 'Salsa Beginner - Test Course',
+                sessionDate: new Date().toLocaleDateString('en-GB', { dateStyle: 'medium' }),
                 sessionTime: '19:00',
                 location: 'Dance Studio A',
                 periodName: 'Spring 2026',
-                checkInWindow: '30 minutes',
                 myCoursesUrl: `${baseUrl}/my/courses`,
+                myAttendanceUrl: `${baseUrl}/my/attendance`,
                 organizerName,
                 currentYear,
             },
