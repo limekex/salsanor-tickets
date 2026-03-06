@@ -325,28 +325,22 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
   if (tracks.length === 0) {
     return (
       <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-muted-foreground" />
-            <CardTitle className="text-base">Upcoming Classes</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm">Upcoming</CardTitle>
           </div>
-          <CardDescription>
-            No classes scheduled for today
-          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {upcomingCourses.slice(0, 4).map((day, idx) => (
-            <div key={idx} className="text-sm">
-              <p className="font-medium text-slate-600 dark:text-slate-400 mb-1">{day.dayLabel}</p>
-              <div className="space-y-1 pl-3">
-                {day.courses.map((course, courseIdx) => (
-                  <p key={courseIdx} className="text-slate-500 dark:text-slate-500">
-                    <span className="font-mono text-xs">{formatTime(course.time)}</span>
-                    <span className="mx-2">·</span>
-                    {course.title}
-                  </p>
-                ))}
-              </div>
+        <CardContent className="pt-0 space-y-1">
+          {upcomingCourses.slice(0, 3).map((day, idx) => (
+            <div key={idx} className="text-xs">
+              <span className="font-medium text-slate-500">{day.dayLabel}:</span>{' '}
+              {day.courses.map((course, i) => (
+                <span key={i} className="text-slate-400">
+                  {i > 0 && ', '}
+                  {formatTime(course.time)}
+                </span>
+              ))}
             </div>
           ))}
         </CardContent>
@@ -416,33 +410,19 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
         ))}
       </CardContent>
 
-      {/* Upcoming Classes Section */}
+      {/* Upcoming - compact */}
       {upcomingCourses.length > 0 && (
-        <>
-          <div className="border-t border-slate-200 dark:border-slate-700" />
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <h4 className="text-sm font-medium text-muted-foreground">Upcoming Classes</h4>
-            </div>
-            <div className="space-y-3">
-              {upcomingCourses.slice(0, 3).map((day, idx) => (
-                <div key={idx} className="text-sm">
-                  <p className="font-medium text-slate-600 dark:text-slate-400 mb-1">{day.dayLabel}</p>
-                  <div className="space-y-1 pl-3">
-                    {day.courses.map((course, courseIdx) => (
-                      <p key={courseIdx} className="text-slate-500 dark:text-slate-500">
-                        <span className="font-mono text-xs">{formatTime(course.time)}</span>
-                        <span className="mx-2">·</span>
-                        {course.title}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </>
+        <div className="px-4 pb-3 pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">Next:</span>{' '}
+            {upcomingCourses.slice(0, 2).map((day, idx) => (
+              <span key={idx}>
+                {idx > 0 && ' · '}
+                {day.dayLabel} {day.courses.map(c => formatTime(c.time)).join(', ')}
+              </span>
+            ))}
+          </p>
+        </div>
       )}
     </Card>
   )

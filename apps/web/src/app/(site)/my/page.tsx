@@ -92,7 +92,11 @@ export default async function MyDashboardPage() {
           weekday: true,
           timeStart: true,
           checkInWindowBefore: true,
-          checkInWindowAfter: true
+          checkInWindowAfter: true,
+          geofenceEnabled: true,
+          geofenceRadius: true,
+          latitude: true,
+          longitude: true
         }
       },
       CoursePeriod: {
@@ -139,6 +143,10 @@ export default async function MyDashboardPage() {
       timeStart: reg.CourseTrack.timeStart,
       checkInWindowBefore: reg.CourseTrack.checkInWindowBefore ?? 30,
       checkInWindowAfter: reg.CourseTrack.checkInWindowAfter ?? 30,
+      geofenceEnabled: reg.CourseTrack.geofenceEnabled,
+      geofenceRadius: reg.CourseTrack.geofenceRadius,
+      latitude: reg.CourseTrack.latitude,
+      longitude: reg.CourseTrack.longitude,
       registrationId: reg.id,
       alreadyCheckedIn: !!attendance,
       checkedInTime
@@ -240,32 +248,35 @@ export default async function MyDashboardPage() {
           </div>
         </div>
 
-        {/* Self Check-in Widget */}
-        {(checkInTracks.length > 0 || upcomingCourses.length > 0) && (
-          <DashboardCheckin initialTracks={checkInTracks} upcomingCourses={upcomingCourses} />
-        )}
-
-        {/* Notices/Announcements Section */}
-        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <CardTitle className="text-base">Notices & Announcements</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-white/80 dark:bg-slate-900/50 border border-blue-100 dark:border-blue-900">
-                <Info className="h-4 w-4 mt-0.5 text-blue-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm">Welcome to your participant portal! Here you can manage your courses, tickets, and memberships.</p>
-                  <p className="text-xs text-muted-foreground mt-1">New to the platform? Check out our <Link href="/my/help" className="text-primary hover:underline">Help & FAQ</Link> section.</p>
-                </div>
+        {/* Notices & Check-in Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-rn-4">
+          {/* Notices/Announcements Section - 2/3 width */}
+          <Card className="lg:col-span-2 border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <CardTitle className="text-base">Notices & Announcements</CardTitle>
               </div>
-              {/* More notices will appear here when the notification system is implemented */}
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-white/80 dark:bg-slate-900/50 border border-blue-100 dark:border-blue-900">
+                  <Info className="h-4 w-4 mt-0.5 text-blue-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">Welcome to your participant portal! Here you can manage your courses, tickets, and memberships.</p>
+                    <p className="text-xs text-muted-foreground mt-1">New to the platform? Check out our <Link href="/my/help" className="text-primary hover:underline">Help & FAQ</Link> section.</p>
+                  </div>
+                </div>
+                {/* More notices will appear here when the notification system is implemented */}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Self Check-in Widget - 1/3 width */}
+          {(checkInTracks.length > 0 || upcomingCourses.length > 0) && (
+            <DashboardCheckin initialTracks={checkInTracks} upcomingCourses={upcomingCourses} />
+          )}
+        </div>
 
         {/* Main Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-rn-6">
