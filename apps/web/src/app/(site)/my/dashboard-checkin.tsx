@@ -85,6 +85,15 @@ function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
       return
     }
     
+    // Check if we're on HTTPS or localhost
+    if (typeof window !== 'undefined' && 
+        window.location.protocol !== 'https:' && 
+        !window.location.hostname.includes('localhost') &&
+        !window.location.hostname.includes('127.0.0.1')) {
+      reject(new Error('Location services require a secure connection (HTTPS)'))
+      return
+    }
+    
     navigator.geolocation.getCurrentPosition(
       (position) => {
         resolve({
@@ -95,7 +104,7 @@ function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
       (error) => {
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            reject(new Error('Location access denied. Please enable location services to check in.'))
+            reject(new Error('Location access was denied. Please allow location access in your browser settings and try again.'))
             break
           case error.POSITION_UNAVAILABLE:
             reject(new Error('Location unavailable. Please try again.'))
@@ -109,7 +118,7 @@ function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0
       }
     )
@@ -200,7 +209,8 @@ function CheckInItem({ track, onCheckIn, loading, gettingLocation }: CheckInItem
 
   // Window is open - show check-in button
   return (
-    <div className="flex items-center justify-between p-4 rounded-lg bg-rn-primary/5 border-2 border-rn-primary">
+    <div className="p-4 rounded-lg bg-rn-primary/5 border-2 border-rn-primary space-y-3">
+      {/* Title and time */}
       <div className="flex items-center gap-3">
         <MapPin className="h-5 w-5 text-rn-primary shrink-0" />
         <div>
@@ -212,19 +222,16 @@ function CheckInItem({ track, onCheckIn, loading, gettingLocation }: CheckInItem
                 • Location required
               </span>
             )}
-            {windowStatus.secondsUntilClose && (
-              <span className="ml-2 text-orange-600 dark:text-orange-400">
-                • Closes in {formatCountdown(windowStatus.secondsUntilClose)}
-              </span>
-            )}
           </p>
         </div>
       </div>
+      
+      {/* Button */}
       <Button 
         onClick={handleCheckIn}
         disabled={loading}
         size="lg"
-        className="min-w-[120px]"
+        className="w-full"
       >
         {loading ? (
           <>
@@ -238,6 +245,13 @@ function CheckInItem({ track, onCheckIn, loading, gettingLocation }: CheckInItem
           </>
         )}
       </Button>
+      
+      {/* Countdown */}
+      {windowStatus.secondsUntilClose && (
+        <p className="text-xs text-center text-orange-600 dark:text-orange-400">
+          Window closes in {formatCountdown(windowStatus.secondsUntilClose)}
+        </p>
+      )}
     </div>
   )
 }
