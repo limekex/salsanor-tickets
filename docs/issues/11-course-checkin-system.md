@@ -224,7 +224,7 @@ model PlannedAbsence {
 **Implemented:**
 - Full scheduled task administration system at `/staffadmin/tasks`
 - Global cron management at `/admin/tasks` (platform admin)
-- Email templates: `session-reminder`, `break-reminder`, `attendance-low-warning`
+- Email templates: `session-reminder`, `break-reminder`, `attendance-low-warning`, `missed-session`
 - API endpoints: `/api/cron/run-all` (global), `/api/cron/run-task` (per-task)
 - See [SCHEDULED_TASKS_SETUP.md](../SCHEDULED_TASKS_SETUP.md) for cron configuration
 - See [SCHEDULED_TASKS_STAFFADMIN.md](../SCHEDULED_TASKS_STAFFADMIN.md) for UI guide

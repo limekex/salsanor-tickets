@@ -309,6 +309,7 @@ The following email templates must be seeded for tasks to work:
 | `session-reminder` | SESSION_REMINDER |
 | `break-reminder` | BREAK_REMINDER |
 | `attendance-low-warning` | LOW_ATTENDANCE_WARN |
+| `missed-session` | MISSED_SESSION_NOTIFY |
 
 Run the seed script to add these templates:
 ```bash

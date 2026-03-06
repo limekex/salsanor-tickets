@@ -3008,6 +3008,196 @@ Best regards,
       currentYear: 'Current year'
     },
   },
+  // MISSED_SESSION_NOTIFY - Norwegian
+  {
+    slug: 'missed-session',
+    name: 'Varsel om tapt time',
+    category: 'NOTIFICATION' as const,
+    language: 'no',
+    subject: 'Vi savnet deg på {{courseName}} i dag',
+    preheader: 'Du sjekket ikke inn på timen i dag',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tapt time</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📭</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Vi savnet deg!</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{firstName}},</p>
+    
+    <p style="font-size: 16px;">Vi merket at du ikke sjekket inn på <strong>{{courseName}}</strong> i dag.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Timedetaljer</h2>
+      <p style="margin: 10px 0;"><strong>📚 Kurs:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Dato:</strong> {{sessionDate}}</p>
+      <p style="margin: 10px 0;"><strong>🕐 Tid:</strong> {{sessionTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Sted:</strong> {{location}}</p>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>💡 Tips:</strong> Hvis du vet at du ikke kan delta på en time, kan du registrere fravær på forhånd i din profil. Da mottar du ikke disse meldingene.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{myAttendanceUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Se min oppmøtehistorikk</a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Vi håper å se deg på neste time!
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{firstName}},
+
+Vi merket at du ikke sjekket inn på {{courseName}} i dag.
+
+TIMEDETALJER:
+Kurs: {{courseName}}
+Dato: {{sessionDate}}
+Tid: {{sessionTime}}
+Sted: {{location}}
+
+Tips: Hvis du vet at du ikke kan delta på en time, kan du registrere fravær på forhånd i din profil. Da mottar du ikke disse meldingene.
+
+Se din oppmøtehistorikk: {{myAttendanceUrl}}
+
+Vi håper å se deg på neste time!
+
+Med vennlig hilsen,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
+    variables: { 
+      firstName: 'Deltakerens fornavn',
+      courseName: 'Kurs/sportnavn',
+      sessionDate: 'Dato for timen',
+      sessionTime: 'Tidspunkt for timen',
+      location: 'Sted for timen',
+      periodName: 'Periodenavn',
+      myCoursesUrl: 'Lenke til mine kurs',
+      myAttendanceUrl: 'Lenke til oppmøtehistorikk',
+      organizerName: 'Arrangørnavn',
+      currentYear: 'Nåværende år'
+    },
+  },
+  // MISSED_SESSION_NOTIFY - English
+  {
+    slug: 'missed-session',
+    name: 'Missed Session Notification',
+    category: 'NOTIFICATION' as const,
+    language: 'en',
+    subject: 'We missed you at {{courseName}} today',
+    preheader: 'You did not check in to class today',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Missed Session</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📭</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">We Missed You!</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hello {{firstName}},</p>
+    
+    <p style="font-size: 16px;">We noticed you didn't check in to <strong>{{courseName}}</strong> today.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Session Details</h2>
+      <p style="margin: 10px 0;"><strong>📚 Course:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Date:</strong> {{sessionDate}}</p>
+      <p style="margin: 10px 0;"><strong>🕐 Time:</strong> {{sessionTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Location:</strong> {{location}}</p>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>💡 Tip:</strong> If you know you can't attend a session, you can register your absence in advance in your profile. You won't receive these notifications then.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{myAttendanceUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View My Attendance</a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      We hope to see you at the next session!
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hello {{firstName}},
+
+We noticed you didn't check in to {{courseName}} today.
+
+SESSION DETAILS:
+Course: {{courseName}}
+Date: {{sessionDate}}
+Time: {{sessionTime}}
+Location: {{location}}
+
+Tip: If you know you can't attend a session, you can register your absence in advance in your profile. You won't receive these notifications then.
+
+View your attendance history: {{myAttendanceUrl}}
+
+We hope to see you at the next session!
+
+Best regards,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – from signup to showtime`,
+    variables: { 
+      firstName: 'Participant first name',
+      courseName: 'Course/track name',
+      sessionDate: 'Date of session',
+      sessionTime: 'Time of session',
+      location: 'Session location',
+      periodName: 'Period name',
+      myCoursesUrl: 'Link to my courses',
+      myAttendanceUrl: 'Link to attendance history',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
 ]
 
 export async function seedEmailTemplates() {
