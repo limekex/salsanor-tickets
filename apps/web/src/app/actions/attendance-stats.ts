@@ -376,3 +376,193 @@ export async function getMyAttendanceForRegistration(registrationId: string, use
         plannedAbsences
     }
 }
+
+/**
+ * Week-by-week attendance breakdown for a period
+ */
+export interface WeeklyAttendanceStats {
+    weekNumber: number
+    weekStart: Date
+    weekEnd: Date
+    tracks: {
+        trackId: string
+        trackTitle: string
+        sessionDate: Date | null
+        expected: number
+        actual: number
+        attendanceRate: number
+    }[]
+    totalExpected: number
+    totalActual: number
+    overallRate: number
+}
+
+export interface PeriodDetailStats {
+    periodId: string
+    periodName: string
+    organizerName: string
+    startDate: Date
+    endDate: Date
+    totalTracks: number
+    totalRegistrations: number
+    totalCheckIns: number
+    averageAttendance: number
+    weeks: WeeklyAttendanceStats[]
+    trackSummaries: {
+        trackId: string
+        trackTitle: string
+        weekday: number
+        registrations: number
+        totalCheckIns: number
+        sessionsCompleted: number
+        averageAttendance: number
+    }[]
+}
+
+/**
+ * Get detailed period stats with week-by-week breakdown
+ */
+export async function getPeriodDetailStats(periodId: string): Promise<PeriodDetailStats | null> {
+    const period = await prisma.coursePeriod.findUnique({
+        where: { id: periodId },
+        include: {
+            Organizer: { select: { id: true, name: true } },
+            PeriodBreak: true,
+            CourseTrack: {
+                include: {
+                    Registration: {
+                        where: { status: 'ACTIVE' }
+                    },
+                    Attendance: {
+                        where: { cancelled: false }
+                    }
+                }
+            }
+        }
+    })
+
+    if (!period) return null
+
+    await requireOrgAdminForOrganizer(period.organizerId)
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    // Build week-by-week breakdown
+    const weeks: WeeklyAttendanceStats[] = []
+    let weekNumber = 1
+    const periodStart = new Date(period.startDate)
+    const periodEnd = new Date(period.endDate)
+
+    // Find first Monday on or before period start
+    let weekStart = new Date(periodStart)
+    const dayOfWeek = weekStart.getDay()
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    weekStart.setDate(weekStart.getDate() - daysToMonday)
+
+    while (weekStart <= periodEnd && weekStart <= today) {
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekEnd.getDate() + 6)
+
+        const trackStats = period.CourseTrack.map(track => {
+            // Find session date for this track in this week
+            const current = new Date(weekStart)
+            let sessionDate: Date | null = null
+            
+            while (current <= weekEnd) {
+                const jsDay = current.getDay()
+                const isoDay = jsDay === 0 ? 7 : jsDay
+                
+                if (isoDay === track.weekday && current >= periodStart && current <= periodEnd && current <= today) {
+                    // Check if it's a break
+                    const isBreak = period.PeriodBreak.some(b => {
+                        const breakWithTrack = b as typeof b & { trackId?: string | null }
+                        return (!breakWithTrack.trackId || breakWithTrack.trackId === track.id) &&
+                            current >= new Date(b.startDate) && current <= new Date(b.endDate)
+                    })
+                    if (!isBreak) {
+                        sessionDate = new Date(current)
+                        break
+                    }
+                }
+                current.setDate(current.getDate() + 1)
+            }
+
+            const expected = track.Registration.length
+            const actual = sessionDate 
+                ? track.Attendance.filter(a => {
+                    const attDate = new Date(a.sessionDate)
+                    return attDate.toISOString().split('T')[0] === sessionDate!.toISOString().split('T')[0]
+                }).length
+                : 0
+
+            return {
+                trackId: track.id,
+                trackTitle: track.title,
+                sessionDate,
+                expected: sessionDate ? expected : 0,
+                actual,
+                attendanceRate: sessionDate && expected > 0 ? Math.round((actual / expected) * 100) : 0
+            }
+        })
+
+        const totalExpected = trackStats.reduce((sum, t) => sum + t.expected, 0)
+        const totalActual = trackStats.reduce((sum, t) => sum + t.actual, 0)
+
+        // Only add week if there were any sessions
+        if (totalExpected > 0) {
+            weeks.push({
+                weekNumber,
+                weekStart: new Date(weekStart),
+                weekEnd,
+                tracks: trackStats,
+                totalExpected,
+                totalActual,
+                overallRate: totalExpected > 0 ? Math.round((totalActual / totalExpected) * 100) : 0
+            })
+            weekNumber++
+        }
+
+        weekStart.setDate(weekStart.getDate() + 7)
+    }
+
+    // Build track summaries
+    const trackSummaries = period.CourseTrack.map(track => {
+        const applicableBreaks = period.PeriodBreak.filter(b => {
+            const breakWithTrack = b as typeof b & { trackId?: string | null }
+            return !breakWithTrack.trackId || breakWithTrack.trackId === track.id
+        })
+        const sessionDates = getSessionDates(period.startDate, period.endDate, track.weekday, applicableBreaks)
+        const registrations = track.Registration.length
+        const totalCheckIns = track.Attendance.length
+        const expectedTotal = registrations * sessionDates.length
+
+        return {
+            trackId: track.id,
+            trackTitle: track.title,
+            weekday: track.weekday,
+            registrations,
+            totalCheckIns,
+            sessionsCompleted: sessionDates.length,
+            averageAttendance: expectedTotal > 0 ? Math.round((totalCheckIns / expectedTotal) * 100) : 0
+        }
+    })
+
+    const totalRegistrations = trackSummaries.reduce((sum, t) => sum + t.registrations, 0)
+    const totalCheckIns = trackSummaries.reduce((sum, t) => sum + t.totalCheckIns, 0)
+    const totalExpectedAll = trackSummaries.reduce((sum, t) => sum + t.registrations * t.sessionsCompleted, 0)
+
+    return {
+        periodId: period.id,
+        periodName: period.name,
+        organizerName: period.Organizer.name,
+        startDate: period.startDate,
+        endDate: period.endDate,
+        totalTracks: period.CourseTrack.length,
+        totalRegistrations,
+        totalCheckIns,
+        averageAttendance: totalExpectedAll > 0 ? Math.round((totalCheckIns / totalExpectedAll) * 100) : 0,
+        weeks,
+        trackSummaries
+    }
+}

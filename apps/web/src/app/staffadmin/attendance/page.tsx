@@ -132,9 +132,16 @@ export default async function AttendanceDashboardPage() {
                                             {formatDate(period.startDate)} – {formatDate(period.endDate)}
                                         </CardDescription>
                                     </div>
-                                    <Badge variant={getAttendanceBadgeVariant(period.averageAttendance)}>
-                                        {period.averageAttendance}% avg attendance
-                                    </Badge>
+                                    <div className="flex items-center gap-3">
+                                        <Badge variant={getAttendanceBadgeVariant(period.averageAttendance)}>
+                                            {period.averageAttendance}% avg attendance
+                                        </Badge>
+                                        <Button asChild variant="outline" size="sm">
+                                            <Link href={`/staffadmin/attendance/period/${period.periodId}`}>
+                                                Period Details
+                                            </Link>
+                                        </Button>
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent>

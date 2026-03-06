@@ -138,11 +138,11 @@ enum CheckInMethod {
   - Most/least attended sessions
   - Dropout indicators (missed X consecutive sessions)
   
-- [ ] **Per Period Stats**
+- [x] **Per Period Stats** (`/staffadmin/attendance/period/[periodId]`)
   - Overall attendance across all tracks
   - Comparison between tracks
-  - Week-by-week breakdown
-  - Heat map of attendance by day/time
+  - Week-by-week breakdown with visual bars
+  - [ ] Heat map of attendance by day/time (not implemented)
   
 - [x] **Per Participant Stats** (internal view)
   - Total sessions attended / total available
@@ -188,11 +188,12 @@ interface CheckInWindow {
 ### 6. Self Check-in Option ✅ IMPLEMENTED
 For trusted participants or specific scenarios:
 - [x] Enable/disable per track or period
-- [ ] Geofencing (check-in only when at venue)
+- [x] Geofencing (check-in only when at venue) - with configurable radius
 - [ ] Time-limited self check-in codes
 - [x] QR code displayed at venue for self-scan
 - [x] Phone number lookup for participants without QR codes
 - [x] Auto-reset after check-in result (5 second countdown)
+- [x] Dashboard self check-in widget (`/my` page with `allowDashboardCheckIn`)
 
 ### 7. Absence Management ✅ MOSTLY COMPLETE
 - [x] Pre-registered absences (participant notifies in advance)
