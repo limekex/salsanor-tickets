@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle2, Clock, Loader2, MapPin, AlertCircle, Calendar } from 'lucide-react'
+import { toast } from 'sonner'
 
 type TrackWithStatus = {
   id: string
@@ -264,15 +265,10 @@ type Props = {
 export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props) {
   const [tracks, setTracks] = useState<TrackWithStatus[]>(initialTracks)
   const [loading, setLoading] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [locationStatus, setLocationStatus] = useState<string | null>(null)
+  const [gettingLocation, setGettingLocation] = useState(false)
 
   const handleCheckIn = useCallback(async (trackId: string) => {
     setLoading(trackId)
-    setError(null)
-    setSuccess(null)
-    setLocationStatus(null)
 
     try {
       // Find the track to check if geofence is required
@@ -283,15 +279,19 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
       
       // Get location if geofence is enabled
       if (track?.geofenceEnabled) {
-        setLocationStatus('Getting your location...')
+        setGettingLocation(true)
+        const locationToastId = toast.loading('Getting your location...')
         try {
           const location = await getUserLocation()
           userLatitude = location.latitude
           userLongitude = location.longitude
-          setLocationStatus(null)
+          toast.dismiss(locationToastId)
         } catch (locationError) {
-          setError(locationError instanceof Error ? locationError.message : 'Location error')
+          toast.dismiss(locationToastId)
+          toast.error(locationError instanceof Error ? locationError.message : 'Location error')
           return
+        } finally {
+          setGettingLocation(false)
         }
       }
 
@@ -308,7 +308,7 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
       const data = await res.json()
 
       if (!res.ok || !data.success) {
-        setError(data.error || data.message || 'Check-in failed')
+        toast.error(data.error || data.message || 'Check-in failed')
         return
       }
 
@@ -318,15 +318,11 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
           ? { ...t, alreadyCheckedIn: true, checkedInTime: data.checkedInTime }
           : t
       ))
-      setSuccess(`Welcome to ${data.trackTitle}! 🎉`)
-
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccess(null), 5000)
+      toast.success(`Welcome to ${data.trackTitle}! 🎉`)
     } catch {
-      setError('Network error. Please try again.')
+      toast.error('Network error. Please try again.')
     } finally {
       setLoading(null)
-      setLocationStatus(null)
     }
   }, [tracks])
 
@@ -395,31 +391,13 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
         )}
       </CardHeader>
       <CardContent className="space-y-3">
-        {error && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        )}
-        {locationStatus && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300 text-sm">
-            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-            {locationStatus}
-          </div>
-        )}
-        {success && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-300 text-sm">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            {success}
-          </div>
-        )}
         {tracks.map(track => (
           <CheckInItem
             key={track.id}
             track={track}
             onCheckIn={handleCheckIn}
             loading={loading === track.id}
-            gettingLocation={loading === track.id && !!locationStatus}
+            gettingLocation={loading === track.id && gettingLocation}
           />
         ))}
       </CardContent>
