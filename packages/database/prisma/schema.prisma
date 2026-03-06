@@ -187,6 +187,8 @@ model CourseTrack {
   checkInWindowAfter     Int            @default(30)
   allowSelfCheckIn       Boolean        @default(false)
   allowDashboardCheckIn  Boolean        @default(false)  // Allow participants to check in from /my dashboard
+  geofenceEnabled        Boolean        @default(false)  // Require location check for dashboard check-in
+  geofenceRadius         Int?           // Radius in meters for geofence check
   CoursePeriod           CoursePeriod   @relation(fields: [periodId], references: [id])
   Registration           Registration[]
   TrackSession           TrackSession[]

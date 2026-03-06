@@ -85,6 +85,8 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
             waitlistEnabled: track.waitlistEnabled,
             allowSelfCheckIn: track.allowSelfCheckIn,
             allowDashboardCheckIn: track.allowDashboardCheckIn,
+            geofenceEnabled: track.geofenceEnabled,
+            geofenceRadius: track.geofenceRadius ?? 100,
             checkInWindowBefore: track.checkInWindowBefore ?? DEFAULT_CHECK_IN_WINDOW,
             checkInWindowAfter: track.checkInWindowAfter ?? DEFAULT_CHECK_IN_WINDOW,
             priceSingleCents: track.priceSingleCents,
@@ -111,6 +113,8 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
             waitlistEnabled: true,
             allowSelfCheckIn: false,
             allowDashboardCheckIn: false,
+            geofenceEnabled: false,
+            geofenceRadius: 100,
             checkInWindowBefore: DEFAULT_CHECK_IN_WINDOW,
             checkInWindowAfter: DEFAULT_CHECK_IN_WINDOW,
             priceSingleCents: 20000,
@@ -159,6 +163,8 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
         if (data.waitlistEnabled) formData.append('waitlistEnabled', 'on')
         if (data.allowSelfCheckIn) formData.append('allowSelfCheckIn', 'on')
         if (data.allowDashboardCheckIn) formData.append('allowDashboardCheckIn', 'on')
+        if (data.geofenceEnabled) formData.append('geofenceEnabled', 'on')
+        if (data.geofenceRadius !== undefined) formData.append('geofenceRadius', data.geofenceRadius.toString())
         if (data.checkInWindowBefore !== undefined) formData.append('checkInWindowBefore', data.checkInWindowBefore.toString())
         if (data.checkInWindowAfter !== undefined) formData.append('checkInWindowAfter', data.checkInWindowAfter.toString())
         // Pricing
@@ -544,6 +550,67 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                                     </FormItem>
                                 )}
                             />
+                        )}
+                        {form.watch('allowDashboardCheckIn') && (
+                            <div className="pl-7 mt-4 space-y-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+                                <FormField
+                                    control={form.control}
+                                    name="geofenceEnabled"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <div className="flex items-center gap-3">
+                                                <FormControl>
+                                                    <input
+                                                        type="checkbox"
+                                                        id="geofenceEnabled"
+                                                        checked={field.value}
+                                                        onChange={field.onChange}
+                                                        className="h-4 w-4 cursor-pointer"
+                                                    />
+                                                </FormControl>
+                                                <FormLabel htmlFor="geofenceEnabled" className="cursor-pointer font-normal">
+                                                    Require location verification (geofencing)
+                                                </FormLabel>
+                                            </div>
+                                            <FormDescription>
+                                                Participants must be physically at the venue to check in. Requires location coordinates above.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                {form.watch('geofenceEnabled') && (
+                                    <FormField
+                                        control={form.control}
+                                        name="geofenceRadius"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Geofence radius (meters)</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        min={10}
+                                                        max={5000}
+                                                        {...field}
+                                                        value={field.value ?? 100}
+                                                        onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : 100)}
+                                                    />
+                                                </FormControl>
+                                                <FormDescription>
+                                                    Distance in meters from venue where check-in is allowed (10–5000m, recommended: 50–200m)
+                                                </FormDescription>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                                {form.watch('geofenceEnabled') && (!form.watch('latitude') || !form.watch('longitude')) && (
+                                    <div className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                                        <span className="text-amber-500">⚠️</span>
+                                        Location coordinates are required for geofencing. Set latitude and longitude in the Location section above.
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </CardContent>
                 </Card>

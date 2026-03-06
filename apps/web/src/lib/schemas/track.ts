@@ -23,6 +23,8 @@ export const courseTrackSchema = z.object({
     waitlistEnabled: z.boolean(),
     allowSelfCheckIn: z.boolean(),
     allowDashboardCheckIn: z.boolean(),
+    geofenceEnabled: z.boolean(),
+    geofenceRadius: z.coerce.number().min(10).max(5000).optional(),
     checkInWindowBefore: z.coerce.number().min(0).max(240).optional(),
     checkInWindowAfter: z.coerce.number().min(0).max(240).optional(),
     priceSingleCents: z.coerce.number().min(0),

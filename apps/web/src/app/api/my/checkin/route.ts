@@ -63,7 +63,11 @@ export async function GET() {
                         weekday: true,
                         timeStart: true,
                         checkInWindowBefore: true,
-                        checkInWindowAfter: true
+                        checkInWindowAfter: true,
+                        geofenceEnabled: true,
+                        geofenceRadius: true,
+                        latitude: true,
+                        longitude: true
                     }
                 },
                 CoursePeriod: {
@@ -116,6 +120,10 @@ export async function GET() {
                     timeStart: reg.CourseTrack.timeStart,
                     checkInWindowBefore: reg.CourseTrack.checkInWindowBefore ?? 30,
                     checkInWindowAfter: reg.CourseTrack.checkInWindowAfter ?? 30,
+                    geofenceEnabled: reg.CourseTrack.geofenceEnabled,
+                    geofenceRadius: reg.CourseTrack.geofenceRadius,
+                    latitude: reg.CourseTrack.latitude,
+                    longitude: reg.CourseTrack.longitude,
                     registrationId: reg.id,
                     alreadyCheckedIn: !!attendance,
                     checkedInTime
@@ -151,7 +159,11 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const { trackId } = body as { trackId: string }
+        const { trackId, userLatitude, userLongitude } = body as { 
+            trackId: string
+            userLatitude?: number
+            userLongitude?: number
+        }
 
         if (!trackId) {
             return NextResponse.json({ error: 'trackId required' }, { status: 400 })
@@ -188,6 +200,10 @@ export async function POST(req: Request) {
                 title: true,
                 allowSelfCheckIn: true,
                 allowDashboardCheckIn: true,
+                geofenceEnabled: true,
+                geofenceRadius: true,
+                latitude: true,
+                longitude: true,
                 weekday: true,
                 timeStart: true,
                 checkInWindowBefore: true,
@@ -230,6 +246,44 @@ export async function POST(req: Request) {
         const windowError = validateCheckInWindow(track.timeStart, track.checkInWindowBefore, track.checkInWindowAfter)
         if (windowError) {
             return NextResponse.json({ success: false, error: windowError })
+        }
+
+        // Geofence validation
+        if (track.geofenceEnabled) {
+            if (!track.latitude || !track.longitude) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Venue location not configured. Please contact the organizer.'
+                })
+            }
+
+            if (userLatitude === undefined || userLongitude === undefined) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Location required for check-in. Please enable location services.',
+                    requiresLocation: true
+                })
+            }
+
+            // Calculate distance using Haversine formula
+            const R = 6371000 // Earth radius in meters
+            const dLat = (userLatitude - track.latitude) * Math.PI / 180
+            const dLon = (userLongitude - track.longitude) * Math.PI / 180
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(track.latitude * Math.PI / 180) * Math.cos(userLatitude * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+            const distance = R * c // Distance in meters
+
+            const radius = track.geofenceRadius ?? 100
+            if (distance > radius) {
+                return NextResponse.json({
+                    success: false,
+                    error: `You are too far from the venue (${Math.round(distance)}m away). Check-in is only allowed within ${radius}m.`,
+                    distance: Math.round(distance),
+                    maxDistance: radius
+                })
+            }
         }
 
         // Check for break week

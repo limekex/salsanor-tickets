@@ -14,6 +14,10 @@ type TrackWithStatus = {
   timeStart: string
   checkInWindowBefore: number
   checkInWindowAfter: number
+  geofenceEnabled: boolean
+  geofenceRadius: number | null
+  latitude: number | null
+  longitude: number | null
   registrationId: string
   alreadyCheckedIn: boolean
   checkedInTime?: string
@@ -71,13 +75,55 @@ function formatTime(time: string): string {
   return `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
 }
 
+/**
+ * Get user's current location via browser Geolocation API
+ */
+function getUserLocation(): Promise<{ latitude: number; longitude: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by your browser'))
+      return
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        })
+      },
+      (error) => {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            reject(new Error('Location access denied. Please enable location services to check in.'))
+            break
+          case error.POSITION_UNAVAILABLE:
+            reject(new Error('Location unavailable. Please try again.'))
+            break
+          case error.TIMEOUT:
+            reject(new Error('Location request timed out. Please try again.'))
+            break
+          default:
+            reject(new Error('Unable to get your location. Please try again.'))
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    )
+  })
+}
+
 type CheckInItemProps = {
   track: TrackWithStatus
   onCheckIn: (trackId: string) => Promise<void>
   loading: boolean
+  gettingLocation: boolean
 }
 
-function CheckInItem({ track, onCheckIn, loading }: CheckInItemProps) {
+function CheckInItem({ track, onCheckIn, loading, gettingLocation }: CheckInItemProps) {
   const [windowStatus, setWindowStatus] = useState<WindowStatus>(() => calculateWindowStatus(track))
 
   // Update countdown every second
@@ -161,9 +207,14 @@ function CheckInItem({ track, onCheckIn, loading }: CheckInItemProps) {
           <p className="font-medium">{track.title}</p>
           <p className="text-sm text-muted-foreground">
             Class at {formatTime(track.timeStart)}
+            {track.geofenceEnabled && (
+              <span className="ml-2 text-blue-600 dark:text-blue-400">
+                • Location required
+              </span>
+            )}
             {windowStatus.secondsUntilClose && (
               <span className="ml-2 text-orange-600 dark:text-orange-400">
-                • Window closes in {formatCountdown(windowStatus.secondsUntilClose)}
+                • Closes in {formatCountdown(windowStatus.secondsUntilClose)}
               </span>
             )}
           </p>
@@ -178,7 +229,7 @@ function CheckInItem({ track, onCheckIn, loading }: CheckInItemProps) {
         {loading ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Checking in...
+            {gettingLocation ? 'Getting location...' : 'Checking in...'}
           </>
         ) : (
           <>
@@ -201,17 +252,43 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [locationStatus, setLocationStatus] = useState<string | null>(null)
 
   const handleCheckIn = useCallback(async (trackId: string) => {
     setLoading(trackId)
     setError(null)
     setSuccess(null)
+    setLocationStatus(null)
 
     try {
+      // Find the track to check if geofence is required
+      const track = tracks.find(t => t.id === trackId)
+      
+      let userLatitude: number | undefined
+      let userLongitude: number | undefined
+      
+      // Get location if geofence is enabled
+      if (track?.geofenceEnabled) {
+        setLocationStatus('Getting your location...')
+        try {
+          const location = await getUserLocation()
+          userLatitude = location.latitude
+          userLongitude = location.longitude
+          setLocationStatus(null)
+        } catch (locationError) {
+          setError(locationError instanceof Error ? locationError.message : 'Location error')
+          return
+        }
+      }
+
       const res = await fetch('/api/my/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackId })
+        body: JSON.stringify({ 
+          trackId,
+          userLatitude,
+          userLongitude
+        })
       })
 
       const data = await res.json()
@@ -235,8 +312,9 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
       setError('Network error. Please try again.')
     } finally {
       setLoading(null)
+      setLocationStatus(null)
     }
-  }, [])
+  }, [tracks])
 
   // No tracks for today and no upcoming courses
   if (tracks.length === 0 && upcomingCourses.length === 0) {
@@ -315,6 +393,12 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
             {error}
           </div>
         )}
+        {locationStatus && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300 text-sm">
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            {locationStatus}
+          </div>
+        )}
         {success && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-300 text-sm">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -327,6 +411,7 @@ export function DashboardCheckin({ initialTracks, upcomingCourses = [] }: Props)
             track={track}
             onCheckIn={handleCheckIn}
             loading={loading === track.id}
+            gettingLocation={loading === track.id && !!locationStatus}
           />
         ))}
       </CardContent>
