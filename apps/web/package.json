@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next node_modules/.cache",
     "postinstall": "cd ../../packages/database && npx prisma generate"
   },
