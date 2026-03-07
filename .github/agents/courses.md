@@ -1,5 +1,4 @@
 ---
-mode: agent
 description: Course periods, tracks, registrations, and scheduling
 ---
 

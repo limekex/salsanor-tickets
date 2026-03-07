@@ -1,5 +1,4 @@
 ---
-mode: agent
 description: Check-in system, attendance tracking, QR codes, and certificates
 ---
 

@@ -1,5 +1,4 @@
 ---
-mode: agent
 description: Stripe payments, invoicing, MVA (VAT), and financial reporting
 ---
 

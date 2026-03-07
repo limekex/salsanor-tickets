@@ -1,5 +1,4 @@
 ---
-mode: agent
 description: Event management, ticketing, and registrations
 ---
 
