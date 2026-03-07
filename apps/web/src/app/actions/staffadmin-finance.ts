@@ -611,8 +611,8 @@ export async function generateOrgInvoice(organizerId: string, orderId: string) {
             orderId,
             customerName: `${order.PersonProfile.firstName} ${order.PersonProfile.lastName}`,
             customerEmail: order.PersonProfile.email,
-            customerOrgNr: null,
-            customerAddress: null,
+            customerOrgNr: undefined,
+            customerAddress: undefined,
             subtotalCents: order.subtotalAfterDiscountCents,
             mvaRate: order.mvaRate,
             mvaCents: order.mvaCents,
@@ -622,7 +622,7 @@ export async function generateOrgInvoice(organizerId: string, orderId: string) {
             dueDate: new Date(), // Paid invoices have immediate due date
             paymentTerms: 'Due upon receipt',
             status: 'PAID',
-            paidAt: order.paidAt,
+            paidAt: new Date(),
             paidAmount: order.totalCents
         }
     })

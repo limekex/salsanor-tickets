@@ -75,7 +75,7 @@ export async function POST(req: Request) {
         }
 
         if (eventTicket.status !== 'ACTIVE') {
-            return NextResponse.json({ valid: false, message: `Ticket is ${eventTicket.status === 'USED' ? 'already used' : eventTicket.status}` })
+            return NextResponse.json({ valid: false, message: `Ticket is ${eventTicket.status === 'VOIDED' ? 'voided' : eventTicket.status}` })
         }
 
         // Check organization access for non-global admins

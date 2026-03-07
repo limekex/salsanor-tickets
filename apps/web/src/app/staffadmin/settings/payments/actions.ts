@@ -25,7 +25,7 @@ export async function createStripeEmbeddedSession(
         }
 
         const stripe = new Stripe(stripeKey, {
-            apiVersion: '2025-11-17.clover'
+            apiVersion: '2025-11-17.clover' as any
         })
 
         // Auth check

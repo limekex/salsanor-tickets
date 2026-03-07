@@ -9,6 +9,7 @@ import { StaffAdminFooter } from '@/components/staff-admin-footer'
 import { OrgAutoSelector } from '@/components/org-auto-selector'
 import { Toaster } from "sonner";
 import { getStaffAdminSelectedOrg, setStaffAdminSelectedOrg } from '@/utils/staff-admin-org-context'
+import type { UserRole } from '@prisma/client'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,7 +47,7 @@ export default async function StaffAdminLayout({
     }
 
     // Define all elevated roles that can access staffadmin
-    const ELEVATED_ROLES = ['ORG_ADMIN', 'ORG_FINANCE', 'ORG_CHECKIN', 'INSTRUCTOR', 'STAFF', 'CHECKIN', 'ADMIN']
+    const ELEVATED_ROLES: UserRole[] = ['ORG_ADMIN', 'ORG_FINANCE', 'ORG_CHECKIN', 'INSTRUCTOR', 'STAFF', 'CHECKIN', 'ADMIN']
     
     // Check if user has any elevated role for at least one organization
     const userAccount = await prisma.userAccount.findUnique({

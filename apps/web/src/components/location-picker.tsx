@@ -27,7 +27,7 @@ interface NominatimResult {
     }
 }
 
-interface LocationValue {
+export interface LocationValue {
     locationName?: string
     locationAddress?: string
     latitude?: number

@@ -149,7 +149,7 @@ export async function createStripeConnectLink(
 
         // Initialize Stripe
         const stripe = new Stripe(paymentConfig.secretKey, {
-            apiVersion: '2025-11-17.clover',
+            apiVersion: '2025-11-17.clover' as any,
         })
 
         // Get organizer

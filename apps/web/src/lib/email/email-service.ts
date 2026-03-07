@@ -112,7 +112,12 @@ class EmailService {
       select: { name: true, contactEmail: true },
     });
     
-    return organizer;
+    if (!organizer) return null;
+    
+    return {
+      name: organizer.name,
+      contactEmail: organizer.contactEmail ?? undefined,
+    };
   }
 
   /**

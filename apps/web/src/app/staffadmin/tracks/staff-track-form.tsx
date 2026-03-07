@@ -30,7 +30,7 @@ import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ImageUpload } from '@/components/image-upload'
-import { LocationPicker } from '@/components/location-picker'
+import { LocationPicker, type LocationValue } from '@/components/location-picker'
 import { ExternalLink, Clock, MapPin, Users, CreditCard, Image as ImageIcon, ScanLine } from 'lucide-react'
 import Link from 'next/link'
 import type { CourseTrack } from '@salsanor/database'
@@ -56,7 +56,7 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
     const [imageUrl, setImageUrl] = useState<string>(track?.imageUrl || '')
 
     // Location state
-    const [location, setLocation] = useState({
+    const [location, setLocation] = useState<LocationValue>({
         locationName: track?.locationName || undefined,
         locationAddress: track?.locationAddress || undefined,
         latitude: track?.latitude || undefined,

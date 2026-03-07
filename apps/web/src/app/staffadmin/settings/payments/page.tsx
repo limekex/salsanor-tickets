@@ -19,7 +19,7 @@ async function getStripeAccountStatus(accountId: string) {
     if (!stripeKey) return null
 
     const stripe = new Stripe(stripeKey, {
-        apiVersion: '2025-11-17.clover'
+        apiVersion: '2025-11-17.clover' as any
     })
 
     try {
