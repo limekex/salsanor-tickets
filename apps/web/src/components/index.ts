@@ -27,3 +27,9 @@ export type { GridProps } from './grids'
 // Empty states
 export { EmptyState } from './empty-state'
 export type { EmptyStateProps } from './empty-state'
+
+// Attendance & Check-in components (added March 2026)
+export { AttendanceStatsCard } from './attendance-stats-card'
+export { PlannedAbsenceDialog } from './planned-absence-dialog'
+export { QRCodeDisplay } from './qr-code-display'
+export { TicketQR } from './ticket-qr'
