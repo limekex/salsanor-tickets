@@ -1,6 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { redirect } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -14,42 +12,16 @@ import {
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { formatDateRange } from '@/lib/formatters'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
 export default async function StaffAdminPeriodsPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForAdmin()
 
-    if (!user) {
-        redirect('/auth/login')
-    }
-
-    // Get user's organizations where they have ORG_ADMIN role
-    const userAccount = await prisma.userAccount.findUnique({
-        where: { supabaseUid: user.id },
-        include: {
-            UserAccountRole: {
-                where: {
-                    role: 'ORG_ADMIN'
-                },
-                include: {
-                    Organizer: true
-                }
-            }
-        }
-    })
-
-    const adminOrgIds = userAccount?.UserAccountRole.map(r => r.organizerId).filter(Boolean) as string[] || []
-
-    if (adminOrgIds.length === 0) {
-        redirect('/dashboard')
-    }
-
-    // Fetch periods for user's organizations only
+    // Fetch periods for selected organization only
     const periods = await prisma.coursePeriod.findMany({
         where: {
-            organizerId: {
-                in: adminOrgIds
-            }
+            organizerId
         },
         include: {
             Organizer: true,
@@ -90,7 +62,6 @@ export default async function StaffAdminPeriodsPage() {
                             <TableRow>
                                 <TableHead>Code</TableHead>
                                 <TableHead>Name</TableHead>
-                                <TableHead>Organizer</TableHead>
                                 <TableHead>Dates</TableHead>
                                 <TableHead>Sales Status</TableHead>
                                 <TableHead>Tracks</TableHead>
@@ -107,7 +78,6 @@ export default async function StaffAdminPeriodsPage() {
                                     <TableRow key={period.id}>
                                         <TableCell className="font-medium">{period.code}</TableCell>
                                         <TableCell>{period.name}</TableCell>
-                                        <TableCell>{period.Organizer.name}</TableCell>
                                         <TableCell>
                                             {formatDateRange(period.startDate, period.endDate)}
                                         </TableCell>
@@ -139,7 +109,7 @@ export default async function StaffAdminPeriodsPage() {
                             })}
                             {periods.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                                         No course periods found. Create one to get started.
                                     </TableCell>
                                 </TableRow>

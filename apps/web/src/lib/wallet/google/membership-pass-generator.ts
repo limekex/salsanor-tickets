@@ -89,7 +89,7 @@ export function generateGoogleMembershipPassUrl(data: MembershipPassData): strin
   const verificationUrl = `https://reginor.events/v/m/${data.verificationToken}`;
 
   // Hero image URLs - only use actual URLs, not base64 data URIs (too large for JWT)
-  const isValidUrl = (url?: string) => url && url.startsWith('https://') && !url.startsWith('data:');
+  const isValidUrl = (url?: string): url is string => url !== undefined && url.startsWith('https://') && !url.startsWith('data:');
   const heroUrl = isValidUrl(data.memberPhotoUrl) ? data.memberPhotoUrl : 'https://reginor.events/assets/logos/WalletMemberHero.jpg';
   const logoUrl = isValidUrl(data.organizerLogoUrl) ? data.organizerLogoUrl : 'https://reginor.events/assets/logos/GoogleWalletIssuerLogo.png';
   

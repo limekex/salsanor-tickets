@@ -28,6 +28,67 @@ model AuditLog {
   @@index([userId])
 }
 
+model Attendance {
+  id             String        @id @default(uuid())
+  registrationId String
+  trackId        String
+  periodId       String
+  sessionDate    DateTime      // The date of the class (date only, time is midnight UTC)
+  checkInTime    DateTime      @default(now())
+  checkedInBy    String
+  method         CheckInMethod @default(MANUAL)
+  deviceInfo     String?
+  cancelled      Boolean       @default(false)
+  cancelledAt    DateTime?
+  cancelledBy    String?
+  cancelReason   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  Registration     Registration @relation(fields: [registrationId], references: [id])
+  CourseTrack      CourseTrack  @relation(fields: [trackId], references: [id])
+  CoursePeriod     CoursePeriod @relation(fields: [periodId], references: [id])
+  CheckedInByUser  UserAccount  @relation(fields: [checkedInBy], references: [id])
+
+  @@unique([registrationId, trackId, sessionDate])
+  @@index([trackId, sessionDate])
+  @@index([periodId, sessionDate])
+}
+
+model PlannedAbsence {
+  id             String        @id @default(uuid())
+  registrationId String
+  trackId        String
+  sessionDate    DateTime      // The date of the planned absence (date only)
+  reason         AbsenceReason @default(OTHER)
+  reasonText     String?       // Additional details / custom reason
+  notifiedAt     DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  Registration   Registration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  CourseTrack    CourseTrack   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId, trackId, sessionDate]) // One absence per session per registration
+  @@index([trackId, sessionDate])
+  @@index([registrationId])
+}
+
+model PeriodBreak {
+  id          String       @id @default(uuid())
+  periodId    String?
+  trackId     String?
+  startDate   DateTime
+  endDate     DateTime
+  description String?
+  createdAt   DateTime     @default(now())
+  CoursePeriod CoursePeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  CourseTrack CourseTrack?  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@index([periodId, startDate, endDate])
+  @@index([trackId, startDate, endDate])
+}
+
 model Category {
   id           String         @id @default(uuid())
   name         String         @unique
@@ -86,6 +147,8 @@ model CoursePeriod {
   Ticket       Ticket[]
   Category     Category[]
   Tag          Tag[]
+  Attendance   Attendance[]
+  PeriodBreak  PeriodBreak[]
 
   @@index([featured])
   @@index([organizerId])
@@ -96,11 +159,19 @@ model CoursePeriod {
 model CourseTrack {
   id                     String         @id @default(uuid())
   periodId               String
+  slug                   String?
   title                  String
+  description            String?
+  imageUrl               String?
   levelLabel             String?
   weekday                Int
   timeStart              String
   timeEnd                String
+  // Location fields for Wallet Tickets integration
+  locationName           String?
+  locationAddress        String?
+  latitude               Float?
+  longitude              Float?
   capacityTotal          Int
   capacityLeaders        Int?
   capacityFollowers      Int?
@@ -112,11 +183,21 @@ model CourseTrack {
   updatedAt              DateTime       @updatedAt
   memberPricePairCents   Int?
   memberPriceSingleCents Int?
+  checkInWindowBefore    Int            @default(30)
+  checkInWindowAfter     Int            @default(30)
+  allowSelfCheckIn       Boolean        @default(false)
+  allowDashboardCheckIn  Boolean        @default(false)  // Allow participants to check in from /my dashboard
+  geofenceEnabled        Boolean        @default(false)  // Require location check for dashboard check-in
+  geofenceRadius         Int?           // Radius in meters for geofence check
   CoursePeriod           CoursePeriod   @relation(fields: [periodId], references: [id])
   Registration           Registration[]
   TrackSession           TrackSession[]
+  Attendance             Attendance[]
+  PeriodBreak            PeriodBreak[]
+  PlannedAbsence         PlannedAbsence[]
 
   @@index([periodId])
+  @@index([periodId, slug])
 }
 
 model CreditNote {
@@ -162,19 +243,40 @@ model CreditNote {
 }
 
 model DiscountRule {
-  id           String       @id @default(uuid())
-  periodId     String
-  code         String
-  name         String
-  priority     Int
-  enabled      Boolean      @default(true)
-  ruleType     String
-  config       Json
-  createdAt    DateTime     @default(now())
-  CoursePeriod CoursePeriod @relation(fields: [periodId], references: [id])
+  id               String       @id @default(uuid())
+  periodId         String
+  code             String
+  name             String
+  priority         Int
+  enabled          Boolean      @default(true)
+  ruleType         String
+  config           Json
+  overrideOrgRules Boolean      @default(false) // If true, this period rule replaces org-level rules of same type
+  createdAt        DateTime     @default(now())
+  CoursePeriod     CoursePeriod @relation(fields: [periodId], references: [id])
 
   @@unique([periodId, code])
   @@index([periodId, priority])
+}
+
+/// Organization-level discount rules that apply to all periods under the organization
+/// unless a period-specific rule with overrideOrgRules=true exists
+model OrgDiscountRule {
+  id          String        @id @default(uuid())
+  organizerId String
+  code        String
+  name        String
+  priority    Int
+  enabled     Boolean       @default(true)
+  ruleType    String
+  config      Json
+  appliesTo   DiscountScope @default(BOTH)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  Organizer   Organizer     @relation(fields: [organizerId], references: [id])
+
+  @@unique([organizerId, code])
+  @@index([organizerId, priority])
 }
 
 model EmailLog {
@@ -486,6 +588,13 @@ model Order {
   stripeChargeId             String?
   stripeTransactionId        String?
   organizerId                String
+  // UTM attribution – captured when the buyer first lands on our platform
+  utmSource                  String?
+  utmMedium                  String?
+  utmCampaign                String?
+  utmContent                 String?
+  utmTerm                    String?
+  utmReferrer                String?
   CreditNote                 CreditNote[]
   EventRegistration          EventRegistration[]
   Invoice                    Invoice?
@@ -498,6 +607,7 @@ model Order {
 
   @@index([organizerId, status])
   @@index([periodId, status])
+  @@index([organizerId, utmSource])
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -544,6 +654,11 @@ model Organizer {
   nextMemberNumber         Int               @default(1)
   platformFeeFixed         Int?
   platformFeePercent       Decimal?
+  // Conversion tracking – organizer's analytics/ad-platform IDs
+  googleAnalyticsId        String?           // GA4 Measurement ID (e.g. G-XXXXXXXXXX)
+  facebookPixelId          String?           // Meta/Facebook Pixel ID
+  googleAdsConversionId    String?           // Google Ads Conversion tracking ID (AW-XXXXXXXXX)
+  googleAdsConversionLabel String?           // Google Ads Conversion label
   AuditLog                 AuditLog[]
   CoursePeriod             CoursePeriod[]
   CreditNote               CreditNote[]
@@ -554,10 +669,12 @@ model Organizer {
   Invoice                  Invoice[]
   Membership               Membership[]
   MembershipTier           MembershipTier[]
+  OrgDiscountRule          OrgDiscountRule[]
   Order                    Order[]
   Tag                      Tag[]
   UserAccountRole          UserAccountRole[]
   UserInvitation           UserInvitation[]
+  ScheduledTask            ScheduledTask[]
 
   @@index([slug])
 }
@@ -672,6 +789,8 @@ model Registration {
   PersonProfile      PersonProfile      @relation(fields: [personId], references: [id])
   CourseTrack        CourseTrack        @relation(fields: [trackId], references: [id])
   WaitlistEntry      WaitlistEntry?
+  Attendance         Attendance[]
+  PlannedAbsence     PlannedAbsence[]
 
   @@unique([trackId, personId])
   @@index([periodId, trackId])
@@ -729,6 +848,8 @@ model UserAccount {
   PersonProfile   PersonProfile?
   UserAccountRole UserAccountRole[]
   UserInvitation  UserInvitation[]  // Invitations sent by this user
+  Attendance      Attendance[]
+  ScheduledTasksCreated ScheduledTask[] // Scheduled tasks created by this user
 }
 
 model UserAccountRole {
@@ -793,6 +914,28 @@ model WebhookEvent {
 enum CheckInType {
   PERIOD_ENTRY
   SESSION_ENTRY
+}
+
+enum CheckInMethod {
+  QR_SCAN
+  MANUAL
+  BULK_IMPORT
+  SELF_CHECKIN
+}
+
+enum AbsenceReason {
+  ILLNESS
+  TRAVEL
+  WORK
+  FAMILY
+  PERSONAL
+  OTHER
+}
+
+enum DiscountScope {
+  PERIODS
+  EVENTS
+  BOTH
 }
 
 enum CreditNoteStatus {
@@ -977,4 +1120,70 @@ enum PdfTemplateType {
   INVOICE
   MEMBERSHIP_CARD
   CREDIT_NOTE
+}
+
+/// Scheduled task for cron job administration
+model ScheduledTask {
+  id              String            @id @default(uuid())
+  organizerId     String?           // null = platform-wide task
+  name            String            // Human-readable name
+  taskType        ScheduledTaskType
+  cronExpression  String            // Standard cron expression (e.g., "0 8 * * *")
+  isActive        Boolean           @default(true)
+  
+  // Configuration (JSON with task-specific settings)
+  config          Json?             // e.g., { hoursBefore: 24, templateSlug: "session-reminder" }
+  
+  // Execution tracking
+  lastRunAt       DateTime?
+  lastRunStatus   TaskRunStatus?
+  lastRunMessage  String?
+  nextRunAt       DateTime?
+  runCount        Int               @default(0)
+  failCount       Int               @default(0)
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  createdById     String?
+  
+  Organizer       Organizer?        @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  CreatedBy       UserAccount?      @relation(fields: [createdById], references: [id])
+  TaskRuns        ScheduledTaskRun[]
+  
+  @@unique([organizerId, taskType]) // One task per type per org (or platform)
+  @@index([isActive, nextRunAt])
+  @@index([organizerId])
+}
+
+model ScheduledTaskRun {
+  id              String          @id @default(uuid())
+  taskId          String
+  startedAt       DateTime        @default(now())
+  completedAt     DateTime?
+  status          TaskRunStatus
+  message         String?
+  itemsProcessed  Int             @default(0)
+  itemsFailed     Int             @default(0)
+  details         Json?           // Additional run details (e.g., list of sent emails)
+  
+  Task            ScheduledTask   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@index([taskId, startedAt])
+}
+
+enum ScheduledTaskType {
+  SESSION_REMINDER        // Send reminders before class
+  BREAK_REMINDER          // Notify about upcoming break periods
+  MISSED_SESSION_NOTIFY   // Notify participants who missed a session
+  LOW_ATTENDANCE_WARN     // Weekly low attendance warnings
+  MEMBERSHIP_EXPIRY_WARN  // Membership expiration reminders
+  WAITLIST_CLEANUP        // Clean up expired waitlist offers
+  REPORT_GENERATION       // Generate periodic reports
+}
+
+enum TaskRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL   // Some items processed, some failed
+  FAILED
 }

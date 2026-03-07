@@ -1,0 +1,2 @@
+# TypeScript check before commit
+cd apps/web && npx tsc --noEmit || exit 1

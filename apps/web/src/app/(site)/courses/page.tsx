@@ -4,10 +4,9 @@ import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { CourseFilters } from './course-filters'
-import { CourseCardClient } from './course-card-client'
-import { EmptyState } from '@/components'
-import { formatDateRange, formatWeekday } from '@/lib/formatters'
-import { GraduationCap } from 'lucide-react'
+import { CourseCard, EmptyState } from '@/components'
+import { formatDateRange, formatWeekday, formatDateShort } from '@/lib/formatters'
+import { GraduationCap, CalendarOff } from 'lucide-react'
 
 type SearchParams = Promise<{ 
     org?: string
@@ -107,6 +106,18 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                                 <p className="rn-meta text-rn-text-muted">
                                     {formatDateRange(period.startDate, period.endDate)} • {period.city}
                                 </p>
+                                {period.PeriodBreak && period.PeriodBreak.length > 0 && (
+                                    <p className="rn-caption text-rn-text-muted mt-rn-1 flex items-center gap-rn-1">
+                                        <CalendarOff className="h-3.5 w-3.5" />
+                                        <span>
+                                            Breaks: {period.PeriodBreak.map((b: { description: string | null; startDate: Date; endDate: Date }) => 
+                                                b.description 
+                                                    ? `${b.description} (${formatDateShort(b.startDate)}–${formatDateShort(b.endDate)})`
+                                                    : `${formatDateShort(b.startDate)}–${formatDateShort(b.endDate)}`
+                                            ).join(', ')}
+                                        </span>
+                                    </p>
+                                )}
                             </div>
                             <Link href={`/org/${period.Organizer.slug}`} className="rn-caption text-rn-text-muted hover:text-rn-text flex items-center gap-rn-2">
                                 {period.Organizer.logoUrl && (
@@ -123,9 +134,23 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                             const isFull = track.capacityTotal <= 0 // Simplified full check, need registration count later
                             const isRegistered = userRegistrations.some(r => r.trackId === track.id)
                             const weekDayLabel = formatWeekday(track.weekday)
+                            
+                            // Parse discount info from period and org rules
+                            const allRules = [
+                                ...(period.DiscountRule || []),
+                                ...(period.Organizer.OrgDiscountRule || [])
+                            ]
+                            const memberRule = allRules.find(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+                            const multiCourseRule = allRules.find(r => r.ruleType === 'MULTI_COURSE_TIERED')
+                            const discountInfo = {
+                                memberDiscountPercent: memberRule?.config && typeof memberRule.config === 'object' 
+                                    ? (memberRule.config as any).discountPercent 
+                                    : null,
+                                hasMultiCourseDiscount: !!multiCourseRule
+                            }
 
                             return (
-                                <CourseCardClient
+                                <CourseCard
                                     key={track.id}
                                     track={track}
                                     period={period}
@@ -134,6 +159,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                                     isRegistered={isRegistered}
                                     organizerId={period.organizerId}
                                     organizerName={period.Organizer.name}
+                                    discountInfo={discountInfo}
                                 />
                             )
                         })}

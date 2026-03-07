@@ -13,7 +13,7 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import Link from 'next/link'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, QrCode } from 'lucide-react'
 import { formatDateRange, formatPrice, formatWeekday } from '@/lib/formatters'
 
 export default async function StaffAdminTracksPage({ 
@@ -144,6 +144,7 @@ export default async function StaffAdminTracksPage({
                                 <TableHead>Price</TableHead>
                                 <TableHead>Capacity</TableHead>
                                 <TableHead>Registrations</TableHead>
+                                <TableHead>Self Check-in</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -171,6 +172,18 @@ export default async function StaffAdminTracksPage({
                                                 {track._count.Registration}
                                             </Badge>
                                         </TableCell>
+                                        <TableCell>
+                                            {track.allowSelfCheckIn ? (
+                                                <Button asChild variant="outline" size="sm">
+                                                    <Link href={`/selfcheckin?trackId=${track.id}`} target="_blank">
+                                                        <QrCode className="h-4 w-4 mr-1" />
+                                                        Open
+                                                    </Link>
+                                                </Button>
+                                            ) : (
+                                                <span className="text-muted-foreground text-sm">Disabled</span>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <Button asChild variant="ghost" size="sm">
                                                 <Link href={`/staffadmin/tracks/${track.id}`}>Edit</Link>
@@ -181,7 +194,7 @@ export default async function StaffAdminTracksPage({
                             })}
                             {period.CourseTrack.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                         No tracks found. Create one to get started.
                                     </TableCell>
                                 </TableRow>

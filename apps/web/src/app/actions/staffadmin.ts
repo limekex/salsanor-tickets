@@ -45,6 +45,11 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
     const mvaRate = formData.get('mvaRate') ? Number(formData.get('mvaRate')) : 0
     const bankAccount = formData.get('bankAccount') as string
     const orderPrefix = formData.get('orderPrefix') as string
+    // Conversion tracking fields (analytics platform IDs)
+    const googleAnalyticsId = formData.get('googleAnalyticsId') as string | null
+    const facebookPixelId = formData.get('facebookPixelId') as string | null
+    const googleAdsConversionId = formData.get('googleAdsConversionId') as string | null
+    const googleAdsConversionLabel = formData.get('googleAdsConversionLabel') as string | null
 
     if (!name || name.trim().length === 0) {
         return { error: { name: ['Name is required'] } }
@@ -99,6 +104,10 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
                 mvaRate,
                 bankAccount: bankAccount?.trim() || null,
                 orderPrefix: orderPrefix?.trim() || 'ORD',
+                googleAnalyticsId: googleAnalyticsId?.trim() || null,
+                facebookPixelId: facebookPixelId?.trim() || null,
+                googleAdsConversionId: googleAdsConversionId?.trim() || null,
+                googleAdsConversionLabel: googleAdsConversionLabel?.trim() || null,
             }
         })
 
@@ -109,6 +118,57 @@ export async function updateOrganizerSettings(organizerId: string, formData: For
     } catch (error: any) {
         console.error('Failed to update organizer:', error)
         return { error: { _form: ['Failed to update organization settings'] } }
+    }
+}
+
+export async function updateConversionTracking(organizerId: string, data: {
+    googleAnalyticsId: string | null
+    facebookPixelId: string | null
+    googleAdsConversionId: string | null
+    googleAdsConversionLabel: string | null
+}) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        redirect('/auth/login')
+    }
+
+    // Verify user has ORG_ADMIN role for this organizer
+    const userAccount = await prisma.userAccount.findUnique({
+        where: { supabaseUid: user.id },
+        include: {
+            UserAccountRole: {
+                where: {
+                    role: 'ORG_ADMIN',
+                    organizerId: organizerId
+                }
+            }
+        }
+    })
+
+    if (!userAccount?.UserAccountRole.length) {
+        return { error: 'Unauthorized: You do not have access to edit this organization' }
+    }
+
+    try {
+        await prisma.organizer.update({
+            where: { id: organizerId },
+            data: {
+                googleAnalyticsId: data.googleAnalyticsId?.trim() || null,
+                facebookPixelId: data.facebookPixelId?.trim() || null,
+                googleAdsConversionId: data.googleAdsConversionId?.trim() || null,
+                googleAdsConversionLabel: data.googleAdsConversionLabel?.trim() || null,
+            }
+        })
+
+        revalidatePath('/staffadmin/settings')
+        revalidatePath('/staffadmin/settings/conversion-tracking')
+        
+        return { success: true }
+    } catch (error: any) {
+        console.error('Failed to update conversion tracking:', error)
+        return { error: 'Failed to update conversion tracking settings' }
     }
 }
 

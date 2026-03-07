@@ -1,5 +1,5 @@
 import { getOrgTags } from '@/app/actions/tags'
-import { requireOrgAdmin } from '@/utils/auth-org-admin'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -9,15 +9,10 @@ import { Plus } from 'lucide-react'
 import { DeleteTagButton } from './delete-tag-button'
 
 export default async function StaffAdminTagsPage() {
-    const userAccount = await requireOrgAdmin()
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForAdmin()
 
-    // Get organizerId from user's first ORG_ADMIN role
-    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
-    if (!orgAdminRole?.organizerId) {
-        return <div>No organization found</div>
-    }
-
-    const tags = await getOrgTags(orgAdminRole.organizerId)
+    const tags = await getOrgTags(organizerId)
 
     return (
         <div className="space-y-6">

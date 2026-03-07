@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CalendarDays, GraduationCap } from 'lucide-react'
+import { CalendarDays, GraduationCap, Clock } from 'lucide-react'
 import TrackScanner from './track-scanner'
 
 type Organizer = {
@@ -18,6 +18,9 @@ type Track = {
     title: string
     periodName: string
     organizerId: string
+    weekday: number
+    timeStart: string
+    availableToday: boolean
     type: 'track'
 }
 
@@ -160,10 +163,17 @@ export default function CheckinPage() {
         ? events.filter(e => e.organizerId === selectedOrganizer.id)
         : events
 
+    // Split tracks into available today vs. not available
+    const availableTracks = filteredTracks.filter(t => t.availableToday)
+    const unavailableTracks = filteredTracks.filter(t => !t.availableToday)
+
     // Determine default tab based on what's available
     const hasEvents = filteredEvents.length > 0
     const hasTracks = filteredTracks.length > 0
     const defaultTab = hasEvents ? 'events' : 'tracks'
+
+    // Weekday names (ISO: 1=Mon..7=Sun)
+    const weekdayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
     // Format date for display
     const formatEventDate = (dateStr: string) => {
@@ -246,7 +256,7 @@ export default function CheckinPage() {
                             </TabsContent>
                             
                             <TabsContent value="tracks" className="space-y-3 mt-0">
-                                {filteredTracks.map(track => (
+                                {availableTracks.map(track => (
                                     <Button
                                         key={track.id}
                                         variant="outline"
@@ -258,6 +268,40 @@ export default function CheckinPage() {
                                         <span className="text-sm text-slate-400">{track.periodName}</span>
                                     </Button>
                                 ))}
+                                {unavailableTracks.length > 0 && (
+                                    <>
+                                        {availableTracks.length > 0 && (
+                                            <div className="border-t border-slate-700 pt-3 mt-1">
+                                                <p className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    Not available today
+                                                </p>
+                                            </div>
+                                        )}
+                                        {availableTracks.length === 0 && (
+                                            <p className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                No courses available today
+                                            </p>
+                                        )}
+                                        {unavailableTracks.map(track => (
+                                            <div
+                                                key={track.id}
+                                                className="w-full h-auto py-4 px-4 flex flex-col items-start rounded-md border border-slate-800 opacity-50 cursor-not-allowed"
+                                            >
+                                                <span className="text-lg font-semibold text-slate-400">{track.title}</span>
+                                                <span className="text-sm text-slate-500">{track.periodName}</span>
+                                                <span className="text-xs text-slate-600 mt-1 flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {weekdayNames[track.weekday] ?? `Day ${track.weekday}`} · {track.timeStart}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
+                                {availableTracks.length === 0 && unavailableTracks.length === 0 && (
+                                    <p className="text-center text-slate-400 py-4">No courses found</p>
+                                )}
                             </TabsContent>
                         </Tabs>
                     )}

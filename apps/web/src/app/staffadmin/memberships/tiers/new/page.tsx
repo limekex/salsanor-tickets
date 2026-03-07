@@ -2,21 +2,18 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { TierForm } from '../tier-form'
-import { requireOrganizerAccess } from '@/utils/auth-admin'
 import { prisma } from '@/lib/db'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
 export default async function NewTierPage() {
-  const user = await requireOrganizerAccess()
-  const organizerId = user.userAccount.UserAccountRole[0]?.organizerId
+  // Get selected organization (from cookie or first available)
+  const organizerId = await getSelectedOrganizerForAdmin()
 
-  let organizerVatRegistered = false
-  if (organizerId) {
-    const organizer = await prisma.organizer.findUnique({
-      where: { id: organizerId },
-      select: { vatRegistered: true }
-    })
-    organizerVatRegistered = organizer?.vatRegistered || false
-  }
+  const organizer = await prisma.organizer.findUnique({
+    where: { id: organizerId },
+    select: { vatRegistered: true }
+  })
+  const organizerVatRegistered = organizer?.vatRegistered || false
 
   return (
     <div className="container mx-auto py-8 space-y-6">

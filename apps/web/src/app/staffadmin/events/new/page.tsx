@@ -1,4 +1,4 @@
-import { requireOrgAdmin } from '@/utils/auth-org-admin'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -7,18 +7,14 @@ import { EventForm } from '../event-form'
 import { prisma } from '@/lib/db'
 
 export default async function NewEventPage() {
-    const userAccount = await requireOrgAdmin()
-
-    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
-    if (!orgAdminRole?.organizerId) {
-        return <div>No organization found</div>
-    }
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForAdmin()
 
     // Get categories and tags for dropdowns
     const [categories, tags] = await Promise.all([
         prisma.category.findMany({ orderBy: { sortOrder: 'asc' } }),
         prisma.tag.findMany({ 
-            where: { organizerId: orgAdminRole.organizerId },
+            where: { organizerId },
             orderBy: { name: 'asc' }
         })
     ])
@@ -46,7 +42,8 @@ export default async function NewEventPage() {
                 </CardHeader>
                 <CardContent>
                     <EventForm 
-                        organizerId={orgAdminRole.organizerId}
+                        key={organizerId}
+                        organizerId={organizerId}
                         categories={categories}
                         tags={tags}
                     />

@@ -47,12 +47,19 @@ export default async function EditStaffTrackPage({
         throw new Error('Unauthorized: You do not have access to edit this track')
     }
 
+    // Check if org has membership product enabled
+    const organizer = await prisma.organizer.findUnique({
+        where: { id: track.CoursePeriod.organizerId },
+        select: { membershipEnabled: true }
+    })
+    const hasMembershipProduct = organizer?.membershipEnabled ?? false
+
     return (
         <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold tracking-tight">Edit Course Track</h2>
             </div>
-            <StaffTrackForm periodId={track.periodId} track={track} />
+            <StaffTrackForm periodId={track.periodId} track={track} hasMembershipProduct={hasMembershipProduct} />
         </div>
     )
 }

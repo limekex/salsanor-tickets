@@ -138,7 +138,7 @@ export default async function PaymentStatusPage() {
                                             {payment.providerPaymentRef ? payment.providerPaymentRef.slice(0, 20) + '...' : '—'}
                                         </TableCell>
                                         <TableCell className="font-mono text-sm">
-                                            {payment.Order.Invoice && payment.Order.Invoice.length > 0 ? payment.Order.Invoice[0].invoiceNumber : '—'}
+                                            {payment.Order.Invoice?.invoiceNumber || '—'}
                                         </TableCell>
                                     </TableRow>
                                 ))}

@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
+import { getStaffAdminSelectedOrg } from './staff-admin-org-context'
 
 /**
  * Requires user to have ORG_ADMIN role for at least one organization
@@ -51,4 +52,35 @@ export async function requireOrgAdminForOrganizer(organizerId: string) {
     }
 
     return userAccount
+}
+
+/**
+ * Gets the currently selected organization ID for the user in staff admin context.
+ * Uses the org from cookie if available, otherwise returns first available org.
+ * Validates that the user has ORG_ADMIN access to the selected org.
+ */
+export async function getSelectedOrganizerForAdmin() {
+    const userAccount = await requireOrgAdmin()
+    
+    // Get selected org from cookie
+    let selectedOrgId = await getStaffAdminSelectedOrg()
+    
+    // Get list of orgs user has ORG_ADMIN access to
+    const availableOrgIds = userAccount.UserAccountRole.map(role => role.organizerId)
+    
+    // Validate selected org is in user's orgs
+    if (selectedOrgId && !availableOrgIds.includes(selectedOrgId)) {
+        selectedOrgId = null
+    }
+    
+    // If no valid selection, use first available org
+    if (!selectedOrgId && availableOrgIds.length > 0) {
+        selectedOrgId = availableOrgIds[0]
+    }
+    
+    if (!selectedOrgId) {
+        throw new Error('No organization access found')
+    }
+    
+    return selectedOrgId
 }

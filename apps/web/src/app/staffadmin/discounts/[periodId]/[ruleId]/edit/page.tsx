@@ -1,38 +1,19 @@
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { redirect, notFound } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { StaffDiscountRuleForm } from '../../staff-discount-rule-form'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
 type Params = Promise<{ periodId: string; ruleId: string }>
 
 export default async function EditDiscountRulePage({ params }: { params: Params }) {
   const { periodId, ruleId } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
   
-  if (!user) {
-    redirect('/auth/login')
-  }
-
-  // Get user's organization
-  const userAccount = await prisma.userAccount.findUnique({
-    where: { supabaseUid: user.id },
-    include: {
-      UserAccountRole: {
-        where: { role: 'ORG_ADMIN' }
-      }
-    }
-  })
-
-  const organizerId = userAccount?.UserAccountRole?.[0]?.organizerId
-
-  if (!organizerId) {
-    redirect('/staffadmin')
-  }
+  // Get selected organization (from cookie or first available)
+  const organizerId = await getSelectedOrganizerForAdmin()
 
   // Verify period belongs to organization
   const period = await prisma.coursePeriod.findFirst({
@@ -85,7 +66,7 @@ export default async function EditDiscountRulePage({ params }: { params: Params 
           <CardTitle>Rule Configuration</CardTitle>
         </CardHeader>
         <CardContent>
-          <StaffDiscountRuleForm periodId={periodId} tiers={tiers} existingRule={rule} />
+          <StaffDiscountRuleForm key={ruleId} periodId={periodId} tiers={tiers} existingRule={rule} />
         </CardContent>
       </Card>
     </div>

@@ -176,7 +176,7 @@ export async function GET(
     }
 
     // Return the .pkpass file
-    return new NextResponse(passBuffer, {
+    return new NextResponse(Uint8Array.from(passBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.apple.pkpass',

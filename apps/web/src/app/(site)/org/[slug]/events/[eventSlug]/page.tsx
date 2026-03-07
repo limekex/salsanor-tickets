@@ -3,11 +3,12 @@ import { prisma } from '@/lib/db'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Calendar, MapPin, Users, DollarSign, AlertCircle } from 'lucide-react'
+import { Calendar, MapPin, Users, DollarSign, AlertCircle, Percent, Tag } from 'lucide-react'
 import Link from 'next/link'
 import { RegisterButton } from './register-button'
 import { createClient } from '@/utils/supabase/server'
 import { formatEventDate, formatTime, formatDateShort, formatPrice } from '@/lib/formatters'
+import { getEffectiveDiscountRulesForEvent } from '@/app/actions/discounts'
 
 type PageProps = {
     params: Promise<{ slug: string; eventSlug: string }>
@@ -89,6 +90,15 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
     if (!event) {
         notFound()
     }
+
+    // Fetch applicable discount rules for this event
+    const discountRules = await getEffectiveDiscountRulesForEvent(event.Organizer.id)
+    
+    // Parse discount info for display
+    const memberDiscountRule = discountRules.find(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+    const memberDiscountPercent = memberDiscountRule?.config && typeof memberDiscountRule.config === 'object' 
+        ? (memberDiscountRule.config as any).discountPercent 
+        : null
 
     // Sum up all ticket quantities from active registrations
     const registeredCount = event.EventRegistration.reduce((sum, reg) => sum + reg.quantity, 0)
@@ -217,6 +227,33 @@ export default async function PublicEventDetailPage({ params }: PageProps) {
                                                 Members: {formatPrice(event.memberPriceCents!)}
                                             </div>
                                         )}
+                                        {memberDiscountPercent && !event.memberPriceCents && (
+                                            <div className="text-sm text-green-600 font-medium">
+                                                <Percent className="h-3 w-3 inline mr-1" />
+                                                {event.Organizer.name} members save {memberDiscountPercent}%
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Show applicable discounts */}
+                            {discountRules.length > 0 && (
+                                <div className="flex items-start gap-3">
+                                    <Tag className="h-5 w-5 text-rn-text-muted mt-0.5" />
+                                    <div>
+                                        <div className="font-medium">Available Discounts</div>
+                                        {discountRules.map(rule => {
+                                            const config = rule.config as any
+                                            if (rule.ruleType === 'MEMBERSHIP_TIER_PERCENT' && config?.discountPercent) {
+                                                return (
+                                                    <div key={rule.id} className="text-sm text-green-600">
+                                                        {rule.name}: {config.discountPercent}% off for {event.Organizer.name} members
+                                                    </div>
+                                                )
+                                            }
+                                            return null
+                                        })}
                                     </div>
                                 </div>
                             )}

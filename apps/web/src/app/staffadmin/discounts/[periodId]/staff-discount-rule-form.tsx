@@ -23,9 +23,10 @@ import {
 } from "@/components/ui/select"
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { createDiscountRuleForOrganizer, updateDiscountRuleForOrganizer } from '@/app/actions/discounts'
 import { useRouter } from 'next/navigation'
+import { MultiCourseTierEditor } from '@/components/discount/multi-course-tier-editor'
 
 interface Props {
     periodId: string
@@ -42,6 +43,7 @@ interface Props {
         enabled: boolean
         ruleType: string
         config: any
+        overrideOrgRules?: boolean
     }
 }
 
@@ -52,11 +54,11 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
     const isEditMode = !!existingRule
     
     // Extract tier IDs from existing rule config
-    const existingTierIds = existingRule?.config?.tierIds ?? []
+    const existingTierIds = (existingRule?.config?.tierIds as string[] | undefined) ?? []
     const [selectedTiers, setSelectedTiers] = useState<string[]>(existingTierIds)
 
     // Extract config values for defaults
-    const discountPercent = existingRule?.config?.discountPercent ?? undefined
+    const discountPercent = (existingRule?.config?.discountPercent as number | undefined) ?? undefined
     const tiersJson = existingRule?.config?.tiers ?? undefined
 
     const form = useForm<DiscountRuleFormData>({
@@ -68,7 +70,8 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
             priority: existingRule?.priority ?? 0,
             enabled: existingRule?.enabled ?? true,
             ruleType: (existingRule?.ruleType as any) ?? 'MEMBERSHIP_TIER_PERCENT',
-            config: existingRule?.config ?? {}
+            config: existingRule?.config ?? {},
+            overrideOrgRules: existingRule?.overrideOrgRules ?? false
         }
     })
 
@@ -87,6 +90,7 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
         formData.append('enabled', data.enabled ? 'on' : 'off')
         formData.append('ruleType', data.ruleType)
         formData.append('config', JSON.stringify(data.config))
+        formData.append('overrideOrgRules', data.overrideOrgRules ? 'on' : 'off')
 
         startTransition(async () => {
             const result = isEditMode
@@ -107,10 +111,15 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
     }
 
     // Helper to update config nested keys
-    const setConfig = (key: string, value: any) => {
+    const setConfig = useCallback((key: string, value: unknown) => {
         const current = form.getValues('config') || {}
         form.setValue('config', { ...current, [key]: value })
-    }
+    }, [form])
+
+    // Handler for multi-course tier changes
+    const handleMultiCourseTierChange = useCallback((tiers: Array<{ count: number; discountCents: number }>) => {
+        setConfig('tiers', tiers)
+    }, [setConfig])
 
     return (
         <Form {...form}>
@@ -253,26 +262,10 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
                     )}
 
                     {ruleType === 'MULTI_COURSE_TIERED' && (
-                        <div className="space-y-4">
-                            <FormItem>
-                                <FormLabel>Tiers Configuration (JSON)</FormLabel>
-                                <Input
-                                    placeholder='[{ "count": 2, "discountCents": 20000 }]'
-                                    defaultValue={tiersJson ? JSON.stringify(tiersJson) : ''}
-                                    onChange={(e) => {
-                                        try {
-                                            const json = JSON.parse(e.target.value)
-                                            setConfig('tiers', json)
-                                        } catch (err) {
-                                            // ignore parse error while typing
-                                        }
-                                    }}
-                                />
-                                <FormDescription>
-                                    Format: <code className="text-xs">{`[{ "count": 2, "discountCents": 20000 }]`}</code>
-                                </FormDescription>
-                            </FormItem>
-                        </div>
+                        <MultiCourseTierEditor
+                            defaultTiers={tiersJson as Array<{ count: number; discountCents: number }> | undefined}
+                            onChange={handleMultiCourseTierChange}
+                        />
                     )}
                 </div>
 
@@ -285,6 +278,27 @@ export function StaffDiscountRuleForm({ periodId, tiers, existingRule }: Props) 
                                 <FormLabel>Enabled</FormLabel>
                                 <FormDescription>
                                     Activate this rule immediately
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="overrideOrgRules"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-orange-800 dark:text-orange-200">Override Organization Rules</FormLabel>
+                                <FormDescription className="text-orange-700 dark:text-orange-300">
+                                    If enabled, this rule will replace all organization-level rules of the same type for this period
                                 </FormDescription>
                             </div>
                             <FormControl>

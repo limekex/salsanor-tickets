@@ -91,14 +91,33 @@ class EmailService {
     if (!globalSettings) {
       // Return default settings if nothing is configured
       return {
-        fromName: 'RegiNor Platform',
-        fromEmail: 'noreply@reginor.no',
-        replyToEmail: 'support@reginor.no',
+        fromName: 'RegiNor.events',
+        fromEmail: 'noreply@reginor.events',
+        replyToEmail: 'support@reginor.events',
         primaryLanguage: 'no',
       };
     }
 
     return globalSettings;
+  }
+
+  /**
+   * Get organizer info for email branding
+   */
+  private async getOrganizerInfo(organizerId?: string): Promise<{ name: string; contactEmail?: string } | null> {
+    if (!organizerId) return null;
+    
+    const organizer = await prisma.organizer.findUnique({
+      where: { id: organizerId },
+      select: { name: true, contactEmail: true },
+    });
+    
+    if (!organizer) return null;
+    
+    return {
+      name: organizer.name,
+      contactEmail: organizer.contactEmail ?? undefined,
+    };
   }
 
   /**
@@ -217,7 +236,10 @@ class EmailService {
       // 1. Get email settings
       const settings = await this.getEmailSettings(params.organizerId);
 
-      // 2. Get template
+      // 2. Get organizer info for branding
+      const organizer = await this.getOrganizerInfo(params.organizerId);
+
+      // 3. Get template
       const template = await this.getTemplate({
         organizerId: params.organizerId,
         slug: params.templateSlug,
@@ -228,16 +250,25 @@ class EmailService {
         throw new Error(`Template not found: ${params.templateSlug} (${params.language || settings.primaryLanguage})`);
       }
 
-      // 3. Render template
+      // 4. Render template
       const rendered = this.renderTemplate(template, params.variables);
 
-      // 4. Get API instance with credentials from database
+      // 5. Get API instance with credentials from database
       const apiInstance = await this.getApiInstance();
 
-      // 5. Send via Brevo
+      // 6. Determine from name and reply-to
+      // From name: "Organization Name - RegiNor.events" or just "RegiNor.events"
+      const fromName = organizer?.name 
+        ? `${organizer.name} - RegiNor.events`
+        : settings.fromName;
+      
+      // Reply-to: organizer's contact email or fallback to settings
+      const replyToEmail = organizer?.contactEmail || settings.replyToEmail;
+
+      // 7. Send via Brevo
       const sendSmtpEmail = new brevo.SendSmtpEmail();
       sendSmtpEmail.sender = {
-        name: settings.fromName,
+        name: fromName,
         email: settings.fromEmail,
       };
       sendSmtpEmail.to = [
@@ -247,7 +278,7 @@ class EmailService {
         },
       ];
       sendSmtpEmail.replyTo = {
-        email: settings.replyToEmail,
+        email: replyToEmail,
       };
       sendSmtpEmail.subject = rendered.subject;
       sendSmtpEmail.htmlContent = rendered.html;

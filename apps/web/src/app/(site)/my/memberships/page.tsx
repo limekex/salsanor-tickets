@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArrowLeft, CreditCard, Clock } from 'lucide-react'
 import { EmptyState } from '@/components'
-import { MembershipCard } from '@/components/membership-card'
+import { MembershipCard } from '@/components'
 import { UI_TEXT, getCountText } from '@/lib/i18n'
 
 export default async function MyMembershipsPage() {

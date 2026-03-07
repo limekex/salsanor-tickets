@@ -155,6 +155,17 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
           slug: true,
           name: true,
           logoUrl: true,
+          OrgDiscountRule: {
+            where: {
+              enabled: true,
+              appliesTo: { in: ['PERIODS', 'BOTH'] }
+            },
+            select: {
+              id: true,
+              ruleType: true,
+              config: true
+            }
+          }
         }
       },
       CourseTrack: {
@@ -162,7 +173,31 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
         orderBy: [
           { weekday: 'asc' },
           { timeStart: 'asc' }
-        ]
+        ],
+        select: {
+          id: true,
+          title: true,
+          weekday: true,
+          timeStart: true,
+          timeEnd: true,
+          levelLabel: true,
+          priceSingleCents: true,
+          pricePairCents: true,
+          memberPriceSingleCents: true,
+          memberPricePairCents: true,
+          capacityTotal: true
+        }
+      },
+      DiscountRule: {
+        where: { enabled: true },
+        select: {
+          id: true,
+          ruleType: true,
+          config: true
+        }
+      },
+      PeriodBreak: {
+        orderBy: { startDate: 'asc' }
       }
     },
     orderBy: { startDate: 'asc' }
@@ -227,6 +262,171 @@ export async function getCourseTrackById(trackId: string) {
       }
     }
   })
+}
+
+/**
+ * Get a course track by ID or slug (with periodId for slug lookup)
+ */
+export async function getCourseTrackByIdOrSlug(identifier: string, periodIdentifier?: string) {
+  // First try by direct ID
+  const trackById = await prisma.courseTrack.findUnique({
+    where: { id: identifier },
+    include: {
+      CoursePeriod: {
+        include: {
+          Organizer: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              OrgDiscountRule: {
+                where: {
+                  enabled: true,
+                  appliesTo: { in: ['PERIODS', 'BOTH'] }
+                },
+                orderBy: { priority: 'asc' },
+                select: {
+                  id: true,
+                  ruleType: true,
+                  name: true,
+                  config: true
+                }
+              }
+            }
+          },
+          PeriodBreak: {
+            orderBy: { startDate: 'asc' }
+          },
+          DiscountRule: {
+            where: { enabled: true },
+            orderBy: { priority: 'asc' }
+          }
+        }
+      },
+      _count: {
+        select: {
+          Registration: {
+            where: {
+              status: { in: ['ACTIVE', 'PENDING_PAYMENT', 'WAITLIST'] }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  if (trackById) return trackById
+
+  // If not found by ID and periodIdentifier provided, try by slug
+  if (periodIdentifier) {
+    // First try periodIdentifier as period ID
+    let track = await prisma.courseTrack.findFirst({
+      where: { 
+        slug: identifier,
+        periodId: periodIdentifier
+      },
+      include: {
+        CoursePeriod: {
+          include: {
+            Organizer: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                OrgDiscountRule: {
+                  where: {
+                    enabled: true,
+                    appliesTo: { in: ['PERIODS', 'BOTH'] }
+                  },
+                  orderBy: { priority: 'asc' },
+                  select: {
+                    id: true,
+                    ruleType: true,
+                    name: true,
+                    config: true
+                  }
+                }
+              }
+            },
+            PeriodBreak: {
+              orderBy: { startDate: 'asc' }
+            },
+            DiscountRule: {
+              where: { enabled: true },
+              orderBy: { priority: 'asc' }
+            }
+          }
+        },
+        _count: {
+          select: {
+            Registration: {
+              where: {
+                status: { in: ['ACTIVE', 'PENDING_PAYMENT', 'WAITLIST'] }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (track) return track
+
+    // Try periodIdentifier as period code (for pretty URLs)
+    track = await prisma.courseTrack.findFirst({
+      where: { 
+        slug: identifier,
+        CoursePeriod: {
+          code: periodIdentifier
+        }
+      },
+      include: {
+        CoursePeriod: {
+          include: {
+            Organizer: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                OrgDiscountRule: {
+                  where: {
+                    enabled: true,
+                    appliesTo: { in: ['PERIODS', 'BOTH'] }
+                  },
+                  orderBy: { priority: 'asc' },
+                  select: {
+                    id: true,
+                    ruleType: true,
+                    name: true,
+                    config: true
+                  }
+                }
+              }
+            },
+            PeriodBreak: {
+              orderBy: { startDate: 'asc' }
+            },
+            DiscountRule: {
+              where: { enabled: true },
+              orderBy: { priority: 'asc' }
+            }
+          }
+        },
+        _count: {
+          select: {
+            Registration: {
+              where: {
+                status: { in: ['ACTIVE', 'PENDING_PAYMENT', 'WAITLIST'] }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (track) return track
+  }
+
+  return null
 }
 
 /**

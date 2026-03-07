@@ -9,7 +9,7 @@ import { generateCreditNotePDF, CreditNoteData } from '@/lib/tickets/pdf-generat
 import { SellerInfo, BuyerInfo, TicketLineItem, DEFAULT_PLATFORM_INFO } from '@/lib/tickets/legal-requirements'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
+  apiVersion: '2025-11-17.clover' as any,
 })
 
 export async function cancelRegistration(params: {

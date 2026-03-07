@@ -2,6 +2,18 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
 import { StaffPeriodForm } from '../staff-period-form'
+import { BreakManager } from '../break-manager'
+import type { Organizer } from '@prisma/client'
+
+// Helper to serialize Decimal fields to plain numbers for client components
+function serializeOrganizer(org: Organizer) {
+    return {
+        ...org,
+        mvaRate: org.mvaRate ? Number(org.mvaRate) : null,
+        stripeFeePercentage: org.stripeFeePercentage ? Number(org.stripeFeePercentage) : null,
+        platformFeePercent: org.platformFeePercent ? Number(org.platformFeePercent) : null,
+    }
+}
 
 export default async function EditStaffPeriodPage({ 
     params 
@@ -38,12 +50,19 @@ export default async function EditStaffPeriodPage({
         redirect('/dashboard')
     }
 
-    // Fetch the period with categories and tags
+    // Fetch the period with categories, tags, breaks, and tracks
     const period = await prisma.coursePeriod.findUnique({
         where: { id: periodId },
         include: {
             Category: true,
-            Tag: true
+            Tag: true,
+            CourseTrack: {
+                orderBy: { weekday: 'asc' }
+            },
+            PeriodBreak: {
+                include: { CourseTrack: { select: { id: true, title: true } } },
+                orderBy: { startDate: 'asc' }
+            }
         }
     })
 
@@ -65,17 +84,28 @@ export default async function EditStaffPeriodPage({
         })
     ])
 
+    // Serialize organizers to convert Decimal to plain numbers
+    const serializedOrganizers = organizers.map(org => org ? serializeOrganizer(org) : null).filter(Boolean)
+
     return (
         <div className="max-w-3xl mx-auto space-y-rn-6 px-rn-4 sm:px-0">
             <div className="flex items-center justify-between">
                 <h2 className="rn-h2">Edit Course Period</h2>
             </div>
             <StaffPeriodForm 
-                period={period}
+                key={period.id}
+                period={period as any}
                 organizerIds={adminOrgIds}
-                organizers={organizers as any}
+                organizers={serializedOrganizers as any}
                 categories={categories}
                 tags={tags}
+            />
+            <BreakManager 
+                periodId={period.id} 
+                breaks={period.PeriodBreak}
+                tracks={period.CourseTrack}
+                periodStartDate={period.startDate}
+                periodEndDate={period.endDate}
             />
         </div>
     )
