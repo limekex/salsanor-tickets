@@ -498,15 +498,15 @@ cd apps/web && npm run build
 
 ## 🛡️ Proactive Error Prevention
 
-### Pre-commit Hook (Recommended)
+### Pre-commit Hook ✅ ACTIVE
 
-Add to `.husky/pre-commit`:
+Located at `.husky/pre-commit`:
 ```bash
-#!/bin/sh
+# TypeScript check before commit
 cd apps/web && npx tsc --noEmit || exit 1
 ```
 
-### CI Type Check
+### CI Type Check ✅ ACTIVE
 
 GitHub Actions workflow at `.github/workflows/typecheck.yml`:
 ```yaml
@@ -522,6 +522,12 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: cd apps/web && npx tsc --noEmit
+```
+
+### NPM Script ✅ ACTIVE
+
+```bash
+cd apps/web && npm run typecheck
 ```
 
 ### Package Version Pinning
