@@ -7,8 +7,8 @@
 
 Before writing ANY code, you MUST:
 
-1. **Read [CODE_INVENTORY.md](../docs/CODE_INVENTORY.md)** - Lists all reusable components, hooks, formatters, and queries
-2. **Read [MIGRATION_GUIDE.md](../docs/MIGRATION_GUIDE.md)** - Patterns and anti-patterns for this codebase
+1. **Read [CODE_INVENTORY.md](docs/CODE_INVENTORY.md)** - Lists all reusable components, hooks, formatters, and queries
+2. **Read [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)** - Patterns and anti-patterns for this codebase
 3. **Check existing code** - Don't duplicate what already exists
 
 ---
@@ -552,7 +552,7 @@ npm update && cd apps/web && npx tsc --noEmit
 
 ## Related Documentation
 
-- **[CODE_INVENTORY.md](../docs/CODE_INVENTORY.md)** - Complete inventory of all reusable code
-- **[MIGRATION_GUIDE.md](../docs/MIGRATION_GUIDE.md)** - Patterns and migration guide
-- **[DESIGN_SYSTEM.md](../docs/DESIGN_SYSTEM.md)** - UI design tokens
-- **[Issue #10](../docs/issues/github/10-code-organization-refactor.md)** - Full refactor documentation
+- **[CODE_INVENTORY.md](docs/CODE_INVENTORY.md)** - Complete inventory of all reusable code
+- **[MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)** - Patterns and migration guide
+- **[DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)** - UI design tokens
+- **[Issue #10](docs/issues/github/10-code-organization-refactor.md)** - Full refactor documentation
