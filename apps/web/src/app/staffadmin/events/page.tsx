@@ -1,5 +1,5 @@
 import { getOrgEvents } from '@/app/actions/events'
-import { requireOrgAdmin } from '@/utils/auth-org-admin'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -12,14 +12,10 @@ import { formatDateTimeShort } from '@/lib/formatters'
 import { EmptyState } from '@/components/empty-state'
 
 export default async function StaffAdminEventsPage() {
-    const userAccount = await requireOrgAdmin()
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForAdmin()
 
-    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
-    if (!orgAdminRole?.organizerId) {
-        return <div>No organization found</div>
-    }
-
-    const events = await getOrgEvents(orgAdminRole.organizerId)
+    const events = await getOrgEvents(organizerId)
 
     return (
         <div className="space-y-6">

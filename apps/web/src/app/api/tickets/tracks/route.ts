@@ -116,12 +116,19 @@ export async function GET() {
             ]
         })
 
+        // Current ISO weekday: JS getDay() 0=Sun → ISO 7=Sun, 1-6 unchanged
+        const jsDayOfWeek = now.getDay()
+        const todayIsoWeekday = jsDayOfWeek === 0 ? 7 : jsDayOfWeek
+
         return NextResponse.json({
             tracks: tracks.map(track => ({
                 id: track.id,
                 title: track.title,
                 periodName: `${track.CoursePeriod.Organizer.name} - ${track.CoursePeriod.name}`,
                 organizerId: track.CoursePeriod.organizerId,
+                weekday: track.weekday,
+                timeStart: track.timeStart,
+                availableToday: track.weekday === todayIsoWeekday,
                 type: 'track'
             })),
             events: events.map(event => ({

@@ -18,7 +18,8 @@ import {
     UserCog, 
     Wallet,
     Calendar,
-    ChevronDown
+    ChevronDown,
+    Clock
 } from 'lucide-react'
 import { OrgSelector } from './org-selector'
 import { useState, useEffect } from 'react'
@@ -76,6 +77,12 @@ const settingsGroups = [
             { href: '/admin/email', label: 'Settings', icon: Mail, globalOnly: true },
             { href: '/admin/email/templates', label: 'Templates', icon: FileText, globalOnly: true },
             { href: '/admin/email/logs', label: 'Logs', icon: FileText, globalOnly: true },
+        ]
+    },
+    {
+        label: 'System',
+        items: [
+            { href: '/admin/tasks', label: 'Scheduled Tasks', icon: Clock, globalOnly: true },
         ]
     },
 ]

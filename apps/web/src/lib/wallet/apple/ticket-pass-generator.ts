@@ -449,11 +449,11 @@ export async function generateAppleTicketPass(data: TicketPassData): Promise<Buf
   );
 
   // Set relevant date (triggers lock screen notification ~24h before event)
-  pass.relevantDate = data.eventDate.toISOString();
+  pass.setRelevantDate(data.eventDate);
 
   // Set expiration date if end date provided (pass becomes "expired" after event)
   if (data.eventEndDate) {
-    pass.expirationDate = data.eventEndDate.toISOString();
+    pass.setExpirationDate(data.eventEndDate);
   }
 
   // Add location for geo-based lock screen notifications (shows when near venue)

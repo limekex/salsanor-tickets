@@ -9,7 +9,7 @@ const defaultTemplates = [
     name: 'Test Email',
     category: 'SYSTEM' as const,
     language: 'no',
-    subject: 'Test e-post fra SalsaNor Platform',
+    subject: 'Test e-post fra RegiNor.events',
     preheader: 'Dette er en test e-post',
     htmlContent: `
 <!DOCTYPE html>
@@ -20,7 +20,7 @@ const defaultTemplates = [
   <title>Test E-post</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">Test E-post</h1>
   </div>
   
@@ -39,12 +39,12 @@ const defaultTemplates = [
     
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
       Med vennlig hilsen,<br>
-      <strong>SalsaNor Platform</strong>
+      <strong>RegiNor.events</strong>
     </p>
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
   </div>
 </body>
 </html>
@@ -58,9 +58,9 @@ Hvis du mottar denne e-posten, betyr det at e-postsystemet fungerer som det skal
 Tips: Du kan nå konfigurere e-postmaler og sende automatiske e-poster for ordrebekreftelser, billetter, ventelister og mer.
 
 Med vennlig hilsen,
-SalsaNor Platform
+RegiNor.events
 
-© {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.`,
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
     variables: {
       recipientName: 'Mottakers navn',
       testMessage: 'Test melding',
@@ -83,7 +83,7 @@ SalsaNor Platform
   <title>Ordrebekreftelse</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">Ordrebekreftelse</h1>
   </div>
   
@@ -93,14 +93,14 @@ SalsaNor Platform
     <p style="font-size: 16px;">Takk for din bestilling! Vi har mottatt din betaling og din påmelding er nå bekreftet.</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="color: #667eea; margin-top: 0; font-size: 20px;">{{eventName}}</h2>
+      <h2 style="color: #16A6B6; margin-top: 0; font-size: 20px;">{{eventName}}</h2>
       <p style="margin: 5px 0;"><strong>Dato:</strong> {{eventDate}}</p>
       <p style="margin: 5px 0;"><strong>Beløp betalt:</strong> {{orderTotal}}</p>
       <p style="margin: 5px 0;"><strong>Ordrenummer:</strong> {{orderNumber}}</p>
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ticketUrl}}" style="display: inline-block; background-color: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Se din billett</a>
+      <a href="{{ticketUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Se din billett</a>
     </div>
     
     <p style="font-size: 14px; color: #666;">
@@ -167,7 +167,7 @@ Spørsmål? Svar på denne e-posten eller kontakt oss.
   <title>Medlemskap godkjent</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Velkommen som medlem!</h1>
   </div>
   
@@ -178,12 +178,12 @@ Spørsmål? Svar på denne e-posten eller kontakt oss.
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
       <p style="font-size: 14px; color: #666; margin: 0;">Ditt medlemsnummer</p>
-      <p style="font-size: 32px; font-weight: bold; color: #11998e; margin: 10px 0;">{{memberNumber}}</p>
+      <p style="font-size: 32px; font-weight: bold; color: #16A6B6; margin: 10px 0;">{{memberNumber}}</p>
       <p style="font-size: 14px; color: #666; margin: 0;">Gyldig til: {{validUntil}}</p>
     </div>
     
     <div style="background-color: #e8f5e9; padding: 20px; margin: 20px 0; border-left: 4px solid #11998e; border-radius: 4px;">
-      <h3 style="margin-top: 0; color: #11998e;">Dine medlemsfordeler:</h3>
+      <h3 style="margin-top: 0; color: #16A6B6;">Dine medlemsfordeler:</h3>
       <ul style="margin: 10px 0; padding-left: 20px;">
         <li>Reduserte priser på kurs og arrangementer</li>
         <li>Tilgang til medlemsarrangementer</li>
@@ -193,7 +193,7 @@ Spørsmål? Svar på denne e-posten eller kontakt oss.
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{membershipCardUrl}}" style="display: inline-block; background-color: #11998e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Se ditt medlemskort</a>
+      <a href="{{membershipCardUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Se ditt medlemskort</a>
     </div>
     
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
@@ -252,7 +252,7 @@ Med vennlig hilsen,
   <title>Ledig plass</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">🎊 Ledig plass!</h1>
   </div>
   
@@ -262,7 +262,7 @@ Med vennlig hilsen,
     <p style="font-size: 16px;">Gode nyheter! Det har blitt ledig plass på <strong>{{eventName}}</strong>.</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="color: #f5576c; margin-top: 0; font-size: 20px;">{{eventName}}</h2>
+      <h2 style="color: #16A6B6; margin-top: 0; font-size: 20px;">{{eventName}}</h2>
       <p style="margin: 5px 0;"><strong>Dato:</strong> {{eventDate}}</p>
       <p style="margin: 5px 0;"><strong>Pris:</strong> {{price}}</p>
     </div>
@@ -274,7 +274,7 @@ Med vennlig hilsen,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{paymentUrl}}" style="display: inline-block; background-color: #f5576c; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">Bekreft påmelding</a>
+      <a href="{{paymentUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">Bekreft påmelding</a>
     </div>
     
     <p style="font-size: 14px; color: #666;">
@@ -328,7 +328,7 @@ Med vennlig hilsen,
     name: 'Test Email',
     category: 'SYSTEM' as const,
     language: 'en',
-    subject: 'Test Email from SalsaNor Platform',
+    subject: 'Test Email from RegiNor.events',
     preheader: 'This is a test email',
     htmlContent: `
 <!DOCTYPE html>
@@ -339,7 +339,7 @@ Med vennlig hilsen,
   <title>Test Email</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">Test Email</h1>
   </div>
   
@@ -358,12 +358,12 @@ Med vennlig hilsen,
     
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
       Best regards,<br>
-      <strong>SalsaNor Platform</strong>
+      <strong>RegiNor.events</strong>
     </p>
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. All rights reserved.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
   </div>
 </body>
 </html>
@@ -377,9 +377,9 @@ If you receive this email, it means the email system is working correctly!
 Tip: You can now configure email templates and send automatic emails for order confirmations, tickets, waitlists, and more.
 
 Best regards,
-SalsaNor Platform
+RegiNor.events
 
-© {{currentYear}} SalsaNor Platform. All rights reserved.`,
+© {{currentYear}} RegiNor.events – from signup to showtime`,
     variables: {
       recipientName: 'Recipient name',
       testMessage: 'Test message',
@@ -402,7 +402,7 @@ SalsaNor Platform
   <title>Order Confirmation</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">Order Confirmation</h1>
   </div>
   
@@ -412,14 +412,14 @@ SalsaNor Platform
     <p style="font-size: 16px;">Thank you for your order! We have received your payment and your registration is now confirmed.</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="color: #667eea; margin-top: 0; font-size: 20px;">{{eventName}}</h2>
+      <h2 style="color: #16A6B6; margin-top: 0; font-size: 20px;">{{eventName}}</h2>
       <p style="margin: 5px 0;"><strong>Date:</strong> {{eventDate}}</p>
       <p style="margin: 5px 0;"><strong>Amount Paid:</strong> {{orderTotal}}</p>
       <p style="margin: 5px 0;"><strong>Order Number:</strong> {{orderNumber}}</p>
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ticketUrl}}" style="display: inline-block; background-color: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Your Ticket</a>
+      <a href="{{ticketUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Your Ticket</a>
     </div>
     
     <p style="font-size: 14px; color: #666;">
@@ -486,7 +486,7 @@ Questions? Reply to this email or contact us.
   <title>Membership Approved</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Welcome as a Member!</h1>
   </div>
   
@@ -497,12 +497,12 @@ Questions? Reply to this email or contact us.
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
       <p style="font-size: 14px; color: #666; margin: 0;">Your membership number</p>
-      <p style="font-size: 32px; font-weight: bold; color: #11998e; margin: 10px 0;">{{memberNumber}}</p>
+      <p style="font-size: 32px; font-weight: bold; color: #16A6B6; margin: 10px 0;">{{memberNumber}}</p>
       <p style="font-size: 14px; color: #666; margin: 0;">Valid until: {{validUntil}}</p>
     </div>
     
     <div style="background-color: #e8f5e9; padding: 20px; margin: 20px 0; border-left: 4px solid #11998e; border-radius: 4px;">
-      <h3 style="margin-top: 0; color: #11998e;">Your Member Benefits:</h3>
+      <h3 style="margin-top: 0; color: #16A6B6;">Your Member Benefits:</h3>
       <ul style="margin: 10px 0; padding-left: 20px;">
         <li>Reduced prices on courses and events</li>
         <li>Access to member events</li>
@@ -512,7 +512,7 @@ Questions? Reply to this email or contact us.
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{membershipCardUrl}}" style="display: inline-block; background-color: #11998e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Your Membership Card</a>
+      <a href="{{membershipCardUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Your Membership Card</a>
     </div>
     
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
@@ -571,7 +571,7 @@ Best regards,
   <title>Spot Available</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <h1 style="color: white; margin: 0; font-size: 28px;">🎊 Spot Available!</h1>
   </div>
   
@@ -581,7 +581,7 @@ Best regards,
     <p style="font-size: 16px;">Good news! A spot has become available for <strong>{{eventName}}</strong>.</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="color: #f5576c; margin-top: 0; font-size: 20px;">{{eventName}}</h2>
+      <h2 style="color: #16A6B6; margin-top: 0; font-size: 20px;">{{eventName}}</h2>
       <p style="margin: 5px 0;"><strong>Date:</strong> {{eventDate}}</p>
       <p style="margin: 5px 0;"><strong>Price:</strong> {{price}}</p>
     </div>
@@ -593,7 +593,7 @@ Best regards,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{paymentUrl}}" style="display: inline-block; background-color: #f5576c; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">Confirm Registration</a>
+      <a href="{{paymentUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">Confirm Registration</a>
     </div>
     
     <p style="font-size: 14px; color: #666;">
@@ -855,7 +855,7 @@ Best regards,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{profileUrl}}" style="display: inline-block; padding: 15px 30px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+      <a href="{{profileUrl}}" style="display: inline-block; padding: 15px 30px; background-color: #16A6B6; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
         Gå til min profil
       </a>
     </div>
@@ -941,7 +941,7 @@ Med vennlig hilsen,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{profileUrl}}" style="display: inline-block; padding: 15px 30px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+      <a href="{{profileUrl}}" style="display: inline-block; padding: 15px 30px; background-color: #16A6B6; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
         Go to my profile
       </a>
     </div>
@@ -1005,7 +1005,7 @@ Best regards,
   <title>Event Påminnelse</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Event Påminnelse</h1>
   </div>
@@ -1016,7 +1016,7 @@ Best regards,
     <p style="font-size: 16px;">Dette er en vennlig påminnelse om at <strong>{{eventName}}</strong> starter snart!</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="margin-top: 0; color: #f5576c;">Detaljer</h2>
+      <h2 style="margin-top: 0; color: #16A6B6;">Detaljer</h2>
       <p style="margin: 10px 0;"><strong>📅 Dato:</strong> {{eventDate}}</p>
       <p style="margin: 10px 0;"><strong>🕐 Tid:</strong> {{eventTime}}</p>
       <p style="margin: 10px 0;"><strong>📍 Sted:</strong> {{eventLocation}}</p>
@@ -1024,7 +1024,7 @@ Best regards,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ticketUrl}}" style="background-color: #f5576c; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{ticketUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Vis Min Billett
       </a>
     </div>
@@ -1040,7 +1040,7 @@ Best regards,
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
   </div>
 </body>
 </html>
@@ -1063,7 +1063,7 @@ Med vennlig hilsen,
 {{organizerName}}
 
 ---
-© {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.`,
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
     variables: { 
       recipientName: 'Recipient name', 
       eventName: 'Event name',
@@ -1093,7 +1093,7 @@ Med vennlig hilsen,
   <title>Event Reminder</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Event Reminder</h1>
   </div>
@@ -1104,7 +1104,7 @@ Med vennlig hilsen,
     <p style="font-size: 16px;">This is a friendly reminder that <strong>{{eventName}}</strong> starts soon!</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="margin-top: 0; color: #f5576c;">Details</h2>
+      <h2 style="margin-top: 0; color: #16A6B6;">Details</h2>
       <p style="margin: 10px 0;"><strong>📅 Date:</strong> {{eventDate}}</p>
       <p style="margin: 10px 0;"><strong>🕐 Time:</strong> {{eventTime}}</p>
       <p style="margin: 10px 0;"><strong>📍 Location:</strong> {{eventLocation}}</p>
@@ -1112,7 +1112,7 @@ Med vennlig hilsen,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ticketUrl}}" style="background-color: #f5576c; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{ticketUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         View My Ticket
       </a>
     </div>
@@ -1128,7 +1128,7 @@ Med vennlig hilsen,
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. All rights reserved.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
   </div>
 </body>
 </html>
@@ -1151,7 +1151,7 @@ Best regards,
 {{organizerName}}
 
 ---
-© {{currentYear}} SalsaNor Platform. All rights reserved.`,
+© {{currentYear}} RegiNor.events – from signup to showtime`,
     variables: { 
       recipientName: 'Recipient name', 
       eventName: 'Event name',
@@ -1181,7 +1181,7 @@ Best regards,
   <title>Medlemskap Fornyelse</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #ffa751 0%, #ffe259 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
     <h1 style="color: #333; margin: 0; font-size: 28px;">Medlemskap Utløper Snart</h1>
   </div>
@@ -1210,19 +1210,19 @@ Best regards,
     </ul>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{renewalUrl}}" style="background-color: #ffa751; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{renewalUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Forny Medlemskap
       </a>
     </div>
     
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
       Med vennlig hilsen,<br>
-      <strong>SalsaNor Platform</strong>
+      <strong>RegiNor.events</strong>
     </p>
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
   </div>
 </body>
 </html>
@@ -1245,10 +1245,10 @@ Forny medlemskapet ditt nå for å fortsette å nyte:
 Forny medlemskap: {{renewalUrl}}
 
 Med vennlig hilsen,
-SalsaNor Platform
+RegiNor.events
 
 ---
-© {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.`,
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
     variables: { 
       recipientName: 'Recipient name',
       tierName: 'Membership tier name',
@@ -1275,7 +1275,7 @@ SalsaNor Platform
   <title>Membership Renewal</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #ffa751 0%, #ffe259 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
     <h1 style="color: #333; margin: 0; font-size: 28px;">Membership Expires Soon</h1>
   </div>
@@ -1304,19 +1304,19 @@ SalsaNor Platform
     </ul>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{renewalUrl}}" style="background-color: #ffa751; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{renewalUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Renew Membership
       </a>
     </div>
     
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
       Best regards,<br>
-      <strong>SalsaNor Platform</strong>
+      <strong>RegiNor.events</strong>
     </p>
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. All rights reserved.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
   </div>
 </body>
 </html>
@@ -1339,10 +1339,10 @@ Renew your membership now to continue enjoying:
 Renew membership: {{renewalUrl}}
 
 Best regards,
-SalsaNor Platform
+RegiNor.events
 
 ---
-© {{currentYear}} SalsaNor Platform. All rights reserved.`,
+© {{currentYear}} RegiNor.events – from signup to showtime`,
     variables: { 
       recipientName: 'Recipient name',
       tierName: 'Membership tier name',
@@ -1369,7 +1369,7 @@ SalsaNor Platform
   <title>Tilbakestill Passord</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">🔐</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Tilbakestill Passord</h1>
   </div>
@@ -1380,7 +1380,7 @@ SalsaNor Platform
     <p style="font-size: 16px;">Vi mottok en forespørsel om å tilbakestille passordet ditt.</p>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{resetUrl}}" style="background-color: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{resetUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Tilbakestill Passord
       </a>
     </div>
@@ -1394,18 +1394,18 @@ SalsaNor Platform
     <p style="font-size: 14px; color: #666;">
       Hvis knappen over ikke fungerer, kan du kopiere og lime inn denne lenken i nettleseren din:
     </p>
-    <p style="font-size: 12px; word-break: break-all; color: #667eea;">
+    <p style="font-size: 12px; word-break: break-all; color: #16A6B6;">
       {{resetUrl}}
     </p>
     
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
       Med vennlig hilsen,<br>
-      <strong>SalsaNor Platform</strong>
+      <strong>RegiNor.events</strong>
     </p>
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
   </div>
 </body>
 </html>
@@ -1420,10 +1420,10 @@ Klikk på denne lenken for å tilbakestille passordet ditt:
 ⚠️ VIKTIG: Denne lenken utløper om {{expiryHours}} timer. Hvis du ikke ba om en passordtilbakestilling, kan du ignorere denne e-posten.
 
 Med vennlig hilsen,
-SalsaNor Platform
+RegiNor.events
 
 ---
-© {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.`,
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
     variables: { 
       recipientName: 'Recipient name',
       resetUrl: 'Password reset link',
@@ -1448,7 +1448,7 @@ SalsaNor Platform
   <title>Password Reset</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">🔐</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Password Reset</h1>
   </div>
@@ -1459,7 +1459,7 @@ SalsaNor Platform
     <p style="font-size: 16px;">We received a request to reset your password.</p>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{resetUrl}}" style="background-color: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{resetUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Reset Password
       </a>
     </div>
@@ -1473,18 +1473,18 @@ SalsaNor Platform
     <p style="font-size: 14px; color: #666;">
       If the button above doesn't work, you can copy and paste this link into your browser:
     </p>
-    <p style="font-size: 12px; word-break: break-all; color: #667eea;">
+    <p style="font-size: 12px; word-break: break-all; color: #16A6B6;">
       {{resetUrl}}
     </p>
     
     <p style="font-size: 14px; color: #666; margin-top: 30px;">
       Best regards,<br>
-      <strong>SalsaNor Platform</strong>
+      <strong>RegiNor.events</strong>
     </p>
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. All rights reserved.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
   </div>
 </body>
 </html>
@@ -1499,10 +1499,10 @@ Click this link to reset your password:
 ⚠️ IMPORTANT: This link expires in {{expiryHours}} hours. If you didn't request a password reset, you can safely ignore this email.
 
 Best regards,
-SalsaNor Platform
+RegiNor.events
 
 ---
-© {{currentYear}} SalsaNor Platform. All rights reserved.`,
+© {{currentYear}} RegiNor.events – from signup to showtime`,
     variables: { 
       recipientName: 'Recipient name',
       resetUrl: 'Password reset link',
@@ -1527,7 +1527,7 @@ SalsaNor Platform
   <title>Kursbillett</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎫</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Din Kursbillett</h1>
   </div>
@@ -1538,7 +1538,7 @@ SalsaNor Platform
     <p style="font-size: 16px;">Her er billetten din for <strong>{{courseName}}</strong>!</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="margin-top: 0; color: #667eea;">Kursdetaljer</h2>
+      <h2 style="margin-top: 0; color: #16A6B6;">Kursdetaljer</h2>
       <p style="margin: 10px 0;"><strong>📚 Kurs:</strong> {{courseName}}</p>
       <p style="margin: 10px 0;"><strong>📅 Periode:</strong> {{coursePeriod}}</p>
       <p style="margin: 10px 0;"><strong>🕐 Tidspunkt:</strong> {{courseTime}}</p>
@@ -1553,7 +1553,7 @@ SalsaNor Platform
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ticketUrl}}" style="background-color: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{ticketUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Se Billett Online
       </a>
     </div>
@@ -1625,7 +1625,7 @@ Med vennlig hilsen,
   <title>Course Ticket</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎫</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Your Course Ticket</h1>
   </div>
@@ -1636,7 +1636,7 @@ Med vennlig hilsen,
     <p style="font-size: 16px;">Here is your ticket for <strong>{{courseName}}</strong>!</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="margin-top: 0; color: #667eea;">Course Details</h2>
+      <h2 style="margin-top: 0; color: #16A6B6;">Course Details</h2>
       <p style="margin: 10px 0;"><strong>📚 Course:</strong> {{courseName}}</p>
       <p style="margin: 10px 0;"><strong>📅 Period:</strong> {{coursePeriod}}</p>
       <p style="margin: 10px 0;"><strong>🕐 Time:</strong> {{courseTime}}</p>
@@ -1651,7 +1651,7 @@ Med vennlig hilsen,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ticketUrl}}" style="background-color: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{ticketUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         View Ticket Online
       </a>
     </div>
@@ -1723,7 +1723,7 @@ Best regards,
   <title>Arrangementsbillett</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎟️</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Din Billett</h1>
   </div>
@@ -1734,7 +1734,7 @@ Best regards,
     <p style="font-size: 16px;">Her er billetten din for <strong>{{eventName}}</strong>!</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="margin-top: 0; color: #f5576c;">Arrangementsdetaljer</h2>
+      <h2 style="margin-top: 0; color: #16A6B6;">Arrangementsdetaljer</h2>
       <p style="margin: 10px 0;"><strong>🎉 Arrangement:</strong> {{eventName}}</p>
       <p style="margin: 10px 0;"><strong>📅 Dato:</strong> {{eventDate}}</p>
       <p style="margin: 10px 0;"><strong>🕐 Tid:</strong> {{eventTime}}</p>
@@ -1749,7 +1749,7 @@ Best regards,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ticketUrl}}" style="background-color: #f5576c; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{ticketUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Se Billett Online
       </a>
     </div>
@@ -1821,7 +1821,7 @@ Med vennlig hilsen,
   <title>Event Ticket</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎟️</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Your Ticket</h1>
   </div>
@@ -1832,7 +1832,7 @@ Med vennlig hilsen,
     <p style="font-size: 16px;">Here is your ticket for <strong>{{eventName}}</strong>!</p>
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="margin-top: 0; color: #f5576c;">Event Details</h2>
+      <h2 style="margin-top: 0; color: #16A6B6;">Event Details</h2>
       <p style="margin: 10px 0;"><strong>🎉 Event:</strong> {{eventName}}</p>
       <p style="margin: 10px 0;"><strong>📅 Date:</strong> {{eventDate}}</p>
       <p style="margin: 10px 0;"><strong>🕐 Time:</strong> {{eventTime}}</p>
@@ -1847,7 +1847,7 @@ Med vennlig hilsen,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ticketUrl}}" style="background-color: #f5576c; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{ticketUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         View Ticket Online
       </a>
     </div>
@@ -1919,7 +1919,7 @@ Best regards,
   <title>Medlemskort</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">💳</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Ditt Medlemskort</h1>
   </div>
@@ -1931,7 +1931,7 @@ Best regards,
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
       <p style="font-size: 14px; color: #666; margin: 0;">Ditt medlemsnummer</p>
-      <p style="font-size: 32px; font-weight: bold; color: #11998e; margin: 10px 0;">{{memberNumber}}</p>
+      <p style="font-size: 32px; font-weight: bold; color: #16A6B6; margin: 10px 0;">{{memberNumber}}</p>
       <p style="font-size: 14px; color: #666; margin: 0;">Medlemstype: {{tierName}}</p>
       <p style="font-size: 14px; color: #666; margin: 5px 0;">Gyldig til: {{validUntil}}</p>
     </div>
@@ -1943,7 +1943,7 @@ Best regards,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{membershipCardUrl}}" style="background-color: #11998e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{membershipCardUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Se Medlemskort Online
       </a>
     </div>
@@ -2011,7 +2011,7 @@ Med vennlig hilsen,
   <title>Membership Card</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">💳</div>
     <h1 style="color: white; margin: 0; font-size: 28px;">Your Membership Card</h1>
   </div>
@@ -2023,7 +2023,7 @@ Med vennlig hilsen,
     
     <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
       <p style="font-size: 14px; color: #666; margin: 0;">Your membership number</p>
-      <p style="font-size: 32px; font-weight: bold; color: #11998e; margin: 10px 0;">{{memberNumber}}</p>
+      <p style="font-size: 32px; font-weight: bold; color: #16A6B6; margin: 10px 0;">{{memberNumber}}</p>
       <p style="font-size: 14px; color: #666; margin: 0;">Membership type: {{tierName}}</p>
       <p style="font-size: 14px; color: #666; margin: 5px 0;">Valid until: {{validUntil}}</p>
     </div>
@@ -2035,7 +2035,7 @@ Med vennlig hilsen,
     </div>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{membershipCardUrl}}" style="background-color: #11998e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{membershipCardUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         View Membership Card Online
       </a>
     </div>
@@ -2103,7 +2103,7 @@ Best regards,
   <title>Påmelding Kansellert</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
     <h1 style="color: #333; margin: 0; font-size: 28px;">Påmelding Kansellert</h1>
   </div>
@@ -2133,7 +2133,7 @@ Best regards,
     </p>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{organizerUrl}}" style="background-color: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{organizerUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Se Tilgjengelige Kurs
       </a>
     </div>
@@ -2145,7 +2145,7 @@ Best regards,
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
   </div>
 </body>
 </html>
@@ -2171,7 +2171,7 @@ Med vennlig hilsen,
 {{organizerName}}
 
 ---
-© {{currentYear}} SalsaNor Platform. Alle rettigheter reservert.`,
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
     variables: { 
       recipientName: 'Recipient name',
       courseName: 'Course name',
@@ -2202,7 +2202,7 @@ Med vennlig hilsen,
   <title>Registration Cancelled</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
     <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
     <h1 style="color: #333; margin: 0; font-size: 28px;">Registration Cancelled</h1>
   </div>
@@ -2232,7 +2232,7 @@ Med vennlig hilsen,
     </p>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="{{organizerUrl}}" style="background-color: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="{{organizerUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         View Available Courses
       </a>
     </div>
@@ -2244,7 +2244,7 @@ Med vennlig hilsen,
   </div>
   
   <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-    <p>&copy; {{currentYear}} SalsaNor Platform. All rights reserved.</p>
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
   </div>
 </body>
 </html>
@@ -2270,7 +2270,7 @@ Best regards,
 {{organizerName}}
 
 ---
-© {{currentYear}} SalsaNor Platform. All rights reserved.`,
+© {{currentYear}} RegiNor.events – from signup to showtime`,
     variables: { 
       recipientName: 'Recipient name',
       courseName: 'Course name',
@@ -2281,6 +2281,920 @@ Best regards,
       cancelledDate: 'Cancellation date',
       organizerName: 'Organizer name',
       organizerUrl: 'Organizer page link',
+      currentYear: 'Current year'
+    },
+  },
+  // SESSION_REMINDER - Norwegian
+  {
+    slug: 'session-reminder',
+    name: 'Kurspåminnelse',
+    category: 'NOTIFICATION' as const,
+    language: 'no',
+    subject: 'Påminnelse: {{courseName}} i dag kl. {{sessionTime}}',
+    preheader: 'Din kurstime starter snart',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kurspåminnelse</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📅</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Kurspåminnelse</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{firstName}},</p>
+    
+    <p style="font-size: 16px;">Dette er en vennlig påminnelse om at <strong>{{courseName}}</strong> starter i dag!</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Detaljer</h2>
+      <p style="margin: 10px 0;"><strong>🕐 Tid:</strong> {{sessionTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Sted:</strong> {{location}}</p>
+      <p style="margin: 10px 0;"><strong>📚 Kurs:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📆 Periode:</strong> {{periodName}}</p>
+    </div>
+    
+    <div style="background-color: #d4edda; padding: 15px; margin: 20px 0; border-left: 4px solid #28a745; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #155724;">
+        <strong>Tips:</strong> Husk å komme i god tid. Innsjekking åpner {{checkInWindow}} før kursstart.
+      </p>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Kan du ikke komme? Du kan melde fravær fra Min side.
+    </p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{myCoursesUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        Se mine kurs
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{firstName}},
+
+Dette er en vennlig påminnelse om at {{courseName}} starter i dag!
+
+DETALJER:
+Tid: {{sessionTime}}
+Sted: {{location}}
+Kurs: {{courseName}}
+Periode: {{periodName}}
+
+Tips: Husk å komme i god tid. Innsjekking åpner {{checkInWindow}} før kursstart.
+
+Kan du ikke komme? Du kan melde fravær fra Min side.
+
+Se mine kurs: {{myCoursesUrl}}
+
+Med vennlig hilsen,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
+    variables: { 
+      firstName: 'Participant first name',
+      courseName: 'Course/track name',
+      sessionTime: 'Session start time',
+      location: 'Venue location',
+      periodName: 'Course period name',
+      checkInWindow: 'Check-in window description',
+      myCoursesUrl: 'Link to my courses page',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // SESSION_REMINDER - English
+  {
+    slug: 'session-reminder',
+    name: 'Session Reminder',
+    category: 'NOTIFICATION' as const,
+    language: 'en',
+    subject: 'Reminder: {{courseName}} today at {{sessionTime}}',
+    preheader: 'Your class starts soon',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session Reminder</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📅</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Session Reminder</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hello {{firstName}},</p>
+    
+    <p style="font-size: 16px;">This is a friendly reminder that <strong>{{courseName}}</strong> starts today!</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Details</h2>
+      <p style="margin: 10px 0;"><strong>🕐 Time:</strong> {{sessionTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Location:</strong> {{location}}</p>
+      <p style="margin: 10px 0;"><strong>📚 Course:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📆 Period:</strong> {{periodName}}</p>
+    </div>
+    
+    <div style="background-color: #d4edda; padding: 15px; margin: 20px 0; border-left: 4px solid #28a745; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #155724;">
+        <strong>Tip:</strong> Remember to arrive early. Check-in opens {{checkInWindow}} before class starts.
+      </p>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Can't make it? You can register your absence from My Page.
+    </p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{myCoursesUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        View My Courses
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hello {{firstName}},
+
+This is a friendly reminder that {{courseName}} starts today!
+
+DETAILS:
+Time: {{sessionTime}}
+Location: {{location}}
+Course: {{courseName}}
+Period: {{periodName}}
+
+Tip: Remember to arrive early. Check-in opens {{checkInWindow}} before class starts.
+
+Can't make it? You can register your absence from My Page.
+
+View my courses: {{myCoursesUrl}}
+
+Best regards,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – from signup to showtime`,
+    variables: { 
+      firstName: 'Participant first name',
+      courseName: 'Course/track name',
+      sessionTime: 'Session start time',
+      location: 'Venue location',
+      periodName: 'Course period name',
+      checkInWindow: 'Check-in window description',
+      myCoursesUrl: 'Link to my courses page',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // ATTENDANCE_LOW_WARNING - Norwegian
+  {
+    slug: 'attendance-low-warning',
+    name: 'Advarsel om lavt oppmøte',
+    category: 'NOTIFICATION' as const,
+    language: 'no',
+    subject: 'Oppmøtevarsel: {{courseName}}',
+    preheader: 'Ditt oppmøte er under {{threshold}}%',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oppmøtevarsel</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Oppmøtevarsel</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{firstName}},</p>
+    
+    <p style="font-size: 16px;">Vi ønsker å informere deg om at oppmøtet ditt på <strong>{{courseName}}</strong> ligger under anbefalt nivå.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Din oppmøtestatistikk</h2>
+      <p style="margin: 10px 0;"><strong>📚 Kurs:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📆 Periode:</strong> {{periodName}}</p>
+      <p style="margin: 10px 0;"><strong>✅ Deltatt:</strong> {{attended}} av {{totalSessions}} økter</p>
+      <p style="margin: 10px 0;"><strong>📈 Oppmøteprosent:</strong> <span style="color: #16A6B6; font-weight: bold;">{{attendanceRate}}%</span></p>
+      <p style="margin: 10px 0;"><strong>🎯 Anbefalt minimum:</strong> {{threshold}}%</p>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>Viktig:</strong> Regelmessig oppmøte er viktig for din progresjon og for å kvalifisere til kursbevis.
+      </p>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Har du utfordringer med å delta? Ta gjerne kontakt med oss, så kan vi se på mulige løsninger.
+    </p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{myAttendanceUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        Se min oppmøtestatistikk
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{firstName}},
+
+Vi ønsker å informere deg om at oppmøtet ditt på {{courseName}} ligger under anbefalt nivå.
+
+DIN OPPMØTESTATISTIKK:
+Kurs: {{courseName}}
+Periode: {{periodName}}
+Deltatt: {{attended}} av {{totalSessions}} økter
+Oppmøteprosent: {{attendanceRate}}%
+Anbefalt minimum: {{threshold}}%
+
+Viktig: Regelmessig oppmøte er viktig for din progresjon og for å kvalifisere til kursbevis.
+
+Har du utfordringer med å delta? Ta gjerne kontakt med oss, så kan vi se på mulige løsninger.
+
+Se min oppmøtestatistikk: {{myAttendanceUrl}}
+
+Med vennlig hilsen,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
+    variables: { 
+      firstName: 'Participant first name',
+      lastName: 'Participant last name',
+      courseName: 'Course/track name',
+      periodName: 'Course period name',
+      attended: 'Number of sessions attended',
+      totalSessions: 'Total number of sessions so far',
+      attendanceRate: 'Attendance rate percentage',
+      threshold: 'Minimum recommended attendance percentage',
+      myAttendanceUrl: 'Link to attendance statistics page',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // ATTENDANCE_LOW_WARNING - English
+  {
+    slug: 'attendance-low-warning',
+    name: 'Low Attendance Warning',
+    category: 'NOTIFICATION' as const,
+    language: 'en',
+    subject: 'Attendance Alert: {{courseName}}',
+    preheader: 'Your attendance is below {{threshold}}%',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Alert</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Attendance Alert</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hello {{firstName}},</p>
+    
+    <p style="font-size: 16px;">We wanted to let you know that your attendance for <strong>{{courseName}}</strong> is below the recommended level.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Your Attendance Statistics</h2>
+      <p style="margin: 10px 0;"><strong>📚 Course:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📆 Period:</strong> {{periodName}}</p>
+      <p style="margin: 10px 0;"><strong>✅ Attended:</strong> {{attended}} of {{totalSessions}} sessions</p>
+      <p style="margin: 10px 0;"><strong>📈 Attendance Rate:</strong> <span style="color: #16A6B6; font-weight: bold;">{{attendanceRate}}%</span></p>
+      <p style="margin: 10px 0;"><strong>🎯 Recommended Minimum:</strong> {{threshold}}%</p>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>Important:</strong> Regular attendance is important for your progress and to qualify for an attendance certificate.
+      </p>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Having trouble attending? Please get in touch with us and we can discuss possible solutions.
+    </p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{myAttendanceUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        View My Attendance
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hello {{firstName}},
+
+We wanted to let you know that your attendance for {{courseName}} is below the recommended level.
+
+YOUR ATTENDANCE STATISTICS:
+Course: {{courseName}}
+Period: {{periodName}}
+Attended: {{attended}} of {{totalSessions}} sessions
+Attendance Rate: {{attendanceRate}}%
+Recommended Minimum: {{threshold}}%
+
+Important: Regular attendance is important for your progress and to qualify for an attendance certificate.
+
+Having trouble attending? Please get in touch with us and we can discuss possible solutions.
+
+View my attendance: {{myAttendanceUrl}}
+
+Best regards,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – from signup to showtime`,
+    variables: { 
+      firstName: 'Participant first name',
+      lastName: 'Participant last name',
+      courseName: 'Course/track name',
+      periodName: 'Course period name',
+      attended: 'Number of sessions attended',
+      totalSessions: 'Total number of sessions so far',
+      attendanceRate: 'Attendance rate percentage',
+      threshold: 'Minimum recommended attendance percentage',
+      myAttendanceUrl: 'Link to attendance statistics page',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // BREAK_REMINDER - Norwegian
+  {
+    slug: 'break-reminder',
+    name: 'Feriepåminnelse',
+    category: 'NOTIFICATION' as const,
+    language: 'no',
+    subject: 'Påminnelse: Ingen kurs {{breakDates}}',
+    preheader: '{{courseName}} holder pause',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feriepåminnelse</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🏖️</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Kurspause</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{firstName}},</p>
+    
+    <p style="font-size: 16px;">Vi minner om at <strong>{{courseName}}</strong> har pause kommende uke.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Pauseperiode</h2>
+      <p style="margin: 10px 0;"><strong>📚 Kurs:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Datoer:</strong> {{breakDates}}</p>
+      <p style="margin: 10px 0;"><strong>📝 Årsak:</strong> {{breakReason}}</p>
+      <p style="margin: 10px 0;"><strong>🔜 Neste time:</strong> {{nextSessionDate}}</p>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Vi gleder oss til å se deg igjen når kurset fortsetter!
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{firstName}},
+
+Vi minner om at {{courseName}} har pause kommende uke.
+
+PAUSEPERIODE:
+Kurs: {{courseName}}
+Datoer: {{breakDates}}
+Årsak: {{breakReason}}
+Neste time: {{nextSessionDate}}
+
+Vi gleder oss til å se deg igjen når kurset fortsetter!
+
+Med vennlig hilsen,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
+    variables: { 
+      firstName: 'Participant first name',
+      courseName: 'Course/track name',
+      breakDates: 'Break period dates',
+      breakReason: 'Reason for break',
+      nextSessionDate: 'Date of next session after break',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // BREAK_REMINDER - English
+  {
+    slug: 'break-reminder',
+    name: 'Break Reminder',
+    category: 'NOTIFICATION' as const,
+    language: 'en',
+    subject: 'Reminder: No class {{breakDates}}',
+    preheader: '{{courseName}} is on break',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Break Reminder</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🏖️</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Course Break</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hello {{firstName}},</p>
+    
+    <p style="font-size: 16px;">This is a reminder that <strong>{{courseName}}</strong> will be on break next week.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Break Period</h2>
+      <p style="margin: 10px 0;"><strong>📚 Course:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Dates:</strong> {{breakDates}}</p>
+      <p style="margin: 10px 0;"><strong>📝 Reason:</strong> {{breakReason}}</p>
+      <p style="margin: 10px 0;"><strong>🔜 Next Session:</strong> {{nextSessionDate}}</p>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      We look forward to seeing you when classes resume!
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hello {{firstName}},
+
+This is a reminder that {{courseName}} will be on break next week.
+
+BREAK PERIOD:
+Course: {{courseName}}
+Dates: {{breakDates}}
+Reason: {{breakReason}}
+Next Session: {{nextSessionDate}}
+
+We look forward to seeing you when classes resume!
+
+Best regards,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – from signup to showtime`,
+    variables: { 
+      firstName: 'Participant first name',
+      courseName: 'Course/track name',
+      breakDates: 'Break period dates',
+      breakReason: 'Reason for break',
+      nextSessionDate: 'Date of next session after break',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // MEMBERSHIP_EXPIRY_WARNING - Norwegian
+  {
+    slug: 'membership-expiry-warning',
+    name: 'Medlemskap utløper snart',
+    category: 'NOTIFICATION' as const,
+    language: 'no',
+    subject: 'Ditt medlemskap utløper {{expiryDate}}',
+    preheader: 'Forny medlemskapet ditt for å beholde tilgang',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medlemskap utløper</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Medlemskapet ditt utløper snart</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{firstName}},</p>
+    
+    <p style="font-size: 16px;">Vi ønsker å minne deg på at <strong>{{membershipType}}</strong> utløper om <strong>{{daysRemaining}} dager</strong>.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Medlemsdetaljer</h2>
+      <p style="margin: 10px 0;"><strong>📋 Medlemskap:</strong> {{membershipType}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Utløpsdato:</strong> {{expiryDate}}</p>
+      <p style="margin: 10px 0;"><strong>⏱️ Dager igjen:</strong> {{daysRemaining}}</p>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>Viktig:</strong> Forny medlemskapet ditt før utløpsdatoen for å beholde alle fordeler og unngå avbrudd i tilgangen din.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{renewUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        Forny medlemskap
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Har du spørsmål? Kontakt oss gjerne.
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{firstName}},
+
+Vi ønsker å minne deg på at {{membershipType}} utløper om {{daysRemaining}} dager.
+
+Medlemsdetaljer:
+- Medlemskap: {{membershipType}}
+- Utløpsdato: {{expiryDate}}
+- Dager igjen: {{daysRemaining}}
+
+Forny medlemskapet ditt før utløpsdatoen for å beholde alle fordeler.
+
+Forny her: {{renewUrl}}
+
+Med vennlig hilsen,
+{{organizerName}}
+    `,
+    variables: {
+      firstName: 'Member first name',
+      membershipType: 'Type of membership',
+      expiryDate: 'Expiry date',
+      daysRemaining: 'Days until expiry',
+      renewUrl: 'Link to renew membership',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // MEMBERSHIP_EXPIRY_WARNING - English
+  {
+    slug: 'membership-expiry-warning',
+    name: 'Membership Expiring Soon',
+    category: 'NOTIFICATION' as const,
+    language: 'en',
+    subject: 'Your membership expires {{expiryDate}}',
+    preheader: 'Renew your membership to keep access',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Membership Expiring</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Your Membership Expires Soon</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hi {{firstName}},</p>
+    
+    <p style="font-size: 16px;">We wanted to remind you that your <strong>{{membershipType}}</strong> expires in <strong>{{daysRemaining}} days</strong>.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Membership Details</h2>
+      <p style="margin: 10px 0;"><strong>📋 Membership:</strong> {{membershipType}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Expiry Date:</strong> {{expiryDate}}</p>
+      <p style="margin: 10px 0;"><strong>⏱️ Days Remaining:</strong> {{daysRemaining}}</p>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>Important:</strong> Renew your membership before the expiry date to keep all benefits and avoid any interruption in access.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{renewUrl}}" style="background-color: #16A6B6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        Renew Membership
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Have questions? Feel free to contact us.
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hi {{firstName}},
+
+We wanted to remind you that your {{membershipType}} expires in {{daysRemaining}} days.
+
+Membership Details:
+- Membership: {{membershipType}}
+- Expiry Date: {{expiryDate}}
+- Days Remaining: {{daysRemaining}}
+
+Renew your membership before the expiry date to keep all benefits.
+
+Renew here: {{renewUrl}}
+
+Best regards,
+{{organizerName}}
+    `,
+    variables: {
+      firstName: 'Member first name',
+      membershipType: 'Type of membership',
+      expiryDate: 'Expiry date',
+      daysRemaining: 'Days until expiry',
+      renewUrl: 'Link to renew membership',
+      organizerName: 'Organizer name',
+      currentYear: 'Current year'
+    },
+  },
+  // MISSED_SESSION_NOTIFY - Norwegian
+  {
+    slug: 'missed-session',
+    name: 'Varsel om tapt time',
+    category: 'NOTIFICATION' as const,
+    language: 'no',
+    subject: 'Vi savnet deg på {{courseName}} i dag',
+    preheader: 'Du sjekket ikke inn på timen i dag',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tapt time</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📭</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">Vi savnet deg!</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hei {{firstName}},</p>
+    
+    <p style="font-size: 16px;">Vi merket at du ikke sjekket inn på <strong>{{courseName}}</strong> i dag.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Timedetaljer</h2>
+      <p style="margin: 10px 0;"><strong>📚 Kurs:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Dato:</strong> {{sessionDate}}</p>
+      <p style="margin: 10px 0;"><strong>🕐 Tid:</strong> {{sessionTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Sted:</strong> {{location}}</p>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>💡 Tips:</strong> Hvis du vet at du ikke kan delta på en time, kan du registrere fravær på forhånd i din profil. Da mottar du ikke disse meldingene.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{myAttendanceUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Se min oppmøtehistorikk</a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      Vi håper å se deg på neste time!
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Med vennlig hilsen,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – fra påmelding til showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hei {{firstName}},
+
+Vi merket at du ikke sjekket inn på {{courseName}} i dag.
+
+TIMEDETALJER:
+Kurs: {{courseName}}
+Dato: {{sessionDate}}
+Tid: {{sessionTime}}
+Sted: {{location}}
+
+Tips: Hvis du vet at du ikke kan delta på en time, kan du registrere fravær på forhånd i din profil. Da mottar du ikke disse meldingene.
+
+Se din oppmøtehistorikk: {{myAttendanceUrl}}
+
+Vi håper å se deg på neste time!
+
+Med vennlig hilsen,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – fra påmelding til showtime`,
+    variables: { 
+      firstName: 'Deltakerens fornavn',
+      courseName: 'Kurs/sportnavn',
+      sessionDate: 'Dato for timen',
+      sessionTime: 'Tidspunkt for timen',
+      location: 'Sted for timen',
+      periodName: 'Periodenavn',
+      myCoursesUrl: 'Lenke til mine kurs',
+      myAttendanceUrl: 'Lenke til oppmøtehistorikk',
+      organizerName: 'Arrangørnavn',
+      currentYear: 'Nåværende år'
+    },
+  },
+  // MISSED_SESSION_NOTIFY - English
+  {
+    slug: 'missed-session',
+    name: 'Missed Session Notification',
+    category: 'NOTIFICATION' as const,
+    language: 'en',
+    subject: 'We missed you at {{courseName}} today',
+    preheader: 'You did not check in to class today',
+    htmlContent: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Missed Session</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #16A6B6 0%, #0E7C88 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📭</div>
+    <h1 style="color: white; margin: 0; font-size: 28px;">We Missed You!</h1>
+  </div>
+  
+  <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px;">Hello {{firstName}},</p>
+    
+    <p style="font-size: 16px;">We noticed you didn't check in to <strong>{{courseName}}</strong> today.</p>
+    
+    <div style="background-color: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2 style="margin-top: 0; color: #16A6B6;">Session Details</h2>
+      <p style="margin: 10px 0;"><strong>📚 Course:</strong> {{courseName}}</p>
+      <p style="margin: 10px 0;"><strong>📅 Date:</strong> {{sessionDate}}</p>
+      <p style="margin: 10px 0;"><strong>🕐 Time:</strong> {{sessionTime}}</p>
+      <p style="margin: 10px 0;"><strong>📍 Location:</strong> {{location}}</p>
+    </div>
+    
+    <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #856404;">
+        <strong>💡 Tip:</strong> If you know you can't attend a session, you can register your absence in advance in your profile. You won't receive these notifications then.
+      </p>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{myAttendanceUrl}}" style="display: inline-block; background-color: #16A6B6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View My Attendance</a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666;">
+      We hope to see you at the next session!
+    </p>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      Best regards,<br>
+      <strong>{{organizerName}}</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+    <p>&copy; {{currentYear}} RegiNor.events – from signup to showtime</p>
+  </div>
+</body>
+</html>
+    `,
+    textContent: `Hello {{firstName}},
+
+We noticed you didn't check in to {{courseName}} today.
+
+SESSION DETAILS:
+Course: {{courseName}}
+Date: {{sessionDate}}
+Time: {{sessionTime}}
+Location: {{location}}
+
+Tip: If you know you can't attend a session, you can register your absence in advance in your profile. You won't receive these notifications then.
+
+View your attendance history: {{myAttendanceUrl}}
+
+We hope to see you at the next session!
+
+Best regards,
+{{organizerName}}
+
+---
+© {{currentYear}} RegiNor.events – from signup to showtime`,
+    variables: { 
+      firstName: 'Participant first name',
+      courseName: 'Course/track name',
+      sessionDate: 'Date of session',
+      sessionTime: 'Time of session',
+      location: 'Session location',
+      periodName: 'Period name',
+      myCoursesUrl: 'Link to my courses',
+      myAttendanceUrl: 'Link to attendance history',
+      organizerName: 'Organizer name',
       currentYear: 'Current year'
     },
   },

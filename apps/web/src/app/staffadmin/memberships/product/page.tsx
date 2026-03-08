@@ -1,38 +1,22 @@
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MembershipProductForm } from './membership-product-form'
 import { ArrowLeft, Users, Settings } from 'lucide-react'
 import Link from 'next/link'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
 export default async function MembershipProductSettingsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    redirect('/auth/login')
-  }
+  // Get selected organization (from cookie or first available)
+  const organizerId = await getSelectedOrganizerForAdmin()
 
-  // Get user's admin organizations
-  const userAccount = await prisma.userAccount.findUnique({
-    where: { supabaseUid: user.id },
-    include: {
-      UserAccountRole: {
-        where: {
-          OR: [
-            { role: 'ADMIN' },
-            { role: 'ORG_ADMIN' }
-          ]
-        },
-        include: { Organizer: true }
-      }
-    }
+  // Get organization details
+  const organizer = await prisma.organizer.findUnique({
+    where: { id: organizerId }
   })
 
-  if (!userAccount?.UserAccountRole?.[0]?.Organizer) {
+  if (!organizer) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">No Organization Access</h1>
@@ -40,8 +24,6 @@ export default async function MembershipProductSettingsPage() {
       </div>
     )
   }
-
-  const organizer = userAccount.UserAccountRole[0].Organizer
 
   // Get membership tiers count
   const tierCount = await prisma.membershipTier.count({
@@ -140,7 +122,7 @@ export default async function MembershipProductSettingsPage() {
         </CardContent>
       </Card>
 
-      <MembershipProductForm organizer={serializedOrg} />
+      <MembershipProductForm key={organizer.id} organizer={serializedOrg} />
     </div>
   )
 }

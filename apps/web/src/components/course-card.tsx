@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Info } from 'lucide-react'
 import Link from 'next/link'
 import { useCart } from '@/hooks/use-cart'
 import { formatPrice } from '@/lib/formatters'
@@ -18,6 +18,8 @@ type CourseTrack = {
   levelLabel: string | null
   priceSingleCents: number
   pricePairCents: number | null
+  memberPriceSingleCents?: number | null
+  memberPricePairCents?: number | null
   capacityTotal: number
 }
 
@@ -31,6 +33,11 @@ type CoursePeriod = {
   organizerId: string
 }
 
+type DiscountInfo = {
+  memberDiscountPercent?: number | null
+  hasMultiCourseDiscount?: boolean
+}
+
 type CourseCardProps = {
   track: CourseTrack
   period: CoursePeriod
@@ -39,6 +46,7 @@ type CourseCardProps = {
   isRegistered?: boolean
   organizerId: string
   organizerName: string
+  discountInfo?: DiscountInfo
 }
 
 export function CourseCard({ 
@@ -48,7 +56,8 @@ export function CourseCard({
   isSalesOpen, 
   isRegistered = false,
   organizerId,
-  organizerName
+  organizerName,
+  discountInfo
 }: CourseCardProps) {
   const { getCartOrganizerId, getCartOrganizerName, items } = useCart()
   
@@ -56,13 +65,26 @@ export function CourseCard({
   const cartOrganizerName = getCartOrganizerName()
   const isDifferentOrganizer = cartOrganizerId && cartOrganizerId !== organizerId
   const isInCart = items.some(item => item.type === 'course' && item.trackId === track.id)
+  
+  // Determine effective member price
+  const hasMemberPrice = track.memberPriceSingleCents && track.memberPriceSingleCents > 0
+  const memberDiscountPercent = discountInfo?.memberDiscountPercent
 
   return (
     <Card className="flex flex-col h-full hover:shadow-md transition-shadow">
       <CardHeader>
         <div className="flex justify-between items-start gap-2">
           <Badge variant="outline">{weekDayLabel}s</Badge>
-          {track.levelLabel && <Badge>{track.levelLabel}</Badge>}
+          <div className="flex items-center gap-2">
+            {track.levelLabel && <Badge>{track.levelLabel}</Badge>}
+            <Link 
+              href={`/courses/${period.id}/${track.id}`}
+              className="text-rn-text-muted hover:text-rn-brand transition-colors"
+              title="Course details"
+            >
+              <Info className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
         <CardTitle className="pt-2 line-clamp-2">{track.title}</CardTitle>
         <CardDescription>
@@ -80,6 +102,23 @@ export function CourseCard({
             <div className="flex justify-between">
               <span>Couple:</span>
               <span className="font-semibold text-green-600">{formatPrice(track.pricePairCents)}</span>
+            </div>
+          )}
+          {/* Show member pricing */}
+          {hasMemberPrice && (
+            <div className="flex justify-between text-green-600">
+              <span>Member:</span>
+              <span className="font-semibold">{formatPrice(track.memberPriceSingleCents!)}</span>
+            </div>
+          )}
+          {!hasMemberPrice && memberDiscountPercent && (
+            <div className="text-xs text-green-600 font-medium">
+              {organizerName} members -{memberDiscountPercent}%
+            </div>
+          )}
+          {discountInfo?.hasMultiCourseDiscount && (
+            <div className="text-xs text-blue-600 font-medium">
+              Multi-course discounts available
             </div>
           )}
         </div>

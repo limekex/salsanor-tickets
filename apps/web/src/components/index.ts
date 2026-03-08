@@ -17,6 +17,9 @@ export { OrganizerCard } from './organizer-card'
 // Order components
 export { OrderCard } from './order-card'
 
+// Membership components
+export { MembershipCard } from './membership-card'
+
 // Layout components
 export { EventGrid, CourseGrid, TwoColumnGrid, FourColumnGrid } from './grids'
 export type { GridProps } from './grids'
@@ -24,3 +27,9 @@ export type { GridProps } from './grids'
 // Empty states
 export { EmptyState } from './empty-state'
 export type { EmptyStateProps } from './empty-state'
+
+// Attendance & Check-in components (added March 2026)
+export { AttendanceStatsCard } from './attendance-stats-card'
+export { PlannedAbsenceDialog } from './planned-absence-dialog'
+export { QRCodeDisplay } from './qr-code-display'
+export { TicketQR } from './ticket-qr'

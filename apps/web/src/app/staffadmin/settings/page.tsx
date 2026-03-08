@@ -1,6 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,34 +6,27 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { Building2, ArrowLeft, CreditCard, Users } from 'lucide-react'
 import { OrgSettingsForm } from './org-settings-form'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
 export default async function StaffAdminSettingsPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForAdmin()
 
-    if (!user) {
-        redirect('/auth/login')
-    }
-
-    // Get user's organizations where they have ORG_ADMIN role
-    const userAccount = await prisma.userAccount.findUnique({
-        where: { supabaseUid: user.id },
-        include: {
-            UserAccountRole: {
-                where: {
-                    role: 'ORG_ADMIN'
-                },
-                include: {
-                    Organizer: true
-                }
-            }
-        }
+    // Get organization details
+    const organizer = await prisma.organizer.findUnique({
+        where: { id: organizerId }
     })
 
-    const adminOrganizers = userAccount?.UserAccountRole.map(r => r.Organizer).filter(Boolean) || []
+    if (!organizer) {
+        throw new Error('Organization not found')
+    }
 
-    if (adminOrganizers.length === 0) {
-        redirect('/dashboard')
+    // Convert Decimal fields to numbers for client component
+    const serializedOrg = {
+        ...organizer,
+        mvaRate: organizer.mvaRate ? Number(organizer.mvaRate) : null,
+        stripeFeePercentage: organizer.stripeFeePercentage ? Number(organizer.stripeFeePercentage) : null,
+        platformFeePercent: organizer.platformFeePercent ? Number(organizer.platformFeePercent) : null,
     }
 
     return (
@@ -67,21 +58,7 @@ export default async function StaffAdminSettingsPage() {
                 </div>
             </div>
 
-            <div className="grid gap-rn-6">
-                {adminOrganizers.map(org => {
-                    // Convert Decimal fields to numbers for client component
-                    const serializedOrg = org ? {
-                        ...org,
-                        mvaRate: org.mvaRate ? Number(org.mvaRate) : null,
-                        stripeFeePercentage: org.stripeFeePercentage ? Number(org.stripeFeePercentage) : null,
-                        platformFeePercent: org.platformFeePercent ? Number(org.platformFeePercent) : null,
-                    } : null
-                    
-                    return serializedOrg ? (
-                        <OrgSettingsForm key={serializedOrg.id} organizer={serializedOrg as any} />
-                    ) : null
-                })}
-            </div>
+            <OrgSettingsForm key={organizer.id} organizer={serializedOrg as any} />
         </div>
     )
 }

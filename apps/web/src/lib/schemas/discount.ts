@@ -28,7 +28,8 @@ export const discountRuleSchema = z.object({
     priority: z.coerce.number().int(),
     enabled: z.boolean(),
     ruleType: ruleTypeEnum,
-    config: z.any()
+    config: z.any(),
+    overrideOrgRules: z.boolean(), // If true, replaces org-level rules of same type
 })
     // Refinement
     .superRefine((data, ctx) => {
@@ -55,3 +56,43 @@ export const discountRuleSchema = z.object({
     })
 
 export type DiscountRuleFormData = z.infer<typeof discountRuleSchema>
+
+// Valid scopes for organization-level discount rules
+export const discountScopeEnum = z.enum(['PERIODS', 'EVENTS', 'BOTH'])
+export type DiscountScope = z.infer<typeof discountScopeEnum>
+
+// Organization-level discount rule schema (applies across all periods)
+export const orgDiscountRuleSchema = z.object({
+    organizerId: z.string().uuid(),
+    code: z.string().min(2).max(20).regex(/^[A-Z0-9_]+$/, 'Code must be uppercase alphanumeric with underscores'),
+    name: z.string().min(2),
+    priority: z.coerce.number().int(),
+    enabled: z.boolean(),
+    ruleType: ruleTypeEnum,
+    config: z.any(),
+    appliesTo: discountScopeEnum
+})
+    .superRefine((data, ctx) => {
+        if (data.ruleType === 'MEMBERSHIP_TIER_PERCENT') {
+            const result = membershipTierConfigSchema.safeParse(data.config)
+            if (!result.success) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Invalid membership tier config',
+                    path: ['config']
+                })
+            }
+        }
+        if (data.ruleType === 'MULTI_COURSE_TIERED') {
+            const result = multiCourseConfigSchema.safeParse(data.config)
+            if (!result.success) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Invalid multi-course config',
+                    path: ['config']
+                })
+            }
+        }
+    })
+
+export type OrgDiscountRuleFormData = z.infer<typeof orgDiscountRuleSchema>

@@ -51,13 +51,47 @@ export async function getOrganizerBySlug(slug: string) {
     const organizer = await prisma.organizer.findUnique({
         where: { slug },
         include: {
+            OrgDiscountRule: {
+                where: {
+                    enabled: true,
+                    appliesTo: { in: ['PERIODS', 'BOTH'] }
+                },
+                select: {
+                    id: true,
+                    ruleType: true,
+                    config: true
+                }
+            },
             CoursePeriod: {
                 where: {
                     salesOpenAt: { lte: new Date() },
                     salesCloseAt: { gte: new Date() }
                 },
                 include: {
-                    CourseTrack: true
+                    CourseTrack: {
+                        select: {
+                            id: true,
+                            title: true,
+                            weekday: true,
+                            timeStart: true,
+                            timeEnd: true,
+                            levelLabel: true,
+                            priceSingleCents: true,
+                            pricePairCents: true,
+                            memberPriceSingleCents: true,
+                            memberPricePairCents: true,
+                            capacityTotal: true
+                        }
+                    },
+                    DiscountRule: {
+                        where: { enabled: true },
+                        select: {
+                            id: true,
+                            ruleType: true,
+                            config: true
+                        }
+                    },
+                    PeriodBreak: { orderBy: { startDate: 'asc' } }
                 },
                 orderBy: { startDate: 'asc' },
                 take: 3
@@ -117,13 +151,47 @@ export async function getOrganizerCourses(slug: string) {
     const organizer = await prisma.organizer.findUnique({
         where: { slug },
         include: {
+            OrgDiscountRule: {
+                where: {
+                    enabled: true,
+                    appliesTo: { in: ['PERIODS', 'BOTH'] }
+                },
+                select: {
+                    id: true,
+                    ruleType: true,
+                    config: true
+                }
+            },
             CoursePeriod: {
                 where: {
                     salesOpenAt: { lte: new Date() },
                     salesCloseAt: { gte: new Date() }
                 },
                 include: {
-                    CourseTrack: true
+                    CourseTrack: {
+                        select: {
+                            id: true,
+                            title: true,
+                            weekday: true,
+                            timeStart: true,
+                            timeEnd: true,
+                            levelLabel: true,
+                            priceSingleCents: true,
+                            pricePairCents: true,
+                            memberPriceSingleCents: true,
+                            memberPricePairCents: true,
+                            capacityTotal: true
+                        }
+                    },
+                    DiscountRule: {
+                        where: { enabled: true },
+                        select: {
+                            id: true,
+                            ruleType: true,
+                            config: true
+                        }
+                    },
+                    PeriodBreak: { orderBy: { startDate: 'asc' } }
                 },
                 orderBy: { startDate: 'asc' }
             }

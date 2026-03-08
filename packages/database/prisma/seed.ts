@@ -7,7 +7,7 @@ async function main() {
     console.log('🌱 Starting seed...')
 
     // 1. Cleanup previous test data (Idempotency)
-    const testPeriodCode = 'SPRING2025'
+    const testPeriodCode = 'FALL2026'
 
     // We try to find it first
     const existingPeriod = await prisma.coursePeriod.findUnique({
@@ -52,14 +52,48 @@ async function main() {
     }
 
     // 2. Create Organizers
-    // Delete existing test organizers if they exist
-    await prisma.organizer.deleteMany({
+    // First, find existing test organizers to clean up all their data
+    const existingOrganizers = await prisma.organizer.findMany({
         where: {
             slug: {
                 in: ['salsanor-oslo', 'bergen-salsa-club']
             }
         }
     })
+
+    for (const org of existingOrganizers) {
+        // Delete events first
+        await prisma.event.deleteMany({ where: { organizerId: org.id } })
+        
+        // Get all periods for this organizer
+        const periods = await prisma.coursePeriod.findMany({
+            where: { organizerId: org.id }
+        })
+        
+        for (const p of periods) {
+            // Clean up period data
+            await prisma.waitlistEntry.deleteMany({
+                where: { Registration: { periodId: p.id } }
+            })
+            await prisma.registration.deleteMany({ where: { periodId: p.id } })
+            await prisma.payment.deleteMany({
+                where: { Order: { periodId: p.id } }
+            })
+            await prisma.order.deleteMany({ where: { periodId: p.id } })
+            await prisma.ticket.deleteMany({ where: { periodId: p.id } })
+            await prisma.discountRule.deleteMany({ where: { periodId: p.id } })
+            await prisma.courseTrack.deleteMany({ where: { periodId: p.id } })
+            await prisma.coursePeriod.delete({ where: { id: p.id } })
+        }
+        
+        // Delete user roles for this org
+        await prisma.userAccountRole.deleteMany({ where: { organizerId: org.id } })
+        
+        // Finally delete the organizer
+        await prisma.organizer.delete({ where: { id: org.id } })
+    }
+    
+    console.log('Cleaned up existing test data')
 
     const salsanorOslo = await prisma.organizer.create({
         data: {
@@ -90,13 +124,13 @@ async function main() {
     const period = await prisma.coursePeriod.create({
         data: {
             organizerId: salsanorOslo.id,
-            name: 'Spring 2026 Test',
+            name: 'Fall 2026 Test',
             code: testPeriodCode,
             city: 'Oslo',
-            startDate: new Date('2026-01-20'),
-            endDate: new Date('2026-05-20'),
-            salesOpenAt: new Date('2025-01-01'), // Open now (past current date)
-            salesCloseAt: new Date('2026-02-01'), // Future
+            startDate: new Date('2026-09-01'),
+            endDate: new Date('2026-12-15'),
+            salesOpenAt: new Date('2026-03-01'), // Already open (past)
+            salesCloseAt: new Date('2026-09-15'), // After course starts
         }
     })
     console.log(`Created Period: ${period.name}`)
@@ -106,10 +140,13 @@ async function main() {
         data: {
             periodId: period.id,
             title: 'Salsa Level 1',
+            description: 'Perfect for beginners! Learn the fundamentals of salsa dancing including basic steps, timing, and partner connection. No experience required.',
             weekday: 1, // Mon
             timeStart: '18:00',
             timeEnd: '19:00',
             levelLabel: 'Beginner',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
             capacityTotal: 40,
             priceSingleCents: 150000,
             pricePairCents: 250000
@@ -120,10 +157,13 @@ async function main() {
         data: {
             periodId: period.id,
             title: 'Bachata VIP (Low Cap)',
+            description: 'Exclusive small-group bachata sensual class for advanced dancers. Focus on musicality, body movement, and intricate partner work.',
             weekday: 2, // Tue
             timeStart: '19:00',
             timeEnd: '20:30',
             levelLabel: 'Advanced',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
             capacityTotal: 2, // TINY CAPACITY FOR WAITLIST TESTING
             priceSingleCents: 200000,
             pricePairCents: 350000
@@ -134,10 +174,13 @@ async function main() {
         data: {
             periodId: period.id,
             title: 'Kizomba Flow',
+            description: 'Develop your kizomba technique with focus on connection, lead/follow, and smooth transitions. Some dance experience recommended.',
             weekday: 3, // Wed
             timeStart: '20:00',
             timeEnd: '21:00',
             levelLabel: 'Intermediate',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
             capacityTotal: 30,
             priceSingleCents: 150000,
             pricePairCents: 250000
@@ -605,6 +648,124 @@ async function main() {
     console.log('  - Checkin Staff: ORG_CHECKIN (SalsaNor Oslo)')
     console.log('  - Instructor: INSTRUCTOR (SalsaNor Oslo)')
     console.log('  - Bergen Admin: ORG_ADMIN (Bergen Salsa Club)')
+
+    // 7. Create Test Events
+    console.log('\nCreating test events...')
+
+    // Delete existing test events
+    await prisma.event.deleteMany({
+        where: {
+            slug: {
+                in: ['salsa-social-april', 'bachata-workshop-may', 'summer-dance-festival', 'kizomba-night-bergen']
+            }
+        }
+    })
+
+    // Event 1: Salsa Social (Oslo) - Upcoming
+    const salsaSocial = await prisma.event.create({
+        data: {
+            organizerId: salsanorOslo.id,
+            slug: 'salsa-social-april',
+            title: 'Salsa Social Night',
+            eventType: 'SINGLE',
+            shortDescription: 'Monthly salsa social with DJ and live band',
+            longDescription: 'Join us for our monthly salsa social! The evening starts with a beginner workshop at 19:00, followed by open dancing until midnight. Live band from 21:00.',
+            startDateTime: new Date('2026-04-18T19:00:00'),
+            endDateTime: new Date('2026-04-19T00:00:00'),
+            timezone: 'Europe/Oslo',
+            locationName: 'Dansens Hus',
+            locationAddress: 'Vulkan 1',
+            city: 'Oslo',
+            salesOpenAt: new Date('2026-03-01'),
+            salesCloseAt: new Date('2026-04-18T18:00:00'),
+            capacityTotal: 150,
+            basePriceCents: 25000, // 250 kr
+            memberPriceCents: 20000, // 200 kr for members
+            status: 'PUBLISHED',
+            published: true,
+            featured: true
+        }
+    })
+
+    // Event 2: Bachata Workshop (Oslo) - May
+    const bachataWorkshop = await prisma.event.create({
+        data: {
+            organizerId: salsanorOslo.id,
+            slug: 'bachata-workshop-may',
+            title: 'Bachata Sensual Workshop',
+            eventType: 'SINGLE',
+            shortDescription: 'Intensive bachata sensual workshop with guest instructors',
+            longDescription: 'A full day of bachata sensual with international guest instructors. Includes 4 hours of workshops and a social in the evening.',
+            startDateTime: new Date('2026-05-09T12:00:00'),
+            endDateTime: new Date('2026-05-09T22:00:00'),
+            timezone: 'Europe/Oslo',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15',
+            city: 'Oslo',
+            salesOpenAt: new Date('2026-03-15'),
+            salesCloseAt: new Date('2026-05-08T23:59:00'),
+            capacityTotal: 60,
+            requiresRole: true, // Leader/follower balance
+            basePriceCents: 89900, // 899 kr
+            memberPriceCents: 79900, // 799 kr
+            status: 'PUBLISHED',
+            published: true
+        }
+    })
+
+    // Event 3: Summer Dance Festival (Oslo) - June - Multi-day
+    const summerFestival = await prisma.event.create({
+        data: {
+            organizerId: salsanorOslo.id,
+            slug: 'summer-dance-festival',
+            title: 'Oslo Summer Dance Festival 2026',
+            eventType: 'SINGLE', // Multi-day but single registration
+            shortDescription: '3-day Latin dance festival with workshops, shows, and parties',
+            longDescription: 'The biggest Latin dance event in Norway! Three days of workshops in salsa, bachata, and kizomba with international artists. Evening parties and shows.',
+            startDateTime: new Date('2026-06-19T10:00:00'),
+            endDateTime: new Date('2026-06-21T23:59:00'),
+            timezone: 'Europe/Oslo',
+            locationName: 'Oslo Spektrum',
+            locationAddress: 'Sonja Henies plass 2',
+            city: 'Oslo',
+            salesOpenAt: new Date('2026-01-01'),
+            salesCloseAt: new Date('2026-06-15T23:59:00'),
+            capacityTotal: 500,
+            basePriceCents: 249900, // 2499 kr full pass
+            memberPriceCents: 229900, // 2299 kr
+            status: 'PUBLISHED',
+            published: true,
+            featured: true
+        }
+    })
+
+    // Event 4: Kizomba Night (Bergen) - Draft event
+    const kizombaNight = await prisma.event.create({
+        data: {
+            organizerId: bergenSalsa.id,
+            slug: 'kizomba-night-bergen',
+            title: 'Kizomba Night Bergen',
+            eventType: 'SINGLE',
+            shortDescription: 'Monthly kizomba and urban kiz party',
+            startDateTime: new Date('2026-04-25T20:00:00'),
+            endDateTime: new Date('2026-04-26T02:00:00'),
+            timezone: 'Europe/Oslo',
+            locationName: 'Bergenhus Kulturhus',
+            city: 'Bergen',
+            salesOpenAt: new Date('2026-03-20'),
+            salesCloseAt: new Date('2026-04-25T19:00:00'),
+            capacityTotal: 80,
+            basePriceCents: 20000, // 200 kr
+            status: 'DRAFT',
+            published: false
+        }
+    })
+
+    console.log('✅ Created 4 test events:')
+    console.log('  - Salsa Social Night (Oslo, April 18) - Published, Featured')
+    console.log('  - Bachata Workshop (Oslo, May 9) - Published, Role-balanced')
+    console.log('  - Summer Dance Festival (Oslo, June 19-21) - Published, Multi-day, Featured')
+    console.log('  - Kizomba Night (Bergen, April 25) - Draft')
 
     console.log('\n✅ Seed complete!')
 }

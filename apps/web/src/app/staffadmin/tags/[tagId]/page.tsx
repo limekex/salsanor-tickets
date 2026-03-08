@@ -1,4 +1,4 @@
-import { requireOrgAdmin } from '@/utils/auth-org-admin'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 import { prisma } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,20 +12,15 @@ export default async function EditTagPage({
 }: { 
     params: Promise<{ tagId: string }> 
 }) {
-    const userAccount = await requireOrgAdmin()
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForAdmin()
     
     const { tagId } = await params
-
-    // Get organizerId from user's first ORG_ADMIN role
-    const orgAdminRole = userAccount.UserAccountRole.find(r => r.role === 'ORG_ADMIN')
-    if (!orgAdminRole?.organizerId) {
-        return <div>No organization found</div>
-    }
 
     const tag = await prisma.tag.findUnique({
         where: { 
             id: tagId,
-            organizerId: orgAdminRole.organizerId // Ensure user can only edit their org's tags
+            organizerId // Ensure user can only edit their org's tags
         }
     })
 
@@ -55,7 +50,7 @@ export default async function EditTagPage({
                     <CardTitle>Tag Details</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <TagForm organizerId={orgAdminRole.organizerId} tag={tag} />
+                    <TagForm key={tag.id} organizerId={organizerId} tag={tag} />
                 </CardContent>
             </Card>
         </div>

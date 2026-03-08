@@ -3,6 +3,7 @@
 import { 
   getPublicCoursePeriods as queryPublicCoursePeriods,
   getCourseTrackById,
+  getCourseTrackByIdOrSlug,
   getAvailableCourseLevels as queryAvailableCourseLevels,
 } from '@/lib/queries'
 
@@ -15,6 +16,10 @@ export async function getPublicCoursePeriods(filters?: import('@/lib/queries').C
 
 export async function getCourseTrack(trackId: string) {
     return await getCourseTrackById(trackId)
+}
+
+export async function getCourseTrackDetails(identifier: string, periodId?: string) {
+    return await getCourseTrackByIdOrSlug(identifier, periodId)
 }
 
 export async function getAvailableCourseLevels() {

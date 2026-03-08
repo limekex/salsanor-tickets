@@ -1,12 +1,12 @@
 import { getOrganizerCourses } from '@/app/actions/organizers'
 import { notFound } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft, GraduationCap } from 'lucide-react'
-import { formatDateRange, formatPrice } from '@/lib/formatters'
-import { EmptyState } from '@/components/empty-state'
+import { ArrowLeft, GraduationCap, CalendarOff } from 'lucide-react'
+import { formatDateRange, formatWeekday, formatDateShort } from '@/lib/formatters'
+import { CourseCard, EmptyState } from '@/components'
+import { createClient } from '@/utils/supabase/server'
+import { prisma } from '@/lib/db'
 
 type Params = Promise<{ slug: string }>
 
@@ -17,6 +17,30 @@ export default async function OrganizerCoursesPage({ params }: { params: Params 
     if (!organizer) return notFound()
 
     const hasCourses = organizer.CoursePeriod && organizer.CoursePeriod.length > 0
+
+    // Get user's existing registrations
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    let userRegistrations: { trackId: string }[] = []
+    if (user) {
+        const userAccount = await prisma.userAccount.findUnique({
+            where: { supabaseUid: user.id },
+            include: {
+                PersonProfile: {
+                    include: {
+                        Registration: {
+                            where: {
+                                status: { in: ['DRAFT', 'PENDING_PAYMENT', 'ACTIVE', 'WAITLIST'] }
+                            },
+                            select: { trackId: true }
+                        }
+                    }
+                }
+            }
+        })
+        userRegistrations = userAccount?.PersonProfile?.Registration || []
+    }
 
     return (
         <main className="container mx-auto py-rn-7 px-rn-4 space-y-rn-6 max-w-5xl">
@@ -47,49 +71,52 @@ export default async function OrganizerCoursesPage({ params }: { params: Params 
                                 <p className="text-muted-foreground">
                                     {formatDateRange(period.startDate, period.endDate)} • {period.city}
                                 </p>
+                                {period.PeriodBreak && period.PeriodBreak.length > 0 && (
+                                    <p className="rn-caption text-rn-text-muted mt-1 flex items-center gap-1">
+                                        <CalendarOff className="h-3.5 w-3.5" />
+                                        <span>
+                                            Breaks: {period.PeriodBreak.map((b: { description: string | null; startDate: Date; endDate: Date }) => 
+                                                b.description 
+                                                    ? `${b.description} (${formatDateShort(b.startDate)}–${formatDateShort(b.endDate)})`
+                                                    : `${formatDateShort(b.startDate)}–${formatDateShort(b.endDate)}`
+                                            ).join(', ')}
+                                        </span>
+                                    </p>
+                                )}
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                 {period.CourseTrack.map((track) => {
                                     const isSalesOpen = period.salesOpenAt < new Date() && period.salesCloseAt > new Date()
-                                    const weekDayLabel = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][track.weekday - 1] || '?'
+                                    const weekDayLabel = formatWeekday(track.weekday)
+                                    const isRegistered = userRegistrations.some(r => r.trackId === track.id)
+                                    
+                                    // Parse discount info from period and org rules
+                                    const allRules = [
+                                        ...(period.DiscountRule || []),
+                                        ...(organizer.OrgDiscountRule || [])
+                                    ]
+                                    const memberRule = allRules.find(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+                                    const multiCourseRule = allRules.find(r => r.ruleType === 'MULTI_COURSE_TIERED')
+                                    const discountInfo = {
+                                        memberDiscountPercent: memberRule?.config && typeof memberRule.config === 'object' 
+                                            ? (memberRule.config as any).discountPercent 
+                                            : null,
+                                        hasMultiCourseDiscount: !!multiCourseRule
+                                    }
 
                                     return (
-                                        <Card key={track.id} className="flex flex-col h-full">
-                                            <CardHeader>
-                                                <div className="flex justify-between items-start">
-                                                    <Badge variant="outline">{weekDayLabel}</Badge>
-                                                    {track.levelLabel && <Badge>{track.levelLabel}</Badge>}
-                                                </div>
-                                                <CardTitle className="pt-2">{track.title}</CardTitle>
-                                                <CardDescription>
-                                                    {track.timeStart} - {track.timeEnd}
-                                                </CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="flex-1 space-y-2 text-sm">
-                                                <div className="flex justify-between">
-                                                    <span>Single:</span>
-                                                    <span className="font-semibold">{formatPrice(track.priceSingleCents)}</span>
-                                                </div>
-                                                {track.pricePairCents && (
-                                                    <div className="flex justify-between">
-                                                        <span>Couple:</span>
-                                                        <span className="font-semibold text-green-600">{formatPrice(track.pricePairCents)}</span>
-                                                    </div>
-                                                )}
-                                            </CardContent>
-                                            <CardFooter>
-                                                <Button className="w-full" disabled={!isSalesOpen} asChild={isSalesOpen}>
-                                                    {isSalesOpen ? (
-                                                        <Link href={`/courses/${period.id}/${track.id}/register`}>
-                                                            Register
-                                                        </Link>
-                                                    ) : (
-                                                        <span>Sales Closed</span>
-                                                    )}
-                                                </Button>
-                                            </CardFooter>
-                                        </Card>
+                                        <CourseCard
+                                            key={track.id}
+                                            track={track}
+                                            period={period}
+                                            weekDayLabel={weekDayLabel}
+                                            isSalesOpen={isSalesOpen}
+                                            isRegistered={isRegistered}
+                                            organizerId={organizer.id}
+                                            organizerName={organizer.name}
+                                            discountInfo={discountInfo}
+                                        />
                                     )
                                 })}
                             </div>

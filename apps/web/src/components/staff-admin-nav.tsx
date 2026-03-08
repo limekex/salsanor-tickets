@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, Settings, Users, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins, Download, FileText } from 'lucide-react'
+import { Calendar, Settings, LayoutDashboard, Percent, CreditCard, Home, Package, ClipboardList, Menu, Tag, CalendarDays, Coins, Download, FileText, UserCheck, BookOpen, Clock, ChevronDown, Building2, BarChart2, UserCog, LineChart } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import {
@@ -12,6 +12,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu'
 import {
   Sheet,
@@ -23,10 +26,10 @@ import {
 import { useOrganizerAccess } from '@/hooks/use-organizer-access'
 import { OrgSelector } from './org-selector'
 
-const navItems = [
-    { href: '/staffadmin', label: 'Dashboard', icon: LayoutDashboard, roles: ['ORG_ADMIN', 'ORG_FINANCE'] },
-    { href: '/staffadmin/users', label: 'Users', icon: Users, roles: ['ORG_ADMIN'] },
-    { href: '/staffadmin/registrations', label: 'Registrations', icon: ClipboardList, roles: ['ORG_ADMIN'] },
+// Registrations group (dropdown)
+const registrationItems = [
+    { href: '/staffadmin/registrations', label: 'All Registrations', icon: ClipboardList, roles: ['ORG_ADMIN'] },
+    { href: '/staffadmin/attendance', label: 'Attendance', icon: UserCheck, roles: ['ORG_ADMIN'] },
 ]
 
 const financeItems = [
@@ -46,6 +49,41 @@ const productItems = [
     { href: '/staffadmin/discounts', label: 'Discounts', icon: Percent, roles: ['ORG_ADMIN'] },
 ]
 
+// Settings dropdown - grouped by category
+const settingsGroups = [
+    {
+        label: 'Organization',
+        items: [
+            { href: '/staffadmin/settings', label: 'Settings', icon: Building2, roles: ['ORG_ADMIN'] },
+        ]
+    },
+    {
+        label: 'Analytics',
+        items: [
+            { href: '/staffadmin/settings/conversion-tracking', label: 'Conversion Tracking', icon: BarChart2, roles: ['ORG_ADMIN'] },
+            { href: '/staffadmin/analytics/conversions', label: 'Conversion Analytics', icon: LineChart, roles: ['ORG_ADMIN'] },
+        ]
+    },
+    {
+        label: 'Team',
+        items: [
+            { href: '/staffadmin/users', label: 'Users & Roles', icon: UserCog, roles: ['ORG_ADMIN'] },
+        ]
+    },
+    {
+        label: 'Payments',
+        items: [
+            { href: '/staffadmin/settings/payments', label: 'Payment Setup', icon: CreditCard, roles: ['ORG_ADMIN'] },
+        ]
+    },
+    {
+        label: 'Automation',
+        items: [
+            { href: '/staffadmin/tasks', label: 'Scheduled Tasks', icon: Clock, roles: ['ORG_ADMIN'] },
+        ]
+    },
+]
+
 interface StaffAdminNavProps {
     organizers: Array<{
         id: string
@@ -60,15 +98,14 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
     const pathname = usePathname()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
-    const { roles } = useOrganizerAccess()
+    const { roles } = useOrganizerAccess(currentOrgId ?? undefined)
     
     // Prevent hydration mismatch
     useEffect(() => {
         setMounted(true)
     }, [])
     
-    // Filter nav items based on user's roles
-    const visibleNavItems = navItems.filter(item => 
+    const visibleRegistrationItems = registrationItems.filter(item =>
         item.roles.some(role => roles.includes(role))
     )
     
@@ -80,6 +117,14 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
         item.roles.some(role => roles.includes(role))
     )
     
+    // Filter settings groups based on roles
+    const visibleSettingsGroups = settingsGroups
+        .map(group => ({
+            ...group,
+            items: group.items.filter(item => item.roles.some(role => roles.includes(role)))
+        }))
+        .filter(group => group.items.length > 0)
+    
     // Check if any product page is active
     const isProductsActive = visibleProductItems.some(item => 
         pathname === item.href || pathname.startsWith(item.href + '/')
@@ -89,6 +134,18 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
     const isFinanceActive = visibleFinanceItems.some(item => 
         pathname === item.href || pathname.startsWith(item.href + '/')
     )
+    
+    // Check if any registration page is active
+    const isRegistrationsActive = visibleRegistrationItems.some(item => 
+        pathname === item.href || pathname.startsWith(item.href + '/')
+    )
+    
+    // Check if any settings page is active
+    const isSettingsActive = visibleSettingsGroups.some(group =>
+        group.items.some(item => 
+            pathname === item.href || pathname.startsWith(item.href + '/')
+        )
+    ) || pathname === '/staffadmin/docs' || pathname.startsWith('/staffadmin/docs/')
     
     // Check if user has access to settings (ORG_ADMIN only)
     const hasSettingsAccess = roles.includes('ORG_ADMIN')
@@ -119,28 +176,46 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                     )}
                     
                     {/* Desktop Navigation */}
-                    <div className="hidden md:flex gap-rn-1 ml-auto">
-                        {visibleNavItems.map((item) => {
-                            const Icon = item.icon
-                            const isActive = pathname === item.href ||
-                                (item.href !== '/staffadmin' && pathname.startsWith(item.href))
+                    <div className="hidden md:flex gap-rn-1 ml-auto items-center">
 
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
+                        {/* Registrations Dropdown */}
+                        {mounted && visibleRegistrationItems.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger 
                                     className={cn(
                                         "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
-                                        isActive
+                                        isRegistrationsActive
                                             ? "bg-rn-primary text-white"
                                             : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
                                     )}
                                 >
-                                    <Icon className="h-4 w-4" />
-                                    {item.label}
-                                </Link>
-                            )
-                        })}
+                                    <ClipboardList className="h-4 w-4" />
+                                    Registrations
+                                    <ChevronDown className="h-3 w-3 ml-1" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    {visibleRegistrationItems.map((item) => {
+                                        const Icon = item.icon
+                                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+                                        return (
+                                            <DropdownMenuItem key={item.href} asChild>
+                                                <Link
+                                                    href={item.href}
+                                                    className={cn(
+                                                        "flex items-center gap-rn-2 cursor-pointer",
+                                                        isActive && "bg-rn-surface-2"
+                                                    )}
+                                                >
+                                                    <Icon className="h-4 w-4" />
+                                                    {item.label}
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )
+                                    })}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
 
                         {/* Finance Dropdown - only show if there are visible finance items */}
                         {mounted && visibleFinanceItems.length > 0 && (
@@ -155,6 +230,7 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                                 >
                                     <Coins className="h-4 w-4" />
                                     Finance
+                                    <ChevronDown className="h-3 w-3 ml-1" />
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     {visibleFinanceItems.map((item) => {
@@ -193,6 +269,7 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                                 >
                                     <Package className="h-4 w-4" />
                                     Products
+                                    <ChevronDown className="h-3 w-3 ml-1" />
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     {visibleProductItems.map((item) => {
@@ -218,21 +295,83 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                             </DropdownMenu>
                         )}
 
-                        {/* Settings (Icon Only) - only for ORG_ADMIN */}
-                        {hasSettingsAccess && (
-                            <Link
-                                href="/staffadmin/settings"
-                                className={cn(
-                                    "flex items-center justify-center p-2 rounded-rn-1 text-sm font-medium transition-colors",
-                                    pathname === '/staffadmin/settings' || pathname.startsWith('/staffadmin/settings/')
-                                        ? "bg-rn-primary text-white"
-                                        : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
-                                )}
-                                title="Settings"
-                            >
-                                <Settings className="h-4 w-4" />
-                            </Link>
+                        {/* Settings Dropdown - only for ORG_ADMIN */}
+                        {mounted && hasSettingsAccess && visibleSettingsGroups.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger 
+                                    className={cn(
+                                        "flex items-center gap-rn-2 px-rn-4 py-2 rounded-rn-1 text-sm font-medium transition-colors",
+                                        isSettingsActive
+                                            ? "bg-rn-primary text-white"
+                                            : "text-rn-text-muted hover:bg-rn-surface-2 hover:text-rn-text"
+                                    )}
+                                >
+                                    <Settings className="h-4 w-4" />
+                                    Settings
+                                    <ChevronDown className="h-3 w-3 ml-1" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    {visibleSettingsGroups.map((group, groupIndex) => (
+                                        <DropdownMenuGroup key={group.label}>
+                                            {groupIndex > 0 && <DropdownMenuSeparator />}
+                                            <DropdownMenuLabel className="text-xs text-rn-text-muted">
+                                                {group.label}
+                                            </DropdownMenuLabel>
+                                            {group.items.map((item) => {
+                                                const Icon = item.icon
+                                                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                                                return (
+                                                    <DropdownMenuItem key={item.href} asChild>
+                                                        <Link
+                                                            href={item.href}
+                                                            className={cn(
+                                                                "flex items-center gap-rn-2 cursor-pointer",
+                                                                isActive && "bg-rn-surface-2"
+                                                            )}
+                                                        >
+                                                            <Icon className="h-4 w-4" />
+                                                            {item.label}
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                )
+                                            })}
+                                        </DropdownMenuGroup>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuGroup>
+                                        <DropdownMenuLabel className="text-xs text-rn-text-muted">
+                                            Help
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuItem asChild>
+                                            <Link
+                                                href="/staffadmin/docs"
+                                                className={cn(
+                                                    "flex items-center gap-rn-2 cursor-pointer",
+                                                    (pathname === '/staffadmin/docs' || pathname.startsWith('/staffadmin/docs/')) && "bg-rn-surface-2"
+                                                )}
+                                            >
+                                                <BookOpen className="h-4 w-4" />
+                                                Documentation
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuGroup>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         )}
+
+                        {/* Dashboard (Icon Only) */}
+                        <Link
+                            href="/staffadmin"
+                            className={cn(
+                                "flex items-center justify-center p-2 rounded-rn-1 text-sm font-medium transition-colors ml-rn-2",
+                                pathname === '/staffadmin'
+                                    ? "bg-rn-primary/20 text-rn-primary"
+                                    : "bg-rn-primary/10 text-rn-primary/70 hover:bg-rn-primary/20 hover:text-rn-primary"
+                            )}
+                            title="Dashboard"
+                        >
+                            <LayoutDashboard className="h-4 w-4" />
+                        </Link>
 
                         {/* Back to Site (Icon Only) */}
                         <Link
@@ -270,29 +409,48 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                                         </div>
                                     )}
 
-                                    {/* Main Nav Items */}
-                                    {visibleNavItems.map((item) => {
-                                        const Icon = item.icon
-                                        const isActive = pathname === item.href ||
-                                            (item.href !== '/staffadmin' && pathname.startsWith(item.href))
+                                    {/* Dashboard */}
+                                    <Link
+                                        href="/staffadmin"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className={cn(
+                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm font-medium transition-colors",
+                                            pathname === '/staffadmin'
+                                                ? "bg-rn-primary text-white"
+                                                : "text-rn-text hover:bg-rn-surface-2"
+                                        )}
+                                    >
+                                        <LayoutDashboard className="h-5 w-5" />
+                                        Dashboard
+                                    </Link>
 
-                                        return (
-                                            <Link
-                                                key={item.href}
-                                                href={item.href}
-                                                onClick={() => setMobileMenuOpen(false)}
-                                                className={cn(
-                                                    "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm font-medium transition-colors",
-                                                    isActive
-                                                        ? "bg-rn-primary text-white"
-                                                        : "text-rn-text hover:bg-rn-surface-2"
-                                                )}
-                                            >
-                                                <Icon className="h-5 w-5" />
-                                                {item.label}
-                                            </Link>
-                                        )
-                                    })}
+                                    {/* Registrations Section */}
+                                    {visibleRegistrationItems.length > 0 && (
+                                        <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
+                                            <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Registrations</p>
+                                            {visibleRegistrationItems.map((item) => {
+                                                const Icon = item.icon
+                                                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        onClick={() => setMobileMenuOpen(false)}
+                                                        className={cn(
+                                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                            isActive
+                                                                ? "bg-rn-primary text-white"
+                                                                : "text-rn-text hover:bg-rn-surface-2"
+                                                        )}
+                                                    >
+                                                        <Icon className="h-5 w-5" />
+                                                        {item.label}
+                                                    </Link>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
 
                                     {/* Finance Section - only show if there are visible finance items */}
                                     {visibleFinanceItems.length > 0 && (
@@ -350,21 +508,47 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
                                         </div>
                                     )}
 
-                                    {/* Settings - only for ORG_ADMIN */}
+                                    {/* Settings Section - only for ORG_ADMIN */}
                                     {hasSettingsAccess && (
-                                        <Link
-                                            href="/staffadmin/settings"
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className={cn(
-                                                "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors mt-rn-4 border-t border-rn-border pt-rn-4",
-                                                pathname === '/staffadmin/settings' || pathname.startsWith('/staffadmin/settings/')
-                                                    ? "bg-rn-primary text-white"
-                                                    : "text-rn-text hover:bg-rn-surface-2"
-                                            )}
-                                        >
-                                            <Settings className="h-5 w-5" />
-                                            Settings
-                                        </Link>
+                                        <div className="mt-rn-4 pt-rn-4 border-t border-rn-border">
+                                            <p className="rn-caption text-rn-text-muted px-rn-4 mb-rn-2">Settings</p>
+                                            {visibleSettingsGroups.flatMap(group => group.items).map((item) => {
+                                                const Icon = item.icon
+                                                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        onClick={() => setMobileMenuOpen(false)}
+                                                        className={cn(
+                                                            "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                            isActive
+                                                                ? "bg-rn-primary text-white"
+                                                                : "text-rn-text hover:bg-rn-surface-2"
+                                                        )}
+                                                    >
+                                                        <Icon className="h-5 w-5" />
+                                                        {item.label}
+                                                    </Link>
+                                                )
+                                            })}
+                                            
+                                            {/* Documentation */}
+                                            <Link
+                                                href="/staffadmin/docs"
+                                                onClick={() => setMobileMenuOpen(false)}
+                                                className={cn(
+                                                    "flex items-center gap-rn-3 px-rn-4 py-rn-3 rounded-rn-1 text-sm transition-colors",
+                                                    pathname === '/staffadmin/docs' || pathname.startsWith('/staffadmin/docs/')
+                                                        ? "bg-rn-primary text-white"
+                                                        : "text-rn-text hover:bg-rn-surface-2"
+                                                )}
+                                            >
+                                                <BookOpen className="h-5 w-5" />
+                                                Documentation
+                                            </Link>
+                                        </div>
                                     )}
 
                                     {/* Back to Site */}

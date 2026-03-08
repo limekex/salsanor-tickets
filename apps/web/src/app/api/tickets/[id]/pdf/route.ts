@@ -11,9 +11,10 @@ import {
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         const supabase = await createClient()
         const {
             data: { user },
@@ -25,7 +26,7 @@ export async function GET(
 
         // Fetch the ticket with all required data
         const ticket = await prisma.eventTicket.findUnique({
-            where: { id: params.id },
+            where: { id: id },
             include: {
                 Event: {
                     include: {
@@ -65,38 +66,36 @@ export async function GET(
         // Count total tickets for this event registration
         const totalTickets = await prisma.eventTicket.count({
             where: {
-                eventRegistrationId: ticket.eventRegistrationId,
+                EventRegistration: { id: ticket.EventRegistration?.id },
                 status: 'ACTIVE',
             },
         })
 
         // Prepare seller info (organizer)
         const seller: SellerInfo = {
-            name: ticket.Event.Organizer.name,
-            address: ticket.Event.Organizer.address || '',
-            postalCode: ticket.Event.Organizer.postalCode || '',
-            city: ticket.Event.Organizer.city || '',
-            country: 'Norge',
-            orgNumber: ticket.Event.Organizer.orgNumber || '',
-            vatNumber: ticket.Event.Organizer.vatNumber,
-            email: ticket.Event.Organizer.contactEmail || '',
-            phone: ticket.Event.Organizer.contactPhone || '',
-            logoUrl: ticket.Event.Organizer.logoUrl,
+            legalName: ticket.Event.Organizer.legalName || ticket.Event.Organizer.name,
+            organizationNumber: ticket.Event.Organizer.organizationNumber || undefined,
+            address: {
+                street: ticket.Event.Organizer.legalAddress || undefined,
+                city: ticket.Event.Organizer.city || undefined,
+                country: 'Norge',
+            },
+            contactEmail: ticket.Event.Organizer.contactEmail || undefined,
+            vatRegistered: ticket.Event.Organizer.vatRegistered,
+            logoUrl: ticket.Event.Organizer.logoUrl || undefined,
         }
 
         // Prepare buyer info
         const buyer: BuyerInfo = {
             name: `${ticket.PersonProfile.firstName} ${ticket.PersonProfile.lastName}`,
             email: ticket.PersonProfile.email,
-            phone: ticket.PersonProfile.phone,
         }
 
         // Prepare transaction info
         const transaction: TransactionInfo = {
-            orderId: ticket.EventRegistration?.Order?.orderNumber || '',
+            orderNumber: ticket.EventRegistration?.Order?.orderNumber || '',
             transactionDate: ticket.createdAt,
-            paymentMethod: ticket.EventRegistration?.Order?.paymentMethod || 'ONLINE',
-            paymentStatus: ticket.EventRegistration?.Order?.status || 'PAID',
+            paymentMethod: 'ONLINE',
         }
 
         // Prepare line item
@@ -106,9 +105,6 @@ export async function GET(
             quantity: 1,
             unitPriceCents: unitPrice,
             totalPriceCents: unitPrice,
-            vatRate: ticket.EventRegistration?.Order?.mvaRate
-                ? Number(ticket.EventRegistration.Order.mvaRate)
-                : 0,
         }
 
         // Prepare PDF data
@@ -117,7 +113,7 @@ export async function GET(
             totalTickets,
             eventTitle: ticket.Event.title,
             eventDate: ticket.Event.startDateTime || new Date(),
-            eventVenue: ticket.Event.location,
+            eventVenue: ticket.Event.locationName || undefined,
             qrToken: ticket.qrTokenHash,
             seller,
             buyer,
@@ -130,7 +126,7 @@ export async function GET(
         const pdfBuffer = await generateEventTicketPDF(pdfData)
 
         // Return PDF with proper headers
-        return new NextResponse(pdfBuffer, {
+        return new NextResponse(Uint8Array.from(pdfBuffer), {
             headers: {
                 'Content-Type': 'application/pdf',
                 'Content-Disposition': `attachment; filename="ticket-${ticket.ticketNumber || 1}-${ticket.Event.title.replace(/[^a-z0-9]/gi, '-')}.pdf"`,

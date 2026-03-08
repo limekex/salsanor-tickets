@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from './ui/button'
-import { Menu, ShoppingCart } from 'lucide-react'
+import { Menu, ShoppingCart, ChevronDown, Ticket, GraduationCap, BarChart3, ShoppingBag, CreditCard, Settings, HelpCircle } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { useCart } from '@/hooks/use-cart'
 import { useUser } from '@/hooks'
@@ -15,6 +15,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Badge } from './ui/badge'
 
 export function PublicNav() {
@@ -70,9 +77,66 @@ export function PublicNav() {
             
             {user ? (
               <>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href="/my">My page</Link>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-1">
+                      My page
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link href="/my" className="flex items-center gap-2">
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/my/courses" className="flex items-center gap-2">
+                        <GraduationCap className="h-4 w-4" />
+                        Courses
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/my/tickets" className="flex items-center gap-2">
+                        <Ticket className="h-4 w-4" />
+                        Event Tickets
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/my/attendance" className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" />
+                        Attendance
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/my/orders" className="flex items-center gap-2">
+                        <ShoppingBag className="h-4 w-4" />
+                        Orders
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/my/memberships" className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        Memberships
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/my/settings" className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/my/help" className="flex items-center gap-2">
+                        <HelpCircle className="h-4 w-4" />
+                        Help & FAQ
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {hasStaffRoles && (
                   <Button asChild variant="ghost" size="sm">
                     <Link href="/dashboard">Dashboard</Link>
@@ -196,14 +260,95 @@ export function PublicNav() {
                 
                 {user ? (
                   <>
-                    <Button 
-                      asChild 
-                      variant="ghost" 
-                      className="w-full justify-start py-rn-3 h-auto"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Link href="/my">My page</Link>
-                    </Button>
+                    {/* My Page Section */}
+                    <div className="border-t border-rn-border pt-rn-2 mt-rn-2">
+                      <p className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">My Page</p>
+                      <Button 
+                        asChild 
+                        variant="ghost" 
+                        className="w-full justify-start py-rn-2 h-auto pl-6"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link href="/my" className="flex items-center gap-2">Dashboard</Link>
+                      </Button>
+                      <Button 
+                        asChild 
+                        variant="ghost" 
+                        className="w-full justify-start py-rn-2 h-auto pl-6"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link href="/my/courses" className="flex items-center gap-2">
+                          <GraduationCap className="h-4 w-4" />
+                          Courses
+                        </Link>
+                      </Button>
+                      <Button 
+                        asChild 
+                        variant="ghost" 
+                        className="w-full justify-start py-rn-2 h-auto pl-6"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link href="/my/tickets" className="flex items-center gap-2">
+                          <Ticket className="h-4 w-4" />
+                          Event Tickets
+                        </Link>
+                      </Button>
+                      <Button 
+                        asChild 
+                        variant="ghost" 
+                        className="w-full justify-start py-rn-2 h-auto pl-6"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link href="/my/attendance" className="flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4" />
+                          Attendance
+                        </Link>
+                      </Button>
+                      <Button 
+                        asChild 
+                        variant="ghost" 
+                        className="w-full justify-start py-rn-2 h-auto pl-6"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link href="/my/orders" className="flex items-center gap-2">
+                          <ShoppingBag className="h-4 w-4" />
+                          Orders
+                        </Link>
+                      </Button>
+                      <Button 
+                        asChild 
+                        variant="ghost" 
+                        className="w-full justify-start py-rn-2 h-auto pl-6"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link href="/my/memberships" className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4" />
+                          Memberships
+                        </Link>
+                      </Button>
+                      <Button 
+                        asChild 
+                        variant="ghost" 
+                        className="w-full justify-start py-rn-2 h-auto pl-6"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link href="/my/settings" className="flex items-center gap-2">
+                          <Settings className="h-4 w-4" />
+                          Settings
+                        </Link>
+                      </Button>
+                      <Button 
+                        asChild 
+                        variant="ghost" 
+                        className="w-full justify-start py-rn-2 h-auto pl-6"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link href="/my/help" className="flex items-center gap-2">
+                          <HelpCircle className="h-4 w-4" />
+                          Help & FAQ
+                        </Link>
+                      </Button>
+                    </div>
                     
                     {hasStaffRoles && (
                       <Button 

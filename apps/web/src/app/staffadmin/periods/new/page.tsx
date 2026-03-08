@@ -1,54 +1,36 @@
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
-import { redirect } from 'next/navigation'
 import { StaffPeriodForm } from '../staff-period-form'
+import { getSelectedOrganizerForAdmin } from '@/utils/auth-org-admin'
 
 export default async function NewStaffPeriodPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get selected organization (from cookie or first available)
+    const organizerId = await getSelectedOrganizerForAdmin()
 
-    if (!user) {
-        redirect('/auth/login')
-    }
-
-    // Get user's organizations where they have ORG_ADMIN role
-    const userAccount = await prisma.userAccount.findUnique({
-        where: { supabaseUid: user.id },
-        include: {
-            UserAccountRole: {
-                where: {
-                    role: 'ORG_ADMIN'
-                },
-                include: {
-                    Organizer: true
-                }
-            }
-        }
+    // Get organization details
+    const organizer = await prisma.organizer.findUnique({
+        where: { id: organizerId }
     })
 
-    const adminOrgIds = userAccount?.UserAccountRole.map(r => r.organizerId).filter((id): id is string => id !== null) || []
-    const organizers = userAccount?.UserAccountRole.map(r => r.Organizer).filter((o): o is NonNullable<typeof o> => o !== null) || []
-
-    if (adminOrgIds.length === 0) {
-        redirect('/dashboard')
+    if (!organizer) {
+        throw new Error('Organization not found')
     }
 
-    // Fetch categories (global) and tags (for user's orgs)
+    // Fetch categories (global) and tags (for selected org)
     const [categories, tags] = await Promise.all([
         prisma.category.findMany({ orderBy: { sortOrder: 'asc' } }),
         prisma.tag.findMany({ 
-            where: { organizerId: { in: adminOrgIds } },
+            where: { organizerId },
             orderBy: { name: 'asc' }
         })
     ])
 
     // Serialize Decimal fields for client component
-    const serializedOrganizers = organizers.map(org => ({
-        ...org,
-        mvaRate: Number(org.mvaRate),
-        stripeFeePercentage: Number(org.stripeFeePercentage),
-        fiscalYearStart: org.fiscalYearStart?.toISOString() ?? null,
-    }))
+    const serializedOrganizer = {
+        ...organizer,
+        mvaRate: organizer.mvaRate ? Number(organizer.mvaRate) : null,
+        stripeFeePercentage: organizer.stripeFeePercentage ? Number(organizer.stripeFeePercentage) : null,
+        platformFeePercent: organizer.platformFeePercent ? Number(organizer.platformFeePercent) : null,
+    }
 
     return (
         <div className="max-w-3xl mx-auto space-y-6">
@@ -56,8 +38,9 @@ export default async function NewStaffPeriodPage() {
                 <h2 className="text-3xl font-bold tracking-tight">New Course Period</h2>
             </div>
             <StaffPeriodForm 
-                organizerIds={adminOrgIds}
-                organizers={serializedOrganizers as any}
+                key={organizerId}
+                organizerIds={[organizerId]}
+                organizers={[serializedOrganizer as any]}
                 categories={categories}
                 tags={tags}
             />

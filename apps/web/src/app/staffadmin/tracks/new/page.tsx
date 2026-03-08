@@ -49,12 +49,19 @@ export default async function NewStaffTrackPage({
         throw new Error('Unauthorized: You do not have access to create tracks for this period')
     }
 
+    // Check if org has membership product enabled
+    const organizer = await prisma.organizer.findUnique({
+        where: { id: period.organizerId },
+        select: { membershipEnabled: true }
+    })
+    const hasMembershipProduct = organizer?.membershipEnabled ?? false
+
     return (
         <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold tracking-tight">New Course Track</h2>
             </div>
-            <StaffTrackForm periodId={periodId} />
+            <StaffTrackForm periodId={periodId} hasMembershipProduct={hasMembershipProduct} />
         </div>
     )
 }

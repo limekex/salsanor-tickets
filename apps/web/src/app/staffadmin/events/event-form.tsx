@@ -84,14 +84,20 @@ export function EventForm({ organizerId, categories, tags, event }: EventFormPro
             
             const result = await createTag(tagFormData)
 
-            if (result.success && result.tag) {
+            if ('success' in result && result.success && result.tag) {
                 setAvailableTags(prev => [...prev, result.tag!])
                 handleChange('tagIds', [...formData.tagIds, result.tag!.id])
                 setNewTagName('')
                 setNewTagColor('#3b82f6')
                 toast.success('Tag created and added')
+            } else if ('error' in result && result.error) {
+                const error = result.error
+                const errorMsg = typeof error === 'string' 
+                    ? error 
+                    : ('_form' in error ? (error._form?.[0] || 'Validation error') : (Object.values(error)?.[0]?.[0] || 'Failed to create tag'))
+                toast.error(errorMsg)
             } else {
-                toast.error(result.error || 'Failed to create tag')
+                toast.error('Failed to create tag')
             }
         } catch (error) {
             toast.error('An unexpected error occurred')

@@ -1,6 +1,6 @@
 # Code Inventory
 
-Last updated: February 16, 2026
+Last updated: March 7, 2026
 
 This document tracks existing reusable code to prevent duplication.
 
@@ -99,6 +99,12 @@ export { EventGrid, CourseGrid, TwoColumnGrid, FourColumnGrid } from './grids'
 
 // Empty states
 export { EmptyState } from './empty-state'
+
+// Attendance & Check-in components (added March 2026)
+export { AttendanceStatsCard } from './attendance-stats-card'
+export { PlannedAbsenceDialog } from './planned-absence-dialog'
+export { QRCodeDisplay } from './qr-code-display'
+export { TicketQR } from './ticket-qr'
 ```
 
 **Components:**
@@ -108,6 +114,10 @@ export { EmptyState } from './empty-state'
 - **OrderCard** - Order history display with status badges and item details
 - **Grids** - Responsive grid layouts for events, courses, and general content
 - **EmptyState** - Empty state placeholder with icon and message
+- **AttendanceStatsCard** ✨ NEW - Attendance stats display with check-in status and absences
+- **PlannedAbsenceDialog** ✨ NEW - Dialog for recording planned course absences
+- **QRCodeDisplay** ✨ NEW - Generates QR codes as data URLs
+- **TicketQR** ✨ NEW - QR code in modal dialog for tickets
 
 ---
 
@@ -388,6 +398,22 @@ import { Suspense } from 'react'
 | `sync-stripe-fees.ts` | syncStripeFees(orderId), syncAllMissingStripeFees(organizerId?) |
 | `settings.ts` | getSettings, updateSettings |
 
+### Attendance & Check-in Actions ✨ NEW (March 2026)
+
+| File | Key Functions | Purpose |
+|------|---------------|---------|
+| `absences.ts` | `createPlannedAbsence(registrationId, trackId, sessionDate, reason, reasonText?)` | Records planned course absences |
+| `attendance-stats.ts` | `getMyAttendanceForRegistration(registrationId, userId)` | Gets attendance stats for participant |
+| `registration-check.ts` | `checkDuplicateRegistrations(trackIds)` | Validates no duplicate registrations before checkout |
+
+### Admin Email & Template Actions ✨ NEW
+
+| File | Key Functions | Purpose |
+|------|---------------|---------|
+| `admin/email-settings.ts` | `getGlobalEmailSettings()`, `saveGlobalEmailSettings(data)` | Platform email configuration |
+| `admin/email-templates.ts` | `getEmailTemplates()` | List email templates with PDF attachments |
+| `admin/pdf-templates.ts` | PDF template management | PDF generation templates |
+
 ### Specialized Actions
 
 | File | Key Functions |
@@ -404,6 +430,111 @@ import { Suspense } from 'react'
 
 ---
 
+## API Routes (`/src/app/api/`) ✨ NEW SECTION
+
+### Self Check-in System (March 2026)
+
+| Endpoint | Method | Purpose | Auth |
+|----------|--------|---------|------|
+| `/api/selfcheckin` | POST | Check participant in via QR token or phone lookup | Track-level (checks `allowSelfCheckIn`) |
+| `/api/my/checkin` | GET, POST | Get/perform user's eligible self check-ins | User auth |
+| `/api/my/attendance` | GET | Get attendance stats for a registration | User auth |
+
+### Attendance & Certificates
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/attendance-certificate` | POST | Generate attendance certificates |
+| `/api/attendance/export` | GET | Export attendance data as CSV |
+
+### Wallet & Tickets
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/tickets/[id]/wallet/apple` | GET | Generate Apple Wallet pass |
+| `/api/tickets/[id]/wallet/google` | GET | Generate Google Wallet pass |
+| `/api/course-tickets/[id]/wallet` | GET | Course registration wallet passes |
+| `/api/tickets/[id]/pdf` | GET | Generate ticket PDF |
+
+### Staff Admin
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/staffadmin/analytics/conversions` | GET | Conversion analytics |
+| `/api/staffadmin/export/finance` | GET | Export financial data |
+
+### Webhooks & Cron
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/webhooks/stripe` | POST | Stripe payment webhooks |
+| `/api/cron/[task]` | POST | Scheduled task execution |
+
+---
+
+## Utility Libraries (`/src/lib/`) ✨ NEW ADDITIONS
+
+### Check-in & Attendance
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `checkin-window.ts` | Check-in time validation | `validateCheckInWindow(timeStart, windowBefore?, windowAfter?): string \| null` |
+| `absence-utils.ts` | Absence reason types & helpers | `AbsenceReason` type, `getAbsenceReasonLabel()`, `getAbsenceReasonOptions()` |
+| `attendance-certificate.ts` | Certificate eligibility constants | `CERTIFICATE_MIN_RATE = 0.75`, `CERTIFICATE_MIN_SESSIONS = 4` |
+
+**AbsenceReason type:**
+```typescript
+type AbsenceReason = 'ILLNESS' | 'TRAVEL' | 'WORK' | 'FAMILY' | 'PERSONAL' | 'OTHER'
+```
+
+### Email Service
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `email/email-service.ts` | Brevo email integration | `EmailService` class - transactional, bulk, org-specific settings, attachments |
+
+**EmailService methods:**
+- `sendEmail(to, subject, html, options?)` - Send single email
+- `sendBulkEmail(recipients, subject, html)` - Send to multiple recipients
+- `sendTemplatedEmail(templateSlug, to, variables)` - Use email template
+
+### Order Fulfillment
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `fulfillment/service.ts` | Process paid orders | `fulfillOrder(orderId, providerRef, stripeChargeId?, ...)` |
+
+Handles:
+- QR token generation for tickets
+- Registration status updates
+- Membership activation
+- Email notifications
+
+### Ticket Generation
+
+| Directory | Files | Purpose |
+|-----------|-------|---------|
+| `tickets/` | `qr-generator.ts` | QR code token generation/parsing |
+| | `pdf-generator.ts` | PDF ticket/receipt generation |
+| | `legal-requirements.ts` | Norwegian compliance formatters |
+
+### Wallet Pass Generation
+
+| Directory | Files | Purpose |
+|-----------|-------|---------|
+| `wallet/apple/` | `ticket-pass-generator.ts` | Apple Wallet .pkpass generation |
+| `wallet/google/` | `membership-pass-generator.ts`, `ticket-pass-generator.ts` | Google Wallet JWT generation |
+
+### Other Utilities
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `audit.ts` | Audit logging | `logAuditEvent(type, entityId, data)` |
+| `csv-utils.ts` | CSV import/export | `parseCSV()`, `generateCSV()` |
+| `utm.ts` | UTM parameter tracking | `parseUTMParams()`, `storeUTMParams()` |
+
+---
+
 ## Auth Utilities (`/src/utils/`)
 
 Server-side authentication utilities for role-based access control.
@@ -413,6 +544,19 @@ Server-side authentication utilities for role-based access control.
 | `auth-org-admin.ts` | Org admin auth checks | `requireOrgAdmin()`, `requireOrgAdminForOrganizer(orgId)` |
 | `auth-org-finance.ts` | Finance role auth checks | `requireOrgFinance()`, `requireOrgFinanceForOrganizer(orgId)` |
 | `auth-org-checkin.ts` | Check-in role auth checks | `requireOrgCheckin()`, `requireOrgCheckinForOrganizer(orgId)` |
+
+**User Roles (updated March 2026):**
+```typescript
+type UserRole = 
+  | 'ADMIN'         // Global admin (platform level)
+  | 'ORG_ADMIN'     // Organization admin
+  | 'ORG_FINANCE'   // Organization finance manager
+  | 'ORG_CHECKIN'   // Organization check-in staff
+  | 'INSTRUCTOR'    // Course instructor
+  | 'STAFF'         // General staff
+  | 'CHECKIN'       // Global check-in role
+  | 'PARTICIPANT'   // Regular participant
+```
 
 **Usage Pattern:**
 ```typescript
@@ -440,13 +584,22 @@ These are commonly needed but don't exist yet:
 - [x] `EventCard` - Reusable event display card ✅
 - [x] `CourseCard` - Reusable course display card ✅
 - [x] `OrganizerCard` - Organizer preview card ✅
-- [ ] `TicketCard` - Ticket display card
+- [x] `AttendanceStatsCard` - Attendance statistics card ✅ NEW
+- [ ] `TicketCard` - Ticket display card (for my tickets)
 
 ### Lists & Grids
 - [x] `EventGrid` - Grid of event cards ✅
 - [x] `CourseGrid` - Grid of course cards ✅
 - [x] `EmptyState` - "No items" placeholder ✅
 - [ ] `LoadingSkeleton` - Loading state for lists
+
+### Dialogs
+- [x] `PlannedAbsenceDialog` - Record planned absences ✅ NEW
+- [x] `TicketQR` - QR code modal ✅ NEW
+
+### QR & Tickets
+- [x] `QRCodeDisplay` - Generate QR codes ✅ NEW
+- [x] `TicketQR` - QR modal for tickets ✅ NEW
 
 ### Additional Components
 - [x] `OrderCard` - Order display card (for order history) ✅

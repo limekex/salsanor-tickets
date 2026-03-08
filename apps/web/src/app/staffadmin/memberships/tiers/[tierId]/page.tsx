@@ -33,7 +33,7 @@ export default async function EditTierPage({ params }: PageProps) {
         <DeleteTierButton tierId={tier.id} tierName={tier.name} hasMemberships={tier.memberCount > 0} />
       </div>
 
-      <TierForm tier={tier} organizerVatRegistered={tier.organizerVatRegistered} />
+      <TierForm key={tier.id} tier={tier} organizerVatRegistered={tier.organizerVatRegistered} />
     </div>
   )
 }
