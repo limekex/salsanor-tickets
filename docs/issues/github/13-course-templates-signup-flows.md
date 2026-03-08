@@ -181,6 +181,390 @@ Use cases: Personal training, private lessons, coaching
 - Recurring booking support
 - Reschedule/cancel policies
 
+## Custom Form Fields System
+
+Organizers need flexibility to collect information specific to their courses that templates don't cover. A JSON-based custom fields system allows unlimited flexibility without database migrations.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Custom Fields Flow                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. Organizer defines fields (stored in CoursePeriod.customFields)
+│     ↓                                                           │
+│  2. Registration form renders fields dynamically                │
+│     ↓                                                           │
+│  3. User submits form with custom field values                  │
+│     ↓                                                           │
+│  4. Values stored in CourseRegistration.customFieldValues       │
+│     ↓                                                           │
+│  5. Organizer views/exports responses                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Custom Field Definition Schema (JSON)
+
+```typescript
+// Stored in CoursePeriod.customFields as JSON
+type CustomFieldDefinition = {
+  id: string           // Unique ID (uuid)
+  type: FieldType
+  label: string        // Display label (e.g., "T-shirt size")
+  description?: string // Help text
+  placeholder?: string
+  required: boolean
+  
+  // Type-specific options
+  options?: SelectOption[]      // For SELECT, RADIO, CHECKBOX_GROUP
+  min?: number                  // For NUMBER, DATE
+  max?: number
+  minLength?: number            // For TEXT, TEXTAREA
+  maxLength?: number
+  pattern?: string              // Regex validation for TEXT
+  accept?: string               // For FILE (mime types)
+  
+  // Conditional display
+  showIf?: {
+    fieldId: string
+    operator: 'equals' | 'notEquals' | 'contains' | 'isNotEmpty'
+    value: any
+  }
+  
+  // Layout
+  order: number
+  width?: 'full' | 'half'       // Column span
+  section?: string              // Group fields into sections
+}
+
+type FieldType = 
+  | 'TEXT'           // Single line text
+  | 'TEXTAREA'       // Multi-line text
+  | 'NUMBER'         // Numeric input
+  | 'EMAIL'          // Email with validation
+  | 'PHONE'          // Phone number
+  | 'DATE'           // Date picker
+  | 'TIME'           // Time picker
+  | 'DATETIME'       // Date + time
+  | 'SELECT'         // Dropdown single select
+  | 'MULTI_SELECT'   // Dropdown multi select
+  | 'RADIO'          // Radio button group
+  | 'CHECKBOX'       // Single checkbox (yes/no)
+  | 'CHECKBOX_GROUP' // Multiple checkboxes
+  | 'FILE'           // File upload
+  | 'URL'            // URL with validation
+  | 'HEADING'        // Section heading (no input)
+  | 'PARAGRAPH'      // Informational text (no input)
+
+type SelectOption = {
+  value: string
+  label: string
+  disabled?: boolean
+}
+```
+
+### Example Custom Fields Configurations
+
+```typescript
+// Dance course - asking about experience
+const danceFields: CustomFieldDefinition[] = [
+  {
+    id: "exp-level",
+    type: "SELECT",
+    label: "Dance experience",
+    required: true,
+    options: [
+      { value: "none", label: "Complete beginner" },
+      { value: "some", label: "Some experience (0-1 year)" },
+      { value: "intermediate", label: "Intermediate (1-3 years)" },
+      { value: "advanced", label: "Advanced (3+ years)" }
+    ],
+    order: 1
+  },
+  {
+    id: "dance-styles",
+    type: "CHECKBOX_GROUP",
+    label: "Which styles have you danced before?",
+    required: false,
+    options: [
+      { value: "salsa", label: "Salsa" },
+      { value: "bachata", label: "Bachata" },
+      { value: "kizomba", label: "Kizomba" },
+      { value: "zouk", label: "Zouk" }
+    ],
+    order: 2
+  }
+]
+
+// Yoga course - health questions
+const yogaFields: CustomFieldDefinition[] = [
+  {
+    id: "health-heading",
+    type: "HEADING",
+    label: "Health Information",
+    required: false,
+    order: 1
+  },
+  {
+    id: "injuries",
+    type: "TEXTAREA",
+    label: "Do you have any injuries or conditions we should know about?",
+    placeholder: "e.g., back problems, knee issues",
+    required: false,
+    order: 2
+  },
+  {
+    id: "pregnant",
+    type: "CHECKBOX",
+    label: "I am currently pregnant",
+    required: false,
+    order: 3
+  },
+  {
+    id: "trimester",
+    type: "SELECT",
+    label: "Which trimester?",
+    required: true,
+    options: [
+      { value: "1", label: "First trimester" },
+      { value: "2", label: "Second trimester" },
+      { value: "3", label: "Third trimester" }
+    ],
+    showIf: { fieldId: "pregnant", operator: "equals", value: true },
+    order: 4
+  }
+]
+
+// Corporate training - company info
+const corporateFields: CustomFieldDefinition[] = [
+  {
+    id: "company",
+    type: "TEXT",
+    label: "Company name",
+    required: true,
+    order: 1,
+    width: "half"
+  },
+  {
+    id: "department",
+    type: "TEXT",
+    label: "Department",
+    required: false,
+    order: 2,
+    width: "half"
+  },
+  {
+    id: "invoice-ref",
+    type: "TEXT",
+    label: "Invoice reference / PO number",
+    required: false,
+    order: 3
+  },
+  {
+    id: "dietary",
+    type: "SELECT",
+    label: "Dietary requirements (for lunch)",
+    required: true,
+    options: [
+      { value: "none", label: "No restrictions" },
+      { value: "vegetarian", label: "Vegetarian" },
+      { value: "vegan", label: "Vegan" },
+      { value: "halal", label: "Halal" },
+      { value: "gluten-free", label: "Gluten-free" },
+      { value: "other", label: "Other (specify below)" }
+    ],
+    order: 4
+  },
+  {
+    id: "dietary-other",
+    type: "TEXT",
+    label: "Please specify dietary requirements",
+    required: true,
+    showIf: { fieldId: "dietary", operator: "equals", value: "other" },
+    order: 5
+  }
+]
+
+// Virtual course - tech requirements
+const virtualFields: CustomFieldDefinition[] = [
+  {
+    id: "timezone",
+    type: "SELECT",
+    label: "Your timezone",
+    required: true,
+    options: [
+      { value: "Europe/Oslo", label: "Norway (CET/CEST)" },
+      { value: "Europe/London", label: "UK (GMT/BST)" },
+      { value: "America/New_York", label: "US Eastern" },
+      { value: "America/Los_Angeles", label: "US Pacific" },
+      { value: "other", label: "Other" }
+    ],
+    order: 1
+  },
+  {
+    id: "equipment",
+    type: "CHECKBOX_GROUP",
+    label: "I have access to:",
+    required: false,
+    options: [
+      { value: "webcam", label: "Webcam" },
+      { value: "mic", label: "Microphone" },
+      { value: "stable-internet", label: "Stable internet connection" }
+    ],
+    order: 2
+  }
+]
+```
+
+### Storing Custom Field Values
+
+```typescript
+// Stored in CourseRegistration.customFieldValues as JSON
+type CustomFieldValues = {
+  [fieldId: string]: FieldValue
+}
+
+type FieldValue = 
+  | string           // TEXT, TEXTAREA, EMAIL, PHONE, SELECT, RADIO, URL
+  | number           // NUMBER
+  | boolean          // CHECKBOX
+  | string[]         // MULTI_SELECT, CHECKBOX_GROUP
+  | Date             // DATE, TIME, DATETIME
+  | FileReference    // FILE
+
+type FileReference = {
+  filename: string
+  url: string        // Storage URL
+  mimeType: string
+  size: number
+}
+
+// Example stored values
+const registrationValues: CustomFieldValues = {
+  "exp-level": "intermediate",
+  "dance-styles": ["salsa", "bachata"],
+  "injuries": "Minor lower back pain",
+  "pregnant": false,
+  "company": "Acme Corp",
+  "dietary": "vegetarian"
+}
+```
+
+### UI Components
+
+```tsx
+// Field Builder (Organizer admin)
+<CustomFieldBuilder
+  fields={customFields}
+  onChange={setCustomFields}
+/>
+
+// Renders draggable list of fields with:
+// - Add field button (shows field type picker)
+// - Edit field modal (label, options, validation)
+// - Drag to reorder
+// - Delete field
+// - Preview mode
+
+// Dynamic Form Renderer (Registration page)
+<CustomFieldsForm
+  definitions={period.customFields}
+  values={formValues}
+  onChange={setFormValues}
+  errors={validationErrors}
+/>
+
+// Automatically renders correct input component per field type
+// Handles conditional display (showIf)
+// Validates on blur and submit
+
+// Response Viewer (Organizer admin - view registrations)
+<CustomFieldsDisplay
+  definitions={period.customFields}
+  values={registration.customFieldValues}
+/>
+
+// Shows field labels with formatted values
+// Handles file previews/downloads
+
+// Export (CSV/Excel)
+// Custom fields become columns in export
+// Multi-select values joined with semicolon
+```
+
+### Validation
+
+```typescript
+function validateCustomFields(
+  definitions: CustomFieldDefinition[],
+  values: CustomFieldValues
+): ValidationErrors {
+  const errors: ValidationErrors = {}
+  
+  for (const field of definitions) {
+    const value = values[field.id]
+    
+    // Required check
+    if (field.required && isEmpty(value)) {
+      errors[field.id] = `${field.label} is required`
+      continue
+    }
+    
+    // Skip validation for empty optional fields
+    if (isEmpty(value)) continue
+    
+    // Type-specific validation
+    switch (field.type) {
+      case 'EMAIL':
+        if (!isValidEmail(value)) {
+          errors[field.id] = 'Invalid email address'
+        }
+        break
+      case 'PHONE':
+        if (!isValidPhone(value)) {
+          errors[field.id] = 'Invalid phone number'
+        }
+        break
+      case 'NUMBER':
+        if (field.min !== undefined && value < field.min) {
+          errors[field.id] = `Minimum value is ${field.min}`
+        }
+        if (field.max !== undefined && value > field.max) {
+          errors[field.id] = `Maximum value is ${field.max}`
+        }
+        break
+      case 'TEXT':
+      case 'TEXTAREA':
+        if (field.minLength && value.length < field.minLength) {
+          errors[field.id] = `Minimum ${field.minLength} characters`
+        }
+        if (field.maxLength && value.length > field.maxLength) {
+          errors[field.id] = `Maximum ${field.maxLength} characters`
+        }
+        if (field.pattern && !new RegExp(field.pattern).test(value)) {
+          errors[field.id] = 'Invalid format'
+        }
+        break
+      case 'URL':
+        if (!isValidUrl(value)) {
+          errors[field.id] = 'Invalid URL'
+        }
+        break
+      case 'SELECT':
+      case 'RADIO':
+        if (!field.options?.some(o => o.value === value)) {
+          errors[field.id] = 'Invalid selection'
+        }
+        break
+    }
+  }
+  
+  return errors
+}
+```
+
 ## Database Changes
 
 ### New Schema
@@ -231,9 +615,8 @@ model CourseTemplate {
   // Capacity settings
   capacityType    CapacityType        @default(TOTAL)
   
-  // Custom fields schema (JSON Schema format)
-  participantFields Json?             // Additional fields for participants
-  registrationFields Json?            // Additional fields for registration
+  // Default custom fields for this template (organizer can modify)
+  defaultCustomFields Json?           // CustomFieldDefinition[]
   
   createdAt       DateTime            @default(now())
 }
@@ -251,6 +634,11 @@ model CoursePeriod {
   
   templateType    CourseTemplateType  @default(INDIVIDUAL)
   templateConfig  Json?               // Template-specific overrides
+  
+  // ⭐ CUSTOM FIELDS - Organizer-defined form fields
+  // Stores array of CustomFieldDefinition objects
+  // Initialized from CourseTemplate.defaultCustomFields, then customizable
+  customFields    Json?               // CustomFieldDefinition[]
   
   // Delivery method
   deliveryMethod  DeliveryMethod      @default(IN_PERSON)
@@ -284,6 +672,19 @@ model CoursePeriod {
   requiresRole    Boolean             @default(false)
   roles           Json?               // e.g., ["Leader", "Follower"]
   allowSoloSignup Boolean             @default(true)
+}
+
+// ⭐ Update CourseRegistration to store custom field responses
+model CourseRegistration {
+  // ... existing fields ...
+  
+  // Custom field values submitted by participant
+  // Keys are field IDs from CoursePeriod.customFields
+  // Values are the user's responses
+  customFieldValues Json?             // { [fieldId]: value }
+  
+  // Delivery preference for HYBRID courses
+  deliveryPreference String?          // "IN_PERSON" or "VIRTUAL"
 }
 
 // Virtual session details (per track/session for different meeting links)
@@ -463,14 +864,26 @@ model TeamMember {
 - [ ] Create template selector UI
 - [ ] All existing functionality continues working
 
-### Phase 2: Individual Courses
+### Phase 2: Custom Fields System ⭐
+- [ ] Add customFields JSON column to CoursePeriod
+- [ ] Add customFieldValues JSON column to CourseRegistration
+- [ ] Create CustomFieldBuilder component (drag & drop field editor)
+- [ ] Create CustomFieldsForm component (dynamic form renderer)
+- [ ] Create CustomFieldsDisplay component (view responses)
+- [ ] Field types: TEXT, TEXTAREA, NUMBER, EMAIL, PHONE, SELECT, CHECKBOX, DATE
+- [ ] Conditional field display (showIf)
+- [ ] Client-side and server-side validation
+- [ ] Export custom fields to CSV/Excel
+- [ ] Test with existing PARTNER template
+
+### Phase 3: Individual Courses
 - [ ] Implement INDIVIDUAL template
 - [ ] Remove role/partner requirements
 - [ ] Simplified registration flow
 - [ ] Update cart and checkout
 - [ ] Test: yoga, fitness, language course scenarios
 
-### Phase 3: Virtual Courses
+### Phase 4: Virtual Courses
 - [ ] Implement VIRTUAL template
 - [ ] Add meeting URL fields to CoursePeriod
 - [ ] VirtualSession model for per-session links
@@ -479,26 +892,26 @@ model TeamMember {
 - [ ] Platform integrations (Zoom API optional)
 - [ ] Test: online webinar scenario
 
-### Phase 4: Hybrid Delivery
+### Phase 5: Hybrid Delivery
 - [ ] Implement HYBRID option
 - [ ] Participant chooses in-person OR virtual at registration
 - [ ] Separate capacity tracking per delivery method
 - [ ] Different check-in flows per delivery
 
-### Phase 5: Workshops
+### Phase 6: Workshops
 - [ ] Implement WORKSHOP template
 - [ ] Single-session handling (no tracks)
 - [ ] Can be in-person, virtual, or hybrid
 - [ ] Integration with Events (workshop at event)
 
-### Phase 6: Drop-In & Punch Cards
+### Phase 7: Drop-In & Punch Cards
 - [ ] Implement DROP_IN template
 - [ ] Punch card purchase flow
 - [ ] Per-session check-in and tracking
 - [ ] Punch card expiration handling
 - [ ] Walk-in self-registration
 
-### Phase 7: Kids/Youth
+### Phase 8: Kids/Youth
 - [ ] Implement KIDS_YOUTH template
 - [ ] GuardianInfo model and forms
 - [ ] Age validation at registration
@@ -506,22 +919,24 @@ model TeamMember {
 - [ ] Consent collection (photo, media)
 - [ ] Pickup authorization
 
-### Phase 8: Team/Group
+### Phase 9: Team/Group
 - [ ] Implement TEAM template
 - [ ] TeamRegistration model
 - [ ] Roster management UI
 - [ ] Team capacity (by team or by head count)
 - [ ] Corporate/bulk registration
 
-### Phase 9: Advanced Templates
+### Phase 10: Advanced Templates
 - [ ] SUBSCRIPTION template (recurring access)
 - [ ] PRIVATE template (bookable time slots)
-- [ ] CUSTOM template (field builder)
+- [ ] CUSTOM template (blank canvas with full field builder)
 
-### Phase 10: Template Analytics
+### Phase 11: Template Analytics & Polish
 - [ ] Track which templates are used
 - [ ] Registration conversion per template
 - [ ] Virtual vs in-person attendance rates
+- [ ] Custom field usage analytics
+- [ ] Field response aggregation (charts/stats)
 
 ## API Changes
 
@@ -565,6 +980,11 @@ model TeamMember {
   role?: 'Leader' | 'Follower' | string  // Custom roles
   partnerId?: string                      // Link with partner
   
+  // ⭐ CUSTOM FIELD VALUES - responses to organizer-defined fields
+  customFieldValues?: {
+    [fieldId: string]: string | number | boolean | string[] | Date
+  }
+  
   // For KIDS_YOUTH template
   guardian?: {
     name: string
@@ -597,6 +1017,25 @@ model TeamMember {
 }
 ```
 
+### Custom Fields API
+```typescript
+// GET /api/courses/[periodId]/custom-fields
+// Returns field definitions for registration form
+{
+  fields: CustomFieldDefinition[]
+}
+
+// PUT /api/courses/[periodId]/custom-fields (org admin)
+// Update custom field definitions
+{
+  fields: CustomFieldDefinition[]
+}
+
+// GET /api/courses/[periodId]/registrations/export
+// Export registrations with custom fields as columns
+// Returns CSV or Excel file
+```
+
 ### Virtual Meeting Endpoints
 ```typescript
 // GET /api/courses/[periodId]/meeting
@@ -623,15 +1062,20 @@ model TeamMember {
 
 1. Add `templateType` column with default `INDIVIDUAL` for new courses
 2. Add `deliveryMethod` column with default `IN_PERSON`
-3. Migrate existing dance courses to `PARTNER` template
-4. All existing functionality continues unchanged
-5. New templates rolled out incrementally
-6. Feature flag per template for gradual enablement
+3. Add `customFields` JSON column to CoursePeriod (nullable)
+4. Add `customFieldValues` JSON column to CourseRegistration (nullable)
+5. Migrate existing dance courses to `PARTNER` template
+6. All existing functionality continues unchanged
+7. New templates rolled out incrementally
+8. Feature flag per template for gradual enablement
 
 ## Success Criteria
 
 - [ ] Organizers can create at least 5 different course types
+- [ ] **Organizers can add custom form fields to any course**
 - [ ] Registration flows adapt to template type
+- [ ] **Custom field responses stored and viewable**
+- [ ] **Custom fields included in registration exports**
 - [ ] Virtual courses show meeting links to participants
 - [ ] Hybrid courses allow participant choice
 - [ ] Existing partner dance courses unaffected
