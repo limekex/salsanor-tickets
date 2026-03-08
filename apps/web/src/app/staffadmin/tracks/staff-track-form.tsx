@@ -43,19 +43,17 @@ interface StaffTrackFormProps {
     periodId: string
     track?: CourseTrack
     hasMembershipProduct?: boolean
-    templateType?: CourseTemplateType
-    deliveryMethod?: DeliveryMethod
+    /** Default template from period - can be overridden per track */
+    defaultTemplateType?: CourseTemplateType
+    /** Default delivery from period - can be overridden per track */
+    defaultDeliveryMethod?: DeliveryMethod
 }
 
-export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, templateType = 'INDIVIDUAL', deliveryMethod = 'IN_PERSON' }: StaffTrackFormProps) {
+export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, defaultTemplateType = 'INDIVIDUAL', defaultDeliveryMethod = 'IN_PERSON' }: StaffTrackFormProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
     const isEditing = !!track
 
-    // PARTNER is the only template where pair pricing and role-based capacity make sense
-    const isPartner = templateType === 'PARTNER'
-    const isVirtual = deliveryMethod === 'VIRTUAL' || deliveryMethod === 'HYBRID'
-    
     // Determine initial pricing type based on whether member prices are set
     const hasMemberPricing = track?.memberPriceSingleCents !== null && track?.memberPriceSingleCents !== undefined && track.memberPriceSingleCents > 0
     const [memberPriceType, setMemberPriceType] = useState<'discount' | 'fixed'>(hasMemberPricing ? 'fixed' : 'discount')
@@ -79,6 +77,8 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
             description: track.description || '',
             imageUrl: track.imageUrl || '',
             levelLabel: track.levelLabel || '',
+            templateType: track.templateType ?? defaultTemplateType,
+            deliveryMethod: track.deliveryMethod ?? defaultDeliveryMethod,
             weekday: track.weekday,
             timeStart: track.timeStart,
             timeEnd: track.timeEnd,
@@ -107,6 +107,8 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
             description: '',
             imageUrl: '',
             levelLabel: '',
+            templateType: defaultTemplateType,
+            deliveryMethod: defaultDeliveryMethod,
             weekday: 1,
             timeStart: '18:00',
             timeEnd: '19:00',
@@ -115,8 +117,8 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
             latitude: undefined,
             longitude: undefined,
             capacityTotal: 20,
-            capacityLeaders: isPartner ? DEFAULT_ROLE_CAPACITY : undefined,
-            capacityFollowers: isPartner ? DEFAULT_ROLE_CAPACITY : undefined,
+            capacityLeaders: defaultTemplateType === 'PARTNER' ? DEFAULT_ROLE_CAPACITY : undefined,
+            capacityFollowers: defaultTemplateType === 'PARTNER' ? DEFAULT_ROLE_CAPACITY : undefined,
             rolePolicy: 'ANY',
             waitlistEnabled: true,
             allowSelfCheckIn: false,
@@ -131,6 +133,12 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
             memberPricePairCents: undefined,
         },
     })
+
+    // Watch templateType for dynamic UI changes
+    const watchedTemplateType = form.watch('templateType')
+    const watchedDeliveryMethod = form.watch('deliveryMethod')
+    const isPartner = watchedTemplateType === 'PARTNER'
+    const isVirtual = watchedDeliveryMethod === 'VIRTUAL' || watchedDeliveryMethod === 'HYBRID'
 
     // Handle image upload
     const handleImageUpload = async (file: File): Promise<string> => {
@@ -155,6 +163,9 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
         if (data.description) formData.append('description', data.description)
         if (imageUrl) formData.append('imageUrl', imageUrl)
         if (data.levelLabel) formData.append('levelLabel', data.levelLabel)
+        // Template and delivery method
+        formData.append('templateType', data.templateType || 'INDIVIDUAL')
+        formData.append('deliveryMethod', data.deliveryMethod || 'IN_PERSON')
         formData.append('weekday', data.weekday.toString())
         formData.append('timeStart', data.timeStart)
         formData.append('timeEnd', data.timeEnd)
@@ -206,17 +217,75 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Template / Delivery context badge */}
-                <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-                    <Info className="h-4 w-4 shrink-0" />
-                    <span>
-                        Period template:{' '}
-                        <span className="font-medium text-foreground">{COURSE_TEMPLATE_LABELS[templateType]}</span>
-                        {' · '}
-                        Delivery:{' '}
-                        <span className="font-medium text-foreground">{DELIVERY_METHOD_LABELS[deliveryMethod]}</span>
-                    </span>
-                </div>
+                {/* Template Type & Delivery Method Section */}
+                <Card>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <Info className="h-5 w-5" />
+                            Course Type
+                        </CardTitle>
+                        <CardDescription>Define how this course is structured and delivered</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="templateType"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Course Template</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select template type" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {(Object.entries(COURSE_TEMPLATE_LABELS) as [string, string][]).map(([value, label]) => (
+                                                    <SelectItem key={value} value={value}>
+                                                        {label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            Partner courses have role-based capacity and pair pricing
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="deliveryMethod"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Delivery Method</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select delivery method" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {(Object.entries(DELIVERY_METHOD_LABELS) as [string, string][]).map(([value, label]) => (
+                                                    <SelectItem key={value} value={value}>
+                                                        {label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            Virtual/Hybrid will include meeting link fields
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Basic Info Section */}
                 <Card>

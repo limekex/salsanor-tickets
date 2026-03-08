@@ -160,7 +160,7 @@ model CoursePeriod {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model CourseTrack {
-  id                     String         @id @default(uuid())
+  id                     String             @id @default(uuid())
   periodId               String
   slug                   String?
   title                  String
@@ -168,6 +168,8 @@ model CourseTrack {
   imageUrl               String?
   levelLabel             String?
   weekday                Int
+  templateType           CourseTemplateType @default(INDIVIDUAL)
+  deliveryMethod         DeliveryMethod     @default(IN_PERSON)
   timeStart              String
   timeEnd                String
   // Location fields for Wallet Tickets integration

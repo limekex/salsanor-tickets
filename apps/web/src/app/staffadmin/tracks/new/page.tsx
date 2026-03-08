@@ -68,8 +68,8 @@ export default async function NewStaffTrackPage({
             <StaffTrackForm
                 periodId={periodId}
                 hasMembershipProduct={hasMembershipProduct}
-                templateType={period.templateType}
-                deliveryMethod={period.deliveryMethod}
+                defaultTemplateType={period.templateType}
+                defaultDeliveryMethod={period.deliveryMethod}
             />
         </div>
     )

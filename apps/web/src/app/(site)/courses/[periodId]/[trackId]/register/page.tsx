@@ -19,12 +19,13 @@ export default async function RegisterPage({ params }: PageProps) {
         notFound()
     }
 
-    const period = track.CoursePeriod as { customFields?: unknown; templateType?: string } | null
+    const period = track.CoursePeriod as { customFields?: unknown } | null
     const customFields: CustomFieldDefinition[] = Array.isArray(period?.customFields)
         ? (period.customFields as CustomFieldDefinition[])
         : []
 
-    const templateType = period?.templateType ?? 'INDIVIDUAL'
+    // Read templateType from track (track-level setting)
+    const templateType = (track as { templateType?: string }).templateType ?? 'INDIVIDUAL'
 
     return (
         <main className="container mx-auto py-rn-7 px-rn-4">

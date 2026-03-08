@@ -63,8 +63,8 @@ export default async function EditStaffTrackPage({
                 periodId={track.periodId}
                 track={track}
                 hasMembershipProduct={hasMembershipProduct}
-                templateType={track.CoursePeriod.templateType}
-                deliveryMethod={track.CoursePeriod.deliveryMethod}
+                defaultTemplateType={track.CoursePeriod.templateType}
+                defaultDeliveryMethod={track.CoursePeriod.deliveryMethod}
             />
         </div>
     )
