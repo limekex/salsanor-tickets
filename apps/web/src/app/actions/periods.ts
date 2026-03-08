@@ -25,6 +25,8 @@ export async function createCoursePeriod(prevState: any, formData: FormData) {
         endDate: formData.get('endDate') ? new Date(formData.get('endDate') as string) : undefined,
         salesOpenAt: formData.get('salesOpenAt') ? new Date(formData.get('salesOpenAt') as string) : undefined,
         salesCloseAt: formData.get('salesCloseAt') ? new Date(formData.get('salesCloseAt') as string) : undefined,
+        templateType: formData.get('templateType') || 'INDIVIDUAL',
+        deliveryMethod: formData.get('deliveryMethod') || 'IN_PERSON',
     }
 
     const result = coursePeriodSchema.safeParse(raw)
@@ -45,6 +47,8 @@ export async function createCoursePeriod(prevState: any, formData: FormData) {
                 endDate: result.data.endDate,
                 salesOpenAt: result.data.salesOpenAt,
                 salesCloseAt: result.data.salesCloseAt,
+                templateType: result.data.templateType ?? 'INDIVIDUAL',
+                deliveryMethod: result.data.deliveryMethod ?? 'IN_PERSON',
             }
         })
     } catch (e: any) {
@@ -71,6 +75,8 @@ export async function updateCoursePeriod(periodId: string, prevState: any, formD
         endDate: formData.get('endDate'),
         salesOpenAt: formData.get('salesOpenAt'),
         salesCloseAt: formData.get('salesCloseAt'),
+        templateType: formData.get('templateType') || 'INDIVIDUAL',
+        deliveryMethod: formData.get('deliveryMethod') || 'IN_PERSON',
     }
 
     const result = coursePeriodSchema.safeParse(raw)
@@ -92,6 +98,8 @@ export async function updateCoursePeriod(periodId: string, prevState: any, formD
                 endDate: result.data.endDate,
                 salesOpenAt: result.data.salesOpenAt,
                 salesCloseAt: result.data.salesCloseAt,
+                templateType: result.data.templateType ?? 'INDIVIDUAL',
+                deliveryMethod: result.data.deliveryMethod ?? 'IN_PERSON',
             }
         })
     } catch (e: any) {

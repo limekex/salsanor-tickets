@@ -2,6 +2,7 @@
 import { getCourseTrack } from '@/app/actions/courses'
 import { notFound } from 'next/navigation'
 import { RegistrationWizard } from './wizard'
+import type { CustomFieldDefinition } from '@/types/custom-fields'
 
 interface PageProps {
     params: Promise<{
@@ -18,9 +19,13 @@ export default async function RegisterPage({ params }: PageProps) {
         notFound()
     }
 
+    const customFields: CustomFieldDefinition[] = Array.isArray(track.CoursePeriod?.customFields)
+        ? (track.CoursePeriod.customFields as CustomFieldDefinition[])
+        : []
+
     return (
         <main className="container mx-auto py-rn-7 px-rn-4">
-            <RegistrationWizard track={track} periodId={periodId} />
+            <RegistrationWizard track={track} periodId={periodId} customFields={customFields} />
         </main>
     )
 }

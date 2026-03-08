@@ -15,11 +15,14 @@ import {
     FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { createStaffCoursePeriod, updateStaffCoursePeriod } from '@/app/actions/staffadmin-periods'
+import { createStaffCoursePeriod, updateStaffCoursePeriod, saveCustomFields } from '@/app/actions/staffadmin-periods'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { CoursePeriod, Category, Tag } from '@salsanor/database'
+import { CustomFieldBuilder } from '@/components/custom-field-builder'
+import type { CustomFieldDefinition } from '@/types/custom-fields'
+import { COURSE_TEMPLATE_LABELS, DELIVERY_METHOD_LABELS } from '@/types/custom-fields'
 
 interface StaffPeriodFormProps {
     period?: CoursePeriod & { categories?: Category[]; tags?: Tag[] }
@@ -34,6 +37,10 @@ export function StaffPeriodForm({ period, organizerIds, organizers, categories, 
     const [isPending, startTransition] = useTransition()
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(period?.categories?.map(c => c.id) ?? [])
     const [selectedTagIds, setSelectedTagIds] = useState<string[]>(period?.tags?.map(t => t.id) ?? [])
+    const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>(
+        Array.isArray(period?.customFields) ? (period.customFields as CustomFieldDefinition[]) : []
+    )
+    const [isSavingFields, setIsSavingFields] = useState(false)
     const isEditing = !!period
 
     // Filter to only show organizers the user manages
@@ -51,12 +58,16 @@ export function StaffPeriodForm({ period, organizerIds, organizers, categories, 
             endDate: period.endDate,
             salesOpenAt: period.salesOpenAt,
             salesCloseAt: period.salesCloseAt,
+            templateType: period.templateType ?? 'INDIVIDUAL',
+            deliveryMethod: period.deliveryMethod ?? 'IN_PERSON',
         } : {
             organizerId: availableOrganizers[0]?.id || '',
             code: '',
             name: '',
             city: 'Oslo',
             locationName: '',
+            templateType: 'INDIVIDUAL',
+            deliveryMethod: 'IN_PERSON',
         },
     })
 
@@ -80,6 +91,8 @@ export function StaffPeriodForm({ period, organizerIds, organizers, categories, 
         formData.append('salesCloseAt', new Date(data.salesCloseAt).toISOString())
         formData.append('categoryIds', JSON.stringify(selectedCategoryIds))
         formData.append('tagIds', JSON.stringify(selectedTagIds))
+        formData.append('templateType', data.templateType || 'INDIVIDUAL')
+        formData.append('deliveryMethod', data.deliveryMethod || 'IN_PERSON')
 
         startTransition(async () => {
             const result = isEditing
@@ -109,7 +122,18 @@ export function StaffPeriodForm({ period, organizerIds, organizers, categories, 
         })
     }
 
+    async function handleSaveCustomFields() {
+        if (!period?.id) return
+        setIsSavingFields(true)
+        try {
+            await saveCustomFields(period.id, customFields)
+        } finally {
+            setIsSavingFields(false)
+        }
+    }
+
     return (
+        <div className="space-y-6">
         <Card>
             <CardContent className="pt-6">
                 <Form {...form}>
@@ -199,6 +223,60 @@ export function StaffPeriodForm({ period, organizerIds, organizers, categories, 
                                         <FormControl>
                                             <Input placeholder="Sentralen" {...field} />
                                         </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormField
+                                control={form.control}
+                                name="templateType"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Course Template Type</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select template type" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {(Object.entries(COURSE_TEMPLATE_LABELS) as [string, string][]).map(([value, label]) => (
+                                                    <SelectItem key={value} value={value}>
+                                                        {label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>The type of course offering</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="deliveryMethod"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Delivery Method</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select delivery method" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {(Object.entries(DELIVERY_METHOD_LABELS) as [string, string][]).map(([value, label]) => (
+                                                    <SelectItem key={value} value={value}>
+                                                        {label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>How the course is delivered</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -323,5 +401,41 @@ export function StaffPeriodForm({ period, organizerIds, organizers, categories, 
                 </Form>
             </CardContent>
         </Card>
+
+        {/* Custom Fields Builder — only available when editing an existing period */}
+        <Card>
+            <CardHeader>
+                <CardTitle>Custom Registration Fields</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {!isEditing && (
+                    <p className="text-sm text-muted-foreground">
+                        Save the period first to add custom registration fields.
+                    </p>
+                )}
+                {isEditing && (
+                    <>
+                        <p className="text-sm text-muted-foreground">
+                            Add extra questions that participants must answer when registering for this course period.
+                        </p>
+                        <CustomFieldBuilder
+                            fields={customFields}
+                            onChange={setCustomFields}
+                        />
+                        <div className="flex justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleSaveCustomFields}
+                                disabled={isSavingFields}
+                            >
+                                {isSavingFields ? 'Saving...' : 'Save Custom Fields'}
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+        </div>
     )
 }

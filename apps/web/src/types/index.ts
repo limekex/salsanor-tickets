@@ -73,3 +73,6 @@ export type {
   CartItem,
   PricingBreakdown,
 } from './order'
+
+// Custom fields types
+export * from './custom-fields'

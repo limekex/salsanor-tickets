@@ -137,7 +137,10 @@ model CoursePeriod {
   organizerId  String
   description  String?
   featured     Boolean        @default(false)
-  imageUrl     String?
+  imageUrl       String?
+  templateType   CourseTemplateType @default(INDIVIDUAL)
+  deliveryMethod DeliveryMethod     @default(IN_PERSON)
+  customFields   Json?
   Organizer    Organizer      @relation(fields: [organizerId], references: [id])
   CourseTrack  CourseTrack[]
   DiscountRule DiscountRule[]
@@ -782,6 +785,7 @@ model Registration {
   refundAmount       Int?
   refundPercentage   Int?
   stripeRefundId     String?
+  customFieldValues  Json?
   CreditNote         CreditNote[]
   Order              Order?             @relation(fields: [orderId], references: [id])
   PairGroup          PairGroup?         @relation(fields: [pairGroupId], references: [id])
@@ -909,6 +913,25 @@ model WebhookEvent {
 
   @@index([processedAt])
   @@index([type])
+}
+
+enum CourseTemplateType {
+  CUSTOM
+  INDIVIDUAL
+  PARTNER
+  VIRTUAL
+  WORKSHOP
+  DROP_IN
+  KIDS_YOUTH
+  TEAM
+  SUBSCRIPTION
+  PRIVATE
+}
+
+enum DeliveryMethod {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
 }
 
 enum CheckInType {

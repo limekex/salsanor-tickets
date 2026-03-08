@@ -5,6 +5,7 @@ import { requireOrgAdmin, requireOrgAdminForOrganizer } from '@/utils/auth-org-a
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { coursePeriodSchema } from '@/lib/schemas/period'
+import { Prisma } from '@prisma/client'
 
 type ActionError = {
     _form?: string[]
@@ -25,6 +26,8 @@ export async function createStaffCoursePeriod(prevState: any, formData: FormData
             endDate: formData.get('endDate') as string,
             salesOpenAt: formData.get('salesOpenAt') as string,
             salesCloseAt: formData.get('salesCloseAt') as string,
+            templateType: formData.get('templateType') as string || 'INDIVIDUAL',
+            deliveryMethod: formData.get('deliveryMethod') as string || 'IN_PERSON',
         }
 
         const categoryIds = JSON.parse(formData.get('categoryIds') as string || '[]') as string[]
@@ -56,6 +59,8 @@ export async function createStaffCoursePeriod(prevState: any, formData: FormData
                 endDate: typeof result.data.endDate === 'string' ? new Date(result.data.endDate) : result.data.endDate,
                 salesOpenAt: typeof result.data.salesOpenAt === 'string' ? new Date(result.data.salesOpenAt) : result.data.salesOpenAt,
                 salesCloseAt: typeof result.data.salesCloseAt === 'string' ? new Date(result.data.salesCloseAt) : result.data.salesCloseAt,
+                templateType: result.data.templateType ?? 'INDIVIDUAL',
+                deliveryMethod: result.data.deliveryMethod ?? 'IN_PERSON',
                 Category: {
                     connect: categoryIds.map(id => ({ id }))
                 },
@@ -92,6 +97,8 @@ export async function updateStaffCoursePeriod(periodId: string, prevState: any, 
             endDate: formData.get('endDate'),
             salesOpenAt: formData.get('salesOpenAt'),
             salesCloseAt: formData.get('salesCloseAt'),
+            templateType: formData.get('templateType') || 'INDIVIDUAL',
+            deliveryMethod: formData.get('deliveryMethod') || 'IN_PERSON',
         }
 
         const categoryIds = JSON.parse(formData.get('categoryIds') as string || '[]') as string[]
@@ -118,6 +125,8 @@ export async function updateStaffCoursePeriod(periodId: string, prevState: any, 
                 endDate: result.data.endDate,
                 salesOpenAt: result.data.salesOpenAt,
                 salesCloseAt: result.data.salesCloseAt,
+                templateType: result.data.templateType ?? 'INDIVIDUAL',
+                deliveryMethod: result.data.deliveryMethod ?? 'IN_PERSON',
                 Category: {
                     set: categoryIds.map(id => ({ id }))
                 },
@@ -132,6 +141,22 @@ export async function updateStaffCoursePeriod(periodId: string, prevState: any, 
         return { success: true, periodId }
     } catch (e: any) {
         return { error: { _form: [e.message || 'An error occurred'] } }
+    }
+}
+
+export async function saveCustomFields(periodId: string, customFields: unknown): Promise<{ error?: string; success?: boolean }> {
+    try {
+        await requireOrgAdmin()
+
+        await prisma.coursePeriod.update({
+            where: { id: periodId },
+            data: { customFields: customFields as Prisma.InputJsonValue }
+        })
+
+        revalidatePath(`/staffadmin/periods/${periodId}`)
+        return { success: true }
+    } catch (e: any) {
+        return { error: e.message || 'Failed to save custom fields' }
     }
 }
 
