@@ -25,7 +25,8 @@ export async function requireOrgFinance() {
                     OR: [
                         { role: 'ORG_FINANCE' },
                         { role: 'ORG_ADMIN' }
-                    ]
+                    ],
+                    organizerId: { not: null }
                 },
                 include: {
                     Organizer: true

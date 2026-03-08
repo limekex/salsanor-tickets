@@ -22,7 +22,8 @@ export async function requireOrgAdmin() {
         include: {
             UserAccountRole: {
                 where: {
-                    role: 'ORG_ADMIN'
+                    role: 'ORG_ADMIN',
+                    organizerId: { not: null }
                 },
                 include: {
                     Organizer: true
@@ -31,7 +32,13 @@ export async function requireOrgAdmin() {
         }
     })
 
-    if (!userAccount || userAccount.UserAccountRole.length === 0) {
+    if (!userAccount) {
+        console.error(`[requireOrgAdmin] No UserAccount found for supabaseUid: ${user.id}`)
+        throw new Error(`Unauthorized: No account found for user ${user.email}. Please contact support.`)
+    }
+    
+    if (userAccount.UserAccountRole.length === 0) {
+        console.error(`[requireOrgAdmin] UserAccount ${userAccount.id} has no ORG_ADMIN roles with organizerId`)
         throw new Error('Unauthorized: Organization admin access required')
     }
 
@@ -66,19 +73,26 @@ export async function getSelectedOrganizerForAdmin() {
     let selectedOrgId = await getStaffAdminSelectedOrg()
     
     // Get list of orgs user has ORG_ADMIN access to
-    const availableOrgIds = userAccount.UserAccountRole.map(role => role.organizerId)
+    const availableOrgIds = userAccount.UserAccountRole
+        .map(role => role.organizerId)
+        .filter((id): id is string => id !== null)
+    
+    console.log(`[getSelectedOrganizerForAdmin] User ${userAccount.id} has ${availableOrgIds.length} org(s): ${availableOrgIds.join(', ')}`)
     
     // Validate selected org is in user's orgs
     if (selectedOrgId && !availableOrgIds.includes(selectedOrgId)) {
+        console.log(`[getSelectedOrganizerForAdmin] Selected org ${selectedOrgId} not in available orgs, clearing`)
         selectedOrgId = null
     }
     
     // If no valid selection, use first available org
     if (!selectedOrgId && availableOrgIds.length > 0) {
         selectedOrgId = availableOrgIds[0]
+        console.log(`[getSelectedOrganizerForAdmin] Auto-selecting first org: ${selectedOrgId}`)
     }
     
     if (!selectedOrgId) {
+        console.error(`[getSelectedOrganizerForAdmin] No organization access found. Roles:`, userAccount.UserAccountRole)
         throw new Error('No organization access found')
     }
     
