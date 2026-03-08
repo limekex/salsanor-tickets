@@ -8,47 +8,33 @@ async function main() {
 
     // 1. Cleanup previous test data (Idempotency)
     const testPeriodCode = 'FALL2026'
+    const templateTestPeriodCode = 'TEMPLATES2026'
 
-    // We try to find it first
-    const existingPeriod = await prisma.coursePeriod.findUnique({
-        where: { code: testPeriodCode }
+    // Helper to delete all data for a period by code
+    async function deletePeriodByCode(code: string) {
+        const existing = await prisma.coursePeriod.findUnique({ where: { code } })
+        if (!existing) return
+        console.log(`Deleting existing period ${code}...`)
+        await prisma.waitlistEntry.deleteMany({ where: { Registration: { periodId: existing.id } } })
+        await prisma.registration.deleteMany({ where: { periodId: existing.id } })
+        await prisma.payment.deleteMany({ where: { Order: { periodId: existing.id } } })
+        await prisma.order.deleteMany({ where: { periodId: existing.id } })
+        await prisma.ticket.deleteMany({ where: { periodId: existing.id } })
+        await prisma.discountRule.deleteMany({ where: { periodId: existing.id } })
+        await prisma.courseTrack.deleteMany({ where: { periodId: existing.id } })
+        await prisma.coursePeriod.delete({ where: { id: existing.id } })
+    }
+
+    await deletePeriodByCode(testPeriodCode)
+    await deletePeriodByCode(templateTestPeriodCode)
+
+    // Delete @test.com users
+    const testUsers = await prisma.userAccount.findMany({
+        where: { email: { contains: '@test.com' } }
     })
-
-    if (existingPeriod) {
-        console.log('Deleting existing test period...')
-        // Delete in correct order to handle foreign keys
-        // 1. Delete waitlist entries first (references registrations)
-        await prisma.waitlistEntry.deleteMany({
-            where: {
-                Registration: { periodId: existingPeriod.id }
-            }
-        })
-        // 2. Delete registrations (references tracks and orders)
-        await prisma.registration.deleteMany({ where: { periodId: existingPeriod.id } })
-        // 3. Delete payments (references orders)
-        await prisma.payment.deleteMany({
-            where: {
-                Order: { periodId: existingPeriod.id }
-            }
-        })
-        // 4. Delete orders
-        await prisma.order.deleteMany({ where: { periodId: existingPeriod.id } })
-        // 4. Delete tickets
-        await prisma.ticket.deleteMany({ where: { periodId: existingPeriod.id } })
-        // 5. Delete person profiles and user accounts (if they're test users)
-        const testUsers = await prisma.userAccount.findMany({
-            where: { email: { contains: '@test.com' } }
-        })
-        for (const user of testUsers) {
-            await prisma.personProfile.deleteMany({ where: { userId: user.id } })
-            await prisma.userAccount.delete({ where: { id: user.id } })
-        }
-        // 6. Delete discount rules
-        await prisma.discountRule.deleteMany({ where: { periodId: existingPeriod.id } })
-        // 7. Delete tracks
-        await prisma.courseTrack.deleteMany({ where: { periodId: existingPeriod.id } })
-        // 8. Finally delete period
-        await prisma.coursePeriod.delete({ where: { id: existingPeriod.id } })
+    for (const user of testUsers) {
+        await prisma.personProfile.deleteMany({ where: { userId: user.id } })
+        await prisma.userAccount.delete({ where: { id: user.id } })
     }
 
     // 2. Create Organizers
@@ -766,6 +752,305 @@ async function main() {
     console.log('  - Bachata Workshop (Oslo, May 9) - Published, Role-balanced')
     console.log('  - Summer Dance Festival (Oslo, June 19-21) - Published, Multi-day, Featured')
     console.log('  - Kizomba Night (Bergen, April 25) - Draft')
+
+    // 8. Create Template Test Period (demonstrates all new course template types and custom fields)
+    console.log('\nCreating template test period...')
+
+    const templatePeriod = await prisma.coursePeriod.create({
+        data: {
+            organizerId: salsanorOslo.id,
+            name: 'Course Templates Test 2026',
+            code: templateTestPeriodCode,
+            city: 'Oslo',
+            startDate: new Date('2026-09-01'),
+            endDate: new Date('2026-12-15'),
+            salesOpenAt: new Date('2026-03-01'),
+            salesCloseAt: new Date('2026-09-15'),
+            templateType: 'INDIVIDUAL',
+            deliveryMethod: 'IN_PERSON',
+            description: 'Test period showcasing all course template types introduced in Issue #13',
+        }
+    })
+
+    // --- INDIVIDUAL: Yoga class with health custom fields ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Morning Yoga (Individual)',
+            description: 'A weekly yoga class for all levels. No partner required.',
+            weekday: 1, // Monday
+            timeStart: '07:00',
+            timeEnd: '08:00',
+            levelLabel: 'All levels',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
+            capacityTotal: 20,
+            priceSingleCents: 120000,
+        }
+    })
+
+    // --- PARTNER: Salsa with role selection and custom fields ---
+    const partnerTrack = await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Salsa Beginner (Partner)',
+            description: 'Classic partner salsa course for beginners. Includes experience-level survey.',
+            weekday: 2, // Tuesday
+            timeStart: '19:00',
+            timeEnd: '20:00',
+            levelLabel: 'Beginner',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
+            capacityTotal: 30,
+            priceSingleCents: 150000,
+            pricePairCents: 250000,
+        }
+    })
+
+    // Update the period with custom fields that apply to this template test
+    // (Custom fields are stored at the period level, so all tracks share them)
+    await prisma.coursePeriod.update({
+        where: { id: templatePeriod.id },
+        data: {
+            customFields: [
+                {
+                    id: 'exp-level',
+                    type: 'SELECT',
+                    label: 'Dance experience level',
+                    required: true,
+                    options: [
+                        { value: 'none', label: 'Complete beginner (no experience)' },
+                        { value: 'some', label: 'Some experience (0–1 year)' },
+                        { value: 'intermediate', label: 'Intermediate (1–3 years)' },
+                        { value: 'advanced', label: 'Advanced (3+ years)' }
+                    ],
+                    order: 0
+                },
+                {
+                    id: 'hear-about',
+                    type: 'RADIO',
+                    label: 'How did you hear about us?',
+                    required: false,
+                    options: [
+                        { value: 'friend', label: 'Friend or family' },
+                        { value: 'social', label: 'Social media' },
+                        { value: 'google', label: 'Google / web search' },
+                        { value: 'other', label: 'Other' }
+                    ],
+                    order: 1
+                },
+                {
+                    id: 'tshirt',
+                    type: 'SELECT',
+                    label: 'T-shirt size (included with registration)',
+                    required: true,
+                    options: [
+                        { value: 'xs', label: 'XS' },
+                        { value: 's', label: 'S' },
+                        { value: 'm', label: 'M' },
+                        { value: 'l', label: 'L' },
+                        { value: 'xl', label: 'XL' },
+                        { value: 'xxl', label: 'XXL' }
+                    ],
+                    order: 2
+                },
+                {
+                    id: 'notes',
+                    type: 'TEXTAREA',
+                    label: 'Any additional notes for the instructor?',
+                    required: false,
+                    placeholder: 'e.g. injuries, special requests…',
+                    order: 3
+                }
+            ]
+        }
+    })
+
+    // --- VIRTUAL: Online fitness class ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Online Fitness (Virtual)',
+            description: 'Live-streamed fitness class via Zoom. Join from anywhere.',
+            weekday: 3, // Wednesday
+            timeStart: '18:00',
+            timeEnd: '19:00',
+            levelLabel: 'All levels',
+            capacityTotal: 100,
+            priceSingleCents: 80000,
+        }
+    })
+
+    // --- WORKSHOP: One-time masterclass ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Bachata Masterclass (Workshop)',
+            description: 'Single-session masterclass with a guest instructor. No recurring commitment.',
+            weekday: 6, // Saturday
+            timeStart: '13:00',
+            timeEnd: '16:00',
+            levelLabel: 'Intermediate+',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
+            capacityTotal: 40,
+            priceSingleCents: 59900,
+            pricePairCents: 99900,
+        }
+    })
+
+    // --- DROP_IN: Open gym / practice session ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Open Practice (Drop-In)',
+            description: 'No commitment required. Drop in whenever you like. Pay per session.',
+            weekday: 5, // Friday
+            timeStart: '20:00',
+            timeEnd: '22:00',
+            levelLabel: 'All levels',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
+            capacityTotal: 50,
+            priceSingleCents: 15000, // 150 kr per session
+        }
+    })
+
+    // --- KIDS_YOUTH: After-school dance class ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Kids Dance Class (Kids/Youth)',
+            description: 'Fun dance class for kids aged 6–12. Guardian contact required at registration.',
+            weekday: 4, // Thursday
+            timeStart: '16:00',
+            timeEnd: '17:00',
+            levelLabel: 'Beginner',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
+            capacityTotal: 15,
+            priceSingleCents: 100000,
+        }
+    })
+
+    // --- TEAM: Group / corporate booking ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Team Building Dance (Team)',
+            description: 'Corporate team-building dance session. Register your whole team.',
+            weekday: 2, // Tuesday
+            timeStart: '17:00',
+            timeEnd: '18:30',
+            levelLabel: 'All levels',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
+            capacityTotal: 60,
+            priceSingleCents: 75000, // Per person
+        }
+    })
+
+    // --- SUBSCRIPTION: Unlimited monthly access ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Unlimited Monthly Access (Subscription)',
+            description: 'Subscribe and attend as many classes as you want each month.',
+            weekday: 0, // Sunday (placeholder weekday for subscription)
+            timeStart: '00:00',
+            timeEnd: '00:00',
+            levelLabel: 'All levels',
+            capacityTotal: 999,
+            priceSingleCents: 199900, // 1999 kr / month
+        }
+    })
+
+    // --- PRIVATE: 1-on-1 coaching session ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Private Lesson (Private/1-on-1)',
+            description: 'Book a private lesson with your preferred instructor.',
+            weekday: 6, // Saturday
+            timeStart: '10:00',
+            timeEnd: '11:00',
+            levelLabel: 'All levels',
+            locationName: 'SalsaNor Studio',
+            locationAddress: 'Torggata 15, 0181 Oslo',
+            capacityTotal: 1,
+            priceSingleCents: 89900, // 899 kr per session
+        }
+    })
+
+    // --- CUSTOM: Fully configurable course ---
+    await prisma.courseTrack.create({
+        data: {
+            periodId: templatePeriod.id,
+            title: 'Cooking Class (Custom)',
+            description: 'A custom course type using the CUSTOM template for anything not covered by other templates.',
+            weekday: 3, // Wednesday
+            timeStart: '18:30',
+            timeEnd: '21:00',
+            levelLabel: 'All levels',
+            locationName: 'Matkurs Studio',
+            capacityTotal: 12,
+            priceSingleCents: 89900,
+        }
+    })
+
+    // Add a test registration with customFieldValues to demonstrate the full flow
+    const templateUser = await prisma.userAccount.create({
+        data: {
+            supabaseUid: 'test-template-user',
+            email: 'template@test.com',
+            PersonProfile: {
+                create: {
+                    firstName: 'Template',
+                    lastName: 'Tester',
+                    email: 'template@test.com',
+                    phone: '+47 123 99 000'
+                }
+            }
+        },
+        include: { PersonProfile: true }
+    })
+
+    await prisma.order.create({
+        data: {
+            organizerId: salsanorOslo.id,
+            periodId: templatePeriod.id,
+            purchaserPersonId: templateUser.PersonProfile!.id,
+            status: 'PAID',
+            subtotalCents: 150000,
+            discountCents: 0,
+            subtotalAfterDiscountCents: 150000,
+            mvaCents: 0,
+            totalCents: 150000,
+            pricingSnapshot: JSON.stringify({ subtotalCents: 150000, finalTotalCents: 150000 }),
+            Registration: {
+                create: {
+                    periodId: templatePeriod.id,
+                    trackId: partnerTrack.id,
+                    personId: templateUser.PersonProfile!.id,
+                    status: 'ACTIVE',
+                    chosenRole: 'LEADER',
+                    customFieldValues: {
+                        'exp-level': 'intermediate',
+                        'hear-about': 'social',
+                        'tshirt': 'l',
+                        'notes': 'Minor left knee issue, please notify instructor.'
+                    }
+                }
+            }
+        }
+    })
+
+    console.log(`✅ Created template test period "${templatePeriod.name}" (${templateTestPeriodCode})`)
+    console.log('   Tracks: Individual (Yoga), Partner (Salsa), Virtual (Online Fitness),')
+    console.log('           Workshop (Bachata Masterclass), Drop-In (Open Practice),')
+    console.log('           Kids/Youth (Kids Dance), Team (Team Building), Subscription, Private, Custom')
+    console.log('   Custom fields: exp-level (SELECT), hear-about (RADIO), tshirt (SELECT), notes (TEXTAREA)')
+    console.log('   Test registration with customFieldValues: template@test.com')
 
     console.log('\n✅ Seed complete!')
 }
