@@ -31,22 +31,30 @@ import { useTransition } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ImageUpload } from '@/components/image-upload'
 import { LocationPicker, type LocationValue } from '@/components/location-picker'
-import { ExternalLink, Clock, MapPin, Users, CreditCard, Image as ImageIcon, ScanLine } from 'lucide-react'
+import { ExternalLink, Clock, MapPin, Users, CreditCard, Image as ImageIcon, ScanLine, Info } from 'lucide-react'
 import Link from 'next/link'
-import type { CourseTrack } from '@salsanor/database'
+import type { CourseTrack, CourseTemplateType, DeliveryMethod } from '@salsanor/database'
+import { COURSE_TEMPLATE_LABELS, DELIVERY_METHOD_LABELS } from '@/types/custom-fields'
 
 const DEFAULT_CHECK_IN_WINDOW = 30 // minutes
+const DEFAULT_ROLE_CAPACITY = 10 // default leaders / followers cap for PARTNER template
 
 interface StaffTrackFormProps {
     periodId: string
     track?: CourseTrack
     hasMembershipProduct?: boolean
+    templateType?: CourseTemplateType
+    deliveryMethod?: DeliveryMethod
 }
 
-export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }: StaffTrackFormProps) {
+export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, templateType = 'INDIVIDUAL', deliveryMethod = 'IN_PERSON' }: StaffTrackFormProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
     const isEditing = !!track
+
+    // PARTNER is the only template where pair pricing and role-based capacity make sense
+    const isPartner = templateType === 'PARTNER'
+    const isVirtual = deliveryMethod === 'VIRTUAL' || deliveryMethod === 'HYBRID'
     
     // Determine initial pricing type based on whether member prices are set
     const hasMemberPricing = track?.memberPriceSingleCents !== null && track?.memberPriceSingleCents !== undefined && track.memberPriceSingleCents > 0
@@ -107,8 +115,8 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
             latitude: undefined,
             longitude: undefined,
             capacityTotal: 20,
-            capacityLeaders: 10,
-            capacityFollowers: 10,
+            capacityLeaders: isPartner ? DEFAULT_ROLE_CAPACITY : undefined,
+            capacityFollowers: isPartner ? DEFAULT_ROLE_CAPACITY : undefined,
             rolePolicy: 'ANY',
             waitlistEnabled: true,
             allowSelfCheckIn: false,
@@ -198,6 +206,18 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Template / Delivery context badge */}
+                <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+                    <Info className="h-4 w-4 shrink-0" />
+                    <span>
+                        Period template:{' '}
+                        <span className="font-medium text-foreground">{COURSE_TEMPLATE_LABELS[templateType]}</span>
+                        {' · '}
+                        Delivery:{' '}
+                        <span className="font-medium text-foreground">{DELIVERY_METHOD_LABELS[deliveryMethod]}</span>
+                    </span>
+                </div>
+
                 {/* Basic Info Section */}
                 <Card>
                     <CardHeader className="pb-4">
@@ -353,7 +373,11 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                             <MapPin className="h-5 w-5" />
                             Location
                         </CardTitle>
-                        <CardDescription>Where does the course take place? Used for Wallet Tickets.</CardDescription>
+                        <CardDescription>
+                            {isVirtual
+                                ? 'For virtual / hybrid sessions this is optional — used for Wallet Tickets and check-in geofencing if applicable.'
+                                : 'Where does the course take place? Used for Wallet Tickets.'}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <LocationPicker
@@ -368,12 +392,12 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                     <CardHeader className="pb-4">
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <Users className="h-5 w-5" />
-                            Capacity & Roles
+                            Capacity {isPartner && '& Roles'}
                         </CardTitle>
                         <CardDescription>How many participants can join?</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className={`grid gap-4 ${isPartner ? 'grid-cols-3' : 'grid-cols-1 max-w-xs'}`}>
                             <FormField
                                 control={form.control}
                                 name="capacityTotal"
@@ -387,53 +411,83 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                                     </FormItem>
                                 )}
                             />
-                            <FormField
-                                control={form.control}
-                                name="capacityLeaders"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Leaders Cap (Optional)</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="capacityFollowers"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Followers Cap (Optional)</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            {isPartner && (
+                                <>
+                                    <FormField
+                                        control={form.control}
+                                        name="capacityLeaders"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Leaders Cap (Optional)</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="capacityFollowers"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Followers Cap (Optional)</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </>
+                            )}
                         </div>
+
+                        {isPartner && (
+                            <FormField
+                                control={form.control}
+                                name="rolePolicy"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Role Policy</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select policy" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="ANY">Any (No specific ratio)</SelectItem>
+                                                <SelectItem value="LEADER">Leader Only</SelectItem>
+                                                <SelectItem value="FOLLOWER">Follower Only</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>ANY allows both Leaders and Followers</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        )}
 
                         <FormField
                             control={form.control}
-                            name="rolePolicy"
+                            name="waitlistEnabled"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Role Policy</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <div className="flex items-center gap-3">
                                         <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select policy" />
-                                            </SelectTrigger>
+                                            <input
+                                                type="checkbox"
+                                                id="waitlistEnabled"
+                                                checked={field.value}
+                                                onChange={field.onChange}
+                                                className="h-4 w-4 cursor-pointer"
+                                            />
                                         </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="ANY">Any (No specific ratio)</SelectItem>
-                                            <SelectItem value="LEADER">Leader Only</SelectItem>
-                                            <SelectItem value="FOLLOWER">Follower Only</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>ANY allows both Leaders and Followers</FormDescription>
+                                        <FormLabel htmlFor="waitlistEnabled" className="cursor-pointer font-normal">
+                                            Enable waitlist when full
+                                        </FormLabel>
+                                    </div>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -637,13 +691,13 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className={`grid gap-4 ${isPartner ? 'grid-cols-2' : 'grid-cols-1 max-w-xs'}`}>
                             <FormField
                                 control={form.control}
                                 name="priceSingleCents"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Single Price (øre/cents)</FormLabel>
+                                        <FormLabel>Price (øre/cents)</FormLabel>
                                         <FormControl>
                                             <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
                                         </FormControl>
@@ -652,19 +706,21 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                                     </FormItem>
                                 )}
                             />
-                            <FormField
-                                control={form.control}
-                                name="pricePairCents"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Pair Price (øre) - Optional</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            {isPartner && (
+                                <FormField
+                                    control={form.control}
+                                    name="pricePairCents"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Pair Price (øre) - Optional</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
                         </div>
 
                         {/* Member Pricing Section */}
@@ -700,13 +756,13 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                                 
                                 {memberPriceType === 'fixed' && (
                                     <div className="ml-6 space-y-4 pt-2">
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className={`grid gap-4 ${isPartner ? 'grid-cols-2' : 'grid-cols-1 max-w-xs'}`}>
                                             <FormField
                                                 control={form.control}
                                                 name="memberPriceSingleCents"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>Member Single Price (øre)</FormLabel>
+                                                        <FormLabel>Member Price (øre)</FormLabel>
                                                         <FormControl>
                                                             <Input 
                                                                 type="number" 
@@ -720,24 +776,26 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false }
                                                     </FormItem>
                                                 )}
                                             />
-                                            <FormField
-                                                control={form.control}
-                                                name="memberPricePairCents"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Member Pair Price (øre) - Optional</FormLabel>
-                                                        <FormControl>
-                                                            <Input 
-                                                                type="number" 
-                                                                {...field} 
-                                                                value={field.value || ''} 
-                                                                onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                            {isPartner && (
+                                                <FormField
+                                                    control={form.control}
+                                                    name="memberPricePairCents"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Member Pair Price (øre) - Optional</FormLabel>
+                                                            <FormControl>
+                                                                <Input 
+                                                                    type="number" 
+                                                                    {...field} 
+                                                                    value={field.value || ''} 
+                                                                    onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 )}

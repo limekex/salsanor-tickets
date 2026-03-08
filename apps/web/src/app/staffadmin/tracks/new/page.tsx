@@ -56,12 +56,23 @@ export default async function NewStaffTrackPage({
     })
     const hasMembershipProduct = organizer?.membershipEnabled ?? false
 
+    // Fetch full period details for template/delivery context
+    const fullPeriod = await prisma.coursePeriod.findUnique({
+        where: { id: periodId },
+        select: { templateType: true, deliveryMethod: true }
+    })
+
     return (
         <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold tracking-tight">New Course Track</h2>
             </div>
-            <StaffTrackForm periodId={periodId} hasMembershipProduct={hasMembershipProduct} />
+            <StaffTrackForm
+                periodId={periodId}
+                hasMembershipProduct={hasMembershipProduct}
+                templateType={fullPeriod?.templateType ?? 'INDIVIDUAL'}
+                deliveryMethod={fullPeriod?.deliveryMethod ?? 'IN_PERSON'}
+            />
         </div>
     )
 }
