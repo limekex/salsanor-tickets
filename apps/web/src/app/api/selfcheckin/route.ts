@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         // Validate track
         const track = await prisma.courseTrack.findUnique({
             where: { id: trackId },
-            include: { CoursePeriod: { select: { id: true, name: true } } }
+            include: { CoursePeriod: { select: { id: true, name: true, startDate: true, endDate: true } } }
         })
 
         if (!track) {
@@ -61,8 +61,14 @@ export async function POST(req: Request) {
 
         const sessionDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
 
-        // Check-in window enforcement
-        const windowError = validateCheckInWindow(track.timeStart, track.checkInWindowBefore, track.checkInWindowAfter)
+        // Check-in window enforcement (includes period date validation)
+        const windowError = validateCheckInWindow(
+            track.timeStart, 
+            track.checkInWindowBefore, 
+            track.checkInWindowAfter,
+            track.CoursePeriod.startDate,
+            track.CoursePeriod.endDate
+        )
         if (windowError) {
             return NextResponse.json({ valid: false, message: windowError, outsideWindow: true })
         }
@@ -233,7 +239,7 @@ export async function GET(req: Request) {
                 timeStart: true,
                 checkInWindowBefore: true,
                 checkInWindowAfter: true,
-                CoursePeriod: { select: { name: true } }
+                CoursePeriod: { select: { name: true, startDate: true, endDate: true } }
             }
         })
 
@@ -249,7 +255,9 @@ export async function GET(req: Request) {
             weekday: track.weekday,
             timeStart: track.timeStart,
             checkInWindowBefore: track.checkInWindowBefore ?? 30,
-            checkInWindowAfter: track.checkInWindowAfter ?? 30
+            checkInWindowAfter: track.checkInWindowAfter ?? 30,
+            periodStartDate: track.CoursePeriod.startDate,
+            periodEndDate: track.CoursePeriod.endDate
         })
     } catch (error) {
         console.error('Self check-in track lookup error:', error)

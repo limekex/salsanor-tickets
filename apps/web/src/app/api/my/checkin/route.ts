@@ -73,7 +73,9 @@ export async function GET() {
                 CoursePeriod: {
                     select: {
                         id: true,
-                        name: true
+                        name: true,
+                        startDate: true,
+                        endDate: true
                     }
                 },
                 Attendance: {
@@ -126,7 +128,9 @@ export async function GET() {
                     longitude: reg.CourseTrack.longitude,
                     registrationId: reg.id,
                     alreadyCheckedIn: !!attendance,
-                    checkedInTime
+                    checkedInTime,
+                    periodStartDate: reg.CoursePeriod.startDate.toISOString(),
+                    periodEndDate: reg.CoursePeriod.endDate.toISOString()
                 }
             })
         )
@@ -242,8 +246,14 @@ export async function POST(req: Request) {
             })
         }
 
-        // Check-in window enforcement
-        const windowError = validateCheckInWindow(track.timeStart, track.checkInWindowBefore, track.checkInWindowAfter)
+        // Check-in window enforcement (includes period date validation)
+        const windowError = validateCheckInWindow(
+            track.timeStart, 
+            track.checkInWindowBefore, 
+            track.checkInWindowAfter,
+            track.CoursePeriod.startDate,
+            track.CoursePeriod.endDate
+        )
         if (windowError) {
             return NextResponse.json({ success: false, error: windowError })
         }

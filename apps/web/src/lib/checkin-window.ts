@@ -12,15 +12,38 @@ export function validateCheckInWindow(
     timeStart: string,                    // "HH:MM"
     checkInWindowBefore: number | null | undefined, // minutes before class start (default 30)
     checkInWindowAfter: number | null | undefined,  // minutes after class start (default 30)
+    periodStartDate?: Date | null,        // Period start date
+    periodEndDate?: Date | null,          // Period end date
 ): string | null {
     const windowBefore = checkInWindowBefore ?? 30
     const windowAfter = checkInWindowAfter ?? 30
 
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    // Check period date range first
+    if (periodStartDate) {
+        const startDate = new Date(periodStartDate)
+        const periodStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+        if (today < periodStart) {
+            const daysUntil = Math.ceil((periodStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            const formattedDate = periodStart.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+            return `This course period hasn't started yet. Classes begin on ${formattedDate} (in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}).`
+        }
+    }
+
+    if (periodEndDate) {
+        const endDate = new Date(periodEndDate)
+        const periodEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+        if (today > periodEnd) {
+            const formattedDate = periodEnd.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+            return `This course period has ended. The semester concluded on ${formattedDate}.`
+        }
+    }
+
     // Parse timeStart into hours and minutes
     const [startHour, startMin] = timeStart.split(':').map(Number)
     if (isNaN(startHour) || isNaN(startMin)) return null // can't validate, allow through
-
-    const now = new Date()
 
     // Compute class start as a Date on today's date in LOCAL time
     const classStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMin, 0)

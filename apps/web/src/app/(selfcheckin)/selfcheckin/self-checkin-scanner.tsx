@@ -25,6 +25,18 @@ type TrackInfo = {
     timeStart: string
     checkInWindowBefore: number
     checkInWindowAfter: number
+    periodStartDate?: string
+    periodEndDate?: string
+}
+
+type WindowStatus = {
+    isOpen: boolean
+    secondsUntilOpen?: number
+    secondsUntilClose?: number
+    isClosed?: boolean
+    periodNotStarted?: boolean
+    periodEnded?: boolean
+    periodMessage?: string
 }
 
 type Props = {
@@ -36,13 +48,44 @@ const weekdayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
 
 /**
  * Calculate time until check-in window opens/closes
- * Returns: { isOpen: boolean, secondsUntilOpen?: number, secondsUntilClose?: number }
+ * Also checks if current date is within the period date range
+ * Returns: { isOpen: boolean, secondsUntilOpen?: number, secondsUntilClose?: number, periodNotStarted?: boolean, periodEnded?: boolean, periodMessage?: string }
  */
-function calculateWindowStatus(track: TrackInfo) {
+function calculateWindowStatus(track: TrackInfo): WindowStatus {
     const [startHour, startMin] = track.timeStart.split(':').map(Number)
     if (isNaN(startHour) || isNaN(startMin)) return { isOpen: true }
 
     const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    // Check period date range first
+    if (track.periodStartDate) {
+        const startDate = new Date(track.periodStartDate)
+        const periodStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+        if (today < periodStart) {
+            const daysUntil = Math.ceil((periodStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            const formattedDate = periodStart.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+            return { 
+                isOpen: false, 
+                periodNotStarted: true, 
+                periodMessage: `Course period starts ${formattedDate} (${daysUntil} day${daysUntil !== 1 ? 's' : ''})` 
+            }
+        }
+    }
+
+    if (track.periodEndDate) {
+        const endDate = new Date(track.periodEndDate)
+        const periodEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+        if (today > periodEnd) {
+            const formattedDate = periodEnd.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+            return { 
+                isOpen: false, 
+                periodEnded: true, 
+                periodMessage: `Course period ended ${formattedDate}` 
+            }
+        }
+    }
+
     const classStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMin, 0)
     const windowOpen = new Date(classStart.getTime() - track.checkInWindowBefore * 60 * 1000)
     const windowClose = new Date(classStart.getTime() + track.checkInWindowAfter * 60 * 1000)
@@ -77,7 +120,7 @@ export default function SelfCheckInScanner({ trackId, allowOverride = false }: P
     const [loading, setLoading] = useState(false)
 
     // Window timing
-    const [windowStatus, setWindowStatus] = useState<{ isOpen: boolean; secondsUntilOpen?: number; isClosed?: boolean }>({ isOpen: true })
+    const [windowStatus, setWindowStatus] = useState<WindowStatus>({ isOpen: true })
 
     // Phone form
     const [phoneInput, setPhoneInput] = useState('')
@@ -271,7 +314,21 @@ export default function SelfCheckInScanner({ trackId, allowOverride = false }: P
                     </CardHeader>
                     <CardContent className="text-center space-y-rn-4">
                         <Clock className="h-16 w-16 text-rn-text-muted mx-auto" />
-                        {windowStatus.isClosed ? (
+                        {windowStatus.periodNotStarted ? (
+                            <>
+                                <p className="rn-h2 text-amber-600">Course Not Started</p>
+                                <p className="rn-body text-rn-text-muted">
+                                    {windowStatus.periodMessage}
+                                </p>
+                            </>
+                        ) : windowStatus.periodEnded ? (
+                            <>
+                                <p className="rn-h2 text-rn-text-muted">Course Ended</p>
+                                <p className="rn-body text-rn-text-muted">
+                                    {windowStatus.periodMessage}
+                                </p>
+                            </>
+                        ) : windowStatus.isClosed ? (
                             <>
                                 <p className="rn-h2 text-rn-danger">Check-in Closed</p>
                                 <p className="rn-body text-rn-text-muted">

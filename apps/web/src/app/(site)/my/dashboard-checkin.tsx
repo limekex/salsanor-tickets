@@ -22,6 +22,8 @@ type TrackWithStatus = {
   registrationId: string
   alreadyCheckedIn: boolean
   checkedInTime?: string
+  periodStartDate?: string
+  periodEndDate?: string
 }
 
 type UpcomingDay = {
@@ -34,16 +36,50 @@ type WindowStatus = {
   secondsUntilOpen?: number
   secondsUntilClose?: number
   isClosed?: boolean
+  periodNotStarted?: boolean
+  periodEnded?: boolean
+  periodMessage?: string
 }
 
 /**
  * Calculate time until check-in window opens/closes
+ * Also checks if current date is within the period date range
  */
 function calculateWindowStatus(track: TrackWithStatus): WindowStatus {
   const [startHour, startMin] = track.timeStart.split(':').map(Number)
   if (isNaN(startHour) || isNaN(startMin)) return { isOpen: true }
 
   const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Check period date range first
+  if (track.periodStartDate) {
+    const startDate = new Date(track.periodStartDate)
+    const periodStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+    if (today < periodStart) {
+      const daysUntil = Math.ceil((periodStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      const formattedDate = periodStart.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+      return { 
+        isOpen: false, 
+        periodNotStarted: true, 
+        periodMessage: `Course starts ${formattedDate} (${daysUntil} day${daysUntil !== 1 ? 's' : ''})` 
+      }
+    }
+  }
+
+  if (track.periodEndDate) {
+    const endDate = new Date(track.periodEndDate)
+    const periodEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+    if (today > periodEnd) {
+      const formattedDate = periodEnd.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+      return { 
+        isOpen: false, 
+        periodEnded: true, 
+        periodMessage: `Course ended ${formattedDate}` 
+      }
+    }
+  }
+
   const classStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour, startMin, 0)
   const windowOpen = new Date(classStart.getTime() - track.checkInWindowBefore * 60 * 1000)
   const windowClose = new Date(classStart.getTime() + track.checkInWindowAfter * 60 * 1000)
@@ -181,6 +217,40 @@ function CheckInItem({ track, onCheckIn, loading, gettingLocation }: CheckInItem
             <p className="font-medium">{track.title}</p>
             <p className="text-sm text-muted-foreground">
               Check-in window has closed
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Period not yet started
+  if (windowStatus.periodNotStarted) {
+    return (
+      <div className="flex items-center justify-between p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-5 w-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="font-medium">{track.title}</p>
+            <p className="text-sm text-muted-foreground">
+              {windowStatus.periodMessage}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Period has ended
+  if (windowStatus.periodEnded) {
+    return (
+      <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-slate-400 shrink-0" />
+          <div>
+            <p className="font-medium">{track.title}</p>
+            <p className="text-sm text-muted-foreground">
+              {windowStatus.periodMessage}
             </p>
           </div>
         </div>
