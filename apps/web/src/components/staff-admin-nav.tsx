@@ -98,7 +98,7 @@ export function StaffAdminNav({ organizers, currentOrgId, onOrgChange }: StaffAd
     const pathname = usePathname()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
-    const { roles } = useOrganizerAccess()
+    const { roles } = useOrganizerAccess(currentOrgId ?? undefined)
     
     // Prevent hydration mismatch
     useEffect(() => {
