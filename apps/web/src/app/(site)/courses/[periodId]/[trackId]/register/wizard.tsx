@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -15,13 +15,26 @@ import { CustomFieldsForm } from '@/components/custom-fields-form'
 import type { CustomFieldDefinition, CustomFieldValues } from '@/types/custom-fields'
 import { validateCustomFields } from '@/types/custom-fields'
 
-interface WizardProps {
-    track: any // Type this properly if shared types available
-    periodId: string
-    customFields?: CustomFieldDefinition[]
+interface WizardTrack {
+    id: string
+    title: string
+    priceSingleCents: number
+    pricePairCents?: number | null
+    CoursePeriod?: {
+        Organizer?: { id?: string; name?: string }
+    } | null
 }
 
-export function RegistrationWizard({ track, periodId, customFields = [] }: WizardProps) {
+interface WizardProps {
+    track: WizardTrack
+    periodId: string
+    customFields?: CustomFieldDefinition[]
+    templateType?: string
+}
+
+export function RegistrationWizard({ track, periodId, customFields = [], templateType = 'INDIVIDUAL' }: WizardProps) {
+    const isPartner = templateType === 'PARTNER'
+
     const [step, setStep] = useState(1)
     const [role, setRole] = useState<'LEADER' | 'FOLLOWER' | null>(null)
     const [hasPartner, setHasPartner] = useState(false)
@@ -32,7 +45,20 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
     const router = useRouter()
 
     const hasCustomFields = customFields.length > 0
-    const totalSteps = hasCustomFields ? 4 : 3
+
+    /*
+     * Step layout by template type:
+     *
+     * PARTNER  : 1=Role  2=Partner  [3=CustomFields]  last=Summary
+     * others   : [1=CustomFields]  last=Summary
+     *
+     * We normalise: for non-PARTNER the first real step is always 1.
+     * The PARTNER path injects 2 extra steps at the front.
+     */
+    const partnerSteps = isPartner ? 2 : 0
+    const customFieldStep = hasCustomFields ? partnerSteps + 1 : null
+    const summaryStep = (hasCustomFields ? 1 : 0) + partnerSteps + 1
+    const totalSteps = summaryStep
 
     const currentOrganizerId = track.CoursePeriod?.Organizer?.id
     const currentOrganizerName = track.CoursePeriod?.Organizer?.name
@@ -40,19 +66,31 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
     const cartOrganizerName = getCartOrganizerName()
     const isDifferentOrganizer = !!(cartOrganizerId && cartOrganizerId !== currentOrganizerId)
 
-    const price = hasPartner && track.pricePairCents
+    const price = isPartner && hasPartner && track.pricePairCents
         ? track.pricePairCents / 100
         : track.priceSingleCents / 100
 
-    const priceLabel = hasPartner && track.pricePairCents
+    const priceLabel = isPartner && hasPartner && track.pricePairCents
         ? 'Total Couple Price'
         : 'Total Price'
 
-    // Step mapping: 1=Role, 2=Partner, 3=CustomFields (if any), summary=last step
-    const summaryStep = totalSteps
+    function handleNext() {
+        // Validate custom fields before advancing past that step
+        if (customFieldStep !== null && step === customFieldStep) {
+            const errors = validateCustomFields(customFields, customFieldValues)
+            if (Object.keys(errors).length > 0) {
+                setCustomFieldErrors(errors)
+                return
+            }
+            setCustomFieldErrors({})
+        }
+        setStep(s => s + 1)
+    }
 
     function handleAddToCart() {
-        if (!role || !currentOrganizerId || !currentOrganizerName) return
+        if (!currentOrganizerId || !currentOrganizerName) return
+        // For PARTNER, role is required; for others it is not
+        if (isPartner && !role) return
 
         addCourseItem({
             trackId: track.id,
@@ -60,9 +98,9 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
             periodId,
             organizerId: currentOrganizerId,
             organizerName: currentOrganizerName,
-            role,
-            hasPartner,
-            partnerEmail: (hasPartner && partnerEmail) ? partnerEmail : undefined,
+            role: isPartner ? role! : undefined,
+            hasPartner: isPartner ? hasPartner : undefined,
+            partnerEmail: isPartner && hasPartner && partnerEmail ? partnerEmail : undefined,
             priceSnapshot: price
         })
 
@@ -74,18 +112,8 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
         handleAddToCart()
     }
 
-    function handleNext() {
-        // Validate custom fields before moving past that step
-        if (hasCustomFields && step === 3) {
-            const errors = validateCustomFields(customFields, customFieldValues)
-            if (Object.keys(errors).length > 0) {
-                setCustomFieldErrors(errors)
-                return
-            }
-            setCustomFieldErrors({})
-        }
-        setStep(s => s + 1)
-    }
+    // ── Is the Next/Add button disabled? ──────────────────────────────────────
+    const isNextDisabled = isPartner && step === 1 && !role
 
     return (
         <Card className="max-w-md mx-auto">
@@ -102,12 +130,12 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
                         <AlertDescription>
                             <strong>Different Organizer</strong>
                             <p className="mt-1 text-sm">
-                                Your cart contains courses from <strong>{cartOrganizerName}</strong>. 
+                                Your cart contains courses from <strong>{cartOrganizerName}</strong>.
                                 You can only checkout courses from one organizer at a time.
                             </p>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="mt-2"
                                 onClick={handleClearCartAndAdd}
                             >
@@ -117,8 +145,8 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
                     </Alert>
                 )}
 
-                {/* Step 1: Role */}
-                {step === 1 && (
+                {/* ── PARTNER: Step 1 — Role selection ──────────────────── */}
+                {isPartner && step === 1 && (
                     <div className="space-y-4">
                         <Label className="text-base">I want to participate as a:</Label>
                         <RadioGroup value={role || ''} onValueChange={(v: any) => setRole(v)}>
@@ -134,8 +162,8 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
                     </div>
                 )}
 
-                {/* Step 2: Partner */}
-                {step === 2 && (
+                {/* ── PARTNER: Step 2 — Partner ──────────────────────────── */}
+                {isPartner && step === 2 && (
                     <div className="space-y-6">
                         <div className="flex items-center justify-between space-x-2">
                             <Label htmlFor="partner-mode" className="flex flex-col space-y-1">
@@ -151,7 +179,7 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
 
                         {hasPartner && (
                             <div className="space-y-2 pt-2 animate-in fade-in slide-in-from-top-2">
-                                <Label htmlFor="p-email">Partner's Email</Label>
+                                <Label htmlFor="p-email">Partner&apos;s Email</Label>
                                 <Input
                                     id="p-email"
                                     type="email"
@@ -164,8 +192,8 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
                     </div>
                 )}
 
-                {/* Step 3: Custom Fields (only if custom fields exist) */}
-                {step === 3 && hasCustomFields && (
+                {/* ── Custom Fields step (for all templates) ──────────────── */}
+                {customFieldStep !== null && step === customFieldStep && (
                     <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">Please fill in the following details:</p>
                         <CustomFieldsForm
@@ -177,7 +205,7 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
                     </div>
                 )}
 
-                {/* Summary step */}
+                {/* ── Summary ──────────────────────────────────────────────── */}
                 {step === summaryStep && (
                     <div className="space-y-4">
                         <div className="bg-muted p-4 rounded-md space-y-2 text-sm">
@@ -185,11 +213,13 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
                                 <span className="text-muted-foreground">Course:</span>
                                 <span className="font-medium">{track.title}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Role:</span>
-                                <span className="font-medium">{role}</span>
-                            </div>
-                            {hasPartner && (
+                            {isPartner && role && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Role:</span>
+                                    <span className="font-medium">{role}</span>
+                                </div>
+                            )}
+                            {isPartner && hasPartner && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Partner:</span>
                                     <span className="font-medium">{partnerEmail}</span>
@@ -230,22 +260,19 @@ export function RegistrationWizard({ track, periodId, customFields = [] }: Wizar
                 )}
 
                 {step < summaryStep ? (
-                    <Button
-                        onClick={handleNext}
-                        disabled={step === 1 && !role}
-                    >
+                    <Button onClick={handleNext} disabled={isNextDisabled}>
                         Next
                     </Button>
                 ) : (
-                    <Button 
-                        onClick={handleAddToCart} 
-                        disabled={!role || isDifferentOrganizer}
+                    <Button
+                        onClick={handleAddToCart}
+                        disabled={(isPartner && !role) || isDifferentOrganizer}
                     >
                         {isDifferentOrganizer ? 'Cannot Add - Different Organizer' : 'Add to Cart'}
                     </Button>
                 )}
             </CardFooter>
-        </Card >
+        </Card>
     )
 }
 

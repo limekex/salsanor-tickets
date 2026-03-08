@@ -10,8 +10,8 @@ export interface CourseCartItem {
     periodId: string
     organizerId: string
     organizerName: string
-    role: 'LEADER' | 'FOLLOWER'
-    hasPartner: boolean
+    role?: 'LEADER' | 'FOLLOWER'   // only relevant for PARTNER template
+    hasPartner?: boolean             // only relevant for PARTNER template
     partnerEmail?: string
     priceSnapshot: number
     addedAt: number

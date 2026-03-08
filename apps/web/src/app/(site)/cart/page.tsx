@@ -162,10 +162,12 @@ export default function CartPage() {
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
                                             <h3 className="font-semibold">{item.trackTitle}</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                Role: {item.role}
-                                                {item.hasPartner && ` (+ Partner)`}
-                                            </p>
+                                            {item.role && (
+                                                <p className="text-sm text-muted-foreground">
+                                                    Role: {item.role}
+                                                    {item.hasPartner && ` (+ Partner)`}
+                                                </p>
+                                            )}
                                             {item.organizerName && (
                                                 <p className="text-xs text-muted-foreground mt-1">
                                                     {item.organizerName}

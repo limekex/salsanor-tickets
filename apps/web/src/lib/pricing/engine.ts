@@ -91,8 +91,8 @@ export interface PricingTrack {
 
 export interface CartItem {
     trackId: string // The track being purchased
-    role: 'LEADER' | 'FOLLOWER' // Role in that track
-    hasPartner: boolean // If true, applies pair price
+    role?: 'LEADER' | 'FOLLOWER' // Role in that track (PARTNER template only)
+    hasPartner?: boolean // If true, applies pair price (PARTNER template only)
     partnerEmail?: string // Meta
     track: PricingTrack // Snapshot of track data for calculation
 }

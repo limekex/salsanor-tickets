@@ -19,13 +19,21 @@ export default async function RegisterPage({ params }: PageProps) {
         notFound()
     }
 
-    const customFields: CustomFieldDefinition[] = Array.isArray(track.CoursePeriod?.customFields)
-        ? (track.CoursePeriod.customFields as CustomFieldDefinition[])
+    const period = track.CoursePeriod as { customFields?: unknown; templateType?: string } | null
+    const customFields: CustomFieldDefinition[] = Array.isArray(period?.customFields)
+        ? (period.customFields as CustomFieldDefinition[])
         : []
+
+    const templateType = period?.templateType ?? 'INDIVIDUAL'
 
     return (
         <main className="container mx-auto py-rn-7 px-rn-4">
-            <RegistrationWizard track={track} periodId={periodId} customFields={customFields} />
+            <RegistrationWizard
+                track={track}
+                periodId={periodId}
+                customFields={customFields}
+                templateType={templateType}
+            />
         </main>
     )
 }

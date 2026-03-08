@@ -23,10 +23,14 @@ export default async function NewStaffTrackPage({
         redirect('/auth/login')
     }
 
-    // Verify user has ORG_ADMIN access to this period
+    // Fetch period + template info in one query
     const period = await prisma.coursePeriod.findUnique({
         where: { id: periodId },
-        select: { organizerId: true }
+        select: {
+            organizerId: true,
+            templateType: true,
+            deliveryMethod: true,
+        }
     })
 
     if (!period) {
@@ -56,12 +60,6 @@ export default async function NewStaffTrackPage({
     })
     const hasMembershipProduct = organizer?.membershipEnabled ?? false
 
-    // Fetch full period details for template/delivery context
-    const fullPeriod = await prisma.coursePeriod.findUnique({
-        where: { id: periodId },
-        select: { templateType: true, deliveryMethod: true }
-    })
-
     return (
         <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
@@ -70,8 +68,8 @@ export default async function NewStaffTrackPage({
             <StaffTrackForm
                 periodId={periodId}
                 hasMembershipProduct={hasMembershipProduct}
-                templateType={fullPeriod?.templateType ?? 'INDIVIDUAL'}
-                deliveryMethod={fullPeriod?.deliveryMethod ?? 'IN_PERSON'}
+                templateType={period.templateType}
+                deliveryMethod={period.deliveryMethod}
             />
         </div>
     )

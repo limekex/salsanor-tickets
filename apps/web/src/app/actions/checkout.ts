@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto'
 import { getEffectiveDiscountRules, getEffectiveDiscountRulesForEvent } from './discounts'
 import { readUtmCookie } from '@/lib/utm'
 
-export async function getCartPricing(items: { trackId: string, role: string, hasPartner: boolean, partnerEmail?: string }[]) {
+export async function getCartPricing(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string }[]) {
     if (!items.length) return null
 
     // Fetch all tracks involved
@@ -91,7 +91,7 @@ export async function getCartPricing(items: { trackId: string, role: string, has
     return calculatePricing(fullCartItems, rules, { isMember, membershipTierId })
 }
 
-export async function createOrderFromCart(items: { trackId: string, role: string, hasPartner: boolean, partnerEmail?: string }[]) {
+export async function createOrderFromCart(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string }[]) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
