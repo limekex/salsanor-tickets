@@ -11,8 +11,8 @@ datasource db {
 model AuditLog {
   id          String       @id @default(uuid())
   userId      String?
-  entityType  String       // Type of entity (e.g., "Invoice", "Order", "Registration")
-  entityId    String       // ID of the entity (not a foreign key - polymorphic reference)
+  entityType  String // Type of entity (e.g., "Invoice", "Order", "Registration")
+  entityId    String // ID of the entity (not a foreign key - polymorphic reference)
   action      String
   changes     Json
   ipAddress   String?
@@ -33,7 +33,7 @@ model Attendance {
   registrationId String
   trackId        String
   periodId       String
-  sessionDate    DateTime      // The date of the class (date only, time is midnight UTC)
+  sessionDate    DateTime // The date of the class (date only, time is midnight UTC)
   checkInTime    DateTime      @default(now())
   checkedInBy    String
   method         CheckInMethod @default(MANUAL)
@@ -45,10 +45,10 @@ model Attendance {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  Registration     Registration @relation(fields: [registrationId], references: [id])
-  CourseTrack      CourseTrack  @relation(fields: [trackId], references: [id])
-  CoursePeriod     CoursePeriod @relation(fields: [periodId], references: [id])
-  CheckedInByUser  UserAccount  @relation(fields: [checkedInBy], references: [id])
+  Registration    Registration @relation(fields: [registrationId], references: [id])
+  CourseTrack     CourseTrack  @relation(fields: [trackId], references: [id])
+  CoursePeriod    CoursePeriod @relation(fields: [periodId], references: [id])
+  CheckedInByUser UserAccount  @relation(fields: [checkedInBy], references: [id])
 
   @@unique([registrationId, trackId, sessionDate])
   @@index([trackId, sessionDate])
@@ -59,15 +59,15 @@ model PlannedAbsence {
   id             String        @id @default(uuid())
   registrationId String
   trackId        String
-  sessionDate    DateTime      // The date of the planned absence (date only)
+  sessionDate    DateTime // The date of the planned absence (date only)
   reason         AbsenceReason @default(OTHER)
-  reasonText     String?       // Additional details / custom reason
+  reasonText     String? // Additional details / custom reason
   notifiedAt     DateTime      @default(now())
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  Registration   Registration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  CourseTrack    CourseTrack   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  Registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  CourseTrack  CourseTrack  @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@unique([registrationId, trackId, sessionDate]) // One absence per session per registration
   @@index([trackId, sessionDate])
@@ -75,15 +75,15 @@ model PlannedAbsence {
 }
 
 model PeriodBreak {
-  id          String       @id @default(uuid())
-  periodId    String?
-  trackId     String?
-  startDate   DateTime
-  endDate     DateTime
-  description String?
-  createdAt   DateTime     @default(now())
+  id           String        @id @default(uuid())
+  periodId     String?
+  trackId      String?
+  startDate    DateTime
+  endDate      DateTime
+  description  String?
+  createdAt    DateTime      @default(now())
   CoursePeriod CoursePeriod? @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  CourseTrack CourseTrack?  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  CourseTrack  CourseTrack?  @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@index([periodId, startDate, endDate])
   @@index([trackId, startDate, endDate])
@@ -122,36 +122,36 @@ model CheckIn {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model CoursePeriod {
-  id           String         @id @default(uuid())
-  code         String         @unique
-  name         String
-  city         String
-  locationName String?
-  startDate    DateTime
-  endDate      DateTime
-  salesOpenAt  DateTime
-  salesCloseAt DateTime
-  timezone     String         @default("Europe/Oslo")
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  organizerId  String
-  description  String?
-  featured     Boolean        @default(false)
+  id             String             @id @default(uuid())
+  code           String             @unique
+  name           String
+  city           String
+  locationName   String?
+  startDate      DateTime
+  endDate        DateTime
+  salesOpenAt    DateTime
+  salesCloseAt   DateTime
+  timezone       String             @default("Europe/Oslo")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  organizerId    String
+  description    String?
+  featured       Boolean            @default(false)
   imageUrl       String?
   templateType   CourseTemplateType @default(INDIVIDUAL)
   deliveryMethod DeliveryMethod     @default(IN_PERSON)
   customFields   Json?
-  Organizer    Organizer      @relation(fields: [organizerId], references: [id])
-  CourseTrack  CourseTrack[]
-  DiscountRule DiscountRule[]
-  Order        Order[]
-  PairGroup    PairGroup[]
-  Registration Registration[]
-  Ticket       Ticket[]
-  Category     Category[]
-  Tag          Tag[]
-  Attendance   Attendance[]
-  PeriodBreak  PeriodBreak[]
+  Organizer      Organizer          @relation(fields: [organizerId], references: [id])
+  CourseTrack    CourseTrack[]
+  DiscountRule   DiscountRule[]
+  Order          Order[]
+  PairGroup      PairGroup[]
+  Registration   Registration[]
+  Ticket         Ticket[]
+  Category       Category[]
+  Tag            Tag[]
+  Attendance     Attendance[]
+  PeriodBreak    PeriodBreak[]
 
   @@index([featured])
   @@index([organizerId])
@@ -180,90 +180,91 @@ model CourseTrack {
   capacityTotal          Int
   capacityLeaders        Int?
   capacityFollowers      Int?
-  roleALabel             String?        // Custom label for "Leader" role (e.g., "Driver", "Role A")
-  roleBLabel             String?        // Custom label for "Follower" role (e.g., "Navigator", "Role B")
-  rolePolicy             TrackRole      @default(ANY)
-  waitlistEnabled        Boolean        @default(true)
+  roleALabel             String? // Custom label for "Leader" role (e.g., "Driver", "Role A")
+  roleBLabel             String? // Custom label for "Follower" role (e.g., "Navigator", "Role B")
+  rolePolicy             TrackRole          @default(ANY)
+  waitlistEnabled        Boolean            @default(true)
   priceSingleCents       Int
   pricePairCents         Int?
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
   memberPricePairCents   Int?
   memberPriceSingleCents Int?
-  checkInWindowBefore    Int            @default(30)
-  checkInWindowAfter     Int            @default(30)
-  allowSelfCheckIn       Boolean        @default(false)
-  allowDashboardCheckIn  Boolean        @default(false)  // Allow participants to check in from /my dashboard
-  geofenceEnabled        Boolean        @default(false)  // Require location check for dashboard check-in
-  geofenceRadius         Int?           // Radius in meters for geofence check
-  
+  checkInWindowBefore    Int                @default(30)
+  checkInWindowAfter     Int                @default(30)
+  allowSelfCheckIn       Boolean            @default(false)
+  allowDashboardCheckIn  Boolean            @default(false) // Allow participants to check in from /my dashboard
+  geofenceEnabled        Boolean            @default(false) // Require location check for dashboard check-in
+  geofenceRadius         Int? // Radius in meters for geofence check
+
   // Virtual meeting fields (VIRTUAL template / VIRTUAL/HYBRID delivery)
-  meetingUrl             String?        // Zoom, Google Meet, etc. link
-  meetingPassword        String?        // Optional meeting password
-  
+  meetingUrl      String? // Zoom, Google Meet, etc. link
+  meetingPassword String? // Optional meeting password
+
   // Age restrictions (KIDS_YOUTH template)
-  minAge                 Int?           // Minimum participant age
-  maxAge                 Int?           // Maximum participant age
-  
+  minAge Int? // Minimum participant age
+  maxAge Int? // Maximum participant age
+
   // Team configuration (TEAM template)
-  teamMinSize            Int?           // Minimum team size
-  teamMaxSize            Int?           // Maximum team size
-  
+  teamMinSize Int? // Minimum team size
+  teamMaxSize Int? // Maximum team size
+
   // Slot booking configuration (PRIVATE template)
-  slotStartTime          String?        // Start of availability window (HH:mm, e.g., "12:00")
-  slotDurationMinutes    Int?           // Duration of each slot in minutes (e.g., 30)
-  slotBreakMinutes       Int?           // Break between slots in minutes (e.g., 5)
-  slotCount              Int?           // Number of slots available per session
-  pricePerSlotCents      Int?           // Price per slot in cents
-  maxContinuousSlots     Int?           // Max slots a user can book at once (e.g., 2)
-  
-  CoursePeriod           CoursePeriod   @relation(fields: [periodId], references: [id])
-  Registration           Registration[]
-  TrackSession           TrackSession[]
-  Attendance             Attendance[]
-  PeriodBreak            PeriodBreak[]
-  PlannedAbsence         PlannedAbsence[]
+  slotStartTime       String? // Start of availability window (HH:mm, e.g., "12:00")
+  slotDurationMinutes Int? // Duration of each slot in minutes (e.g., 30)
+  slotBreakMinutes    Int? // Break between slots in minutes (e.g., 5)
+  slotCount           Int? // Number of slots available per session
+  pricePerSlotCents   Int? // Price per slot in cents
+  maxContinuousSlots  Int? // Max slots a user can book at once (e.g., 2)
+
+  CoursePeriod   CoursePeriod     @relation(fields: [periodId], references: [id])
+  Registration   Registration[]
+  TrackSession   TrackSession[]
+  Attendance     Attendance[]
+  PeriodBreak    PeriodBreak[]
+  PlannedAbsence PlannedAbsence[]
+  SlotHold       SlotHold[]
 
   @@index([periodId])
   @@index([periodId, slug])
 }
 
 model CreditNote {
-  id              String    @id @default(uuid())
-  creditNumber    String    @unique
-  organizerId     String
-  invoiceId       String?
-  orderId         String?
-  registrationId  String?
-  
+  id             String  @id @default(uuid())
+  creditNumber   String  @unique
+  organizerId    String
+  invoiceId      String?
+  orderId        String?
+  registrationId String?
+
   // Refund details
-  reason          String
-  refundType      RefundType @default(FULL)
-  originalAmountCents Int    // Original order/invoice amount
-  refundAmountCents   Int    // Amount being refunded
-  mvaCents        Int
-  totalCents      Int        // Total credit note amount (refund + MVA adjustment)
-  
+  reason              String
+  refundType          RefundType @default(FULL)
+  originalAmountCents Int // Original order/invoice amount
+  refundAmountCents   Int // Amount being refunded
+  mvaCents            Int
+  totalCents          Int // Total credit note amount (refund + MVA adjustment)
+
   // Stripe refund reference
-  stripeRefundId           String?
-  acquirerReferenceNumber  String?  // Stripe acquirer reference for card refunds
-  
+  stripeRefundId          String?
+  acquirerReferenceNumber String? // Stripe acquirer reference for card refunds
+
   // PDF storage
-  pdfUrl          String?    // URL to stored PDF
-  pdfGeneratedAt  DateTime?
-  
+  pdfUrl         String? // URL to stored PDF
+  pdfGeneratedAt DateTime?
+
   // Status tracking
-  issueDate       DateTime  @default(now())
-  status          CreditNoteStatus @default(ISSUED)
-  sentAt          DateTime?  // When email was sent
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  Invoice         Invoice?   @relation(fields: [invoiceId], references: [id])
-  Organizer       Organizer  @relation(fields: [organizerId], references: [id])
-  Order           Order?     @relation(fields: [orderId], references: [id])
-  Registration    Registration? @relation(fields: [registrationId], references: [id])
+  issueDate DateTime         @default(now())
+  status    CreditNoteStatus @default(ISSUED)
+  sentAt    DateTime? // When email was sent
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Invoice      Invoice?      @relation(fields: [invoiceId], references: [id])
+  Organizer    Organizer     @relation(fields: [organizerId], references: [id])
+  Order        Order?        @relation(fields: [orderId], references: [id])
+  Registration Registration? @relation(fields: [registrationId], references: [id])
 
   @@index([organizerId, creditNumber])
   @@index([orderId])
@@ -337,12 +338,12 @@ model EmailPdfAttachment {
   id              String          @id @default(uuid())
   emailTemplateId String
   pdfTemplateType PdfTemplateType
-  isRequired      Boolean         @default(true)  // If false, only attach if PDF exists
-  sortOrder       Int             @default(0)     // Order of attachments
+  isRequired      Boolean         @default(true) // If false, only attach if PDF exists
+  sortOrder       Int             @default(0) // Order of attachments
   createdAt       DateTime        @default(now())
-  
-  EmailTemplate   EmailTemplate   @relation(fields: [emailTemplateId], references: [id], onDelete: Cascade)
-  
+
+  EmailTemplate EmailTemplate @relation(fields: [emailTemplateId], references: [id], onDelete: Cascade)
+
   @@unique([emailTemplateId, pdfTemplateType])
   @@index([emailTemplateId])
 }
@@ -391,12 +392,12 @@ model EmailTemplate {
   version     Int           @default(1)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  
+
   // PDF attachments configuration
-  pdfAttachments  EmailPdfAttachment[]
-  
-  EmailLog    EmailLog[]
-  Organizer   Organizer?    @relation(fields: [organizerId], references: [id])
+  pdfAttachments EmailPdfAttachment[]
+
+  EmailLog  EmailLog[]
+  Organizer Organizer? @relation(fields: [organizerId], references: [id])
 
   @@unique([organizerId, slug, language])
   @@index([category, isActive])
@@ -453,20 +454,20 @@ model Event {
 }
 
 model EventRegistration {
-  id            String             @id @default(uuid())
-  eventId       String
-  personId      String
-  orderId       String?
-  chosenRole    TrackRole?
-  status        RegistrationStatus @default(PENDING_PAYMENT)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  quantity      Int                @default(1)
-  unitPriceCents Int               @default(0)
-  Event         Event              @relation(fields: [eventId], references: [id])
-  Order         Order?             @relation(fields: [orderId], references: [id])
-  PersonProfile PersonProfile      @relation(fields: [personId], references: [id])
-  EventTicket   EventTicket[]
+  id             String             @id @default(uuid())
+  eventId        String
+  personId       String
+  orderId        String?
+  chosenRole     TrackRole?
+  status         RegistrationStatus @default(PENDING_PAYMENT)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  quantity       Int                @default(1)
+  unitPriceCents Int                @default(0)
+  Event          Event              @relation(fields: [eventId], references: [id])
+  Order          Order?             @relation(fields: [orderId], references: [id])
+  PersonProfile  PersonProfile      @relation(fields: [personId], references: [id])
+  EventTicket    EventTicket[]
 
   @@unique([eventId, personId])
   @@index([eventId, status])
@@ -490,17 +491,17 @@ model EventSession {
 }
 
 model EventTicket {
-  id            String        @id @default(uuid())
-  eventId       String
-  personId      String
-  registrationId String?
-  qrTokenHash   String        @unique
-  ticketNumber  Int?          // Sequential number for this person's tickets (1, 2, 3, etc)
-  status        TicketStatus  @default(ACTIVE)
-  checkedInAt   DateTime?
-  createdAt     DateTime      @default(now())
-  Event         Event         @relation(fields: [eventId], references: [id])
-  PersonProfile PersonProfile @relation(fields: [personId], references: [id])
+  id                String             @id @default(uuid())
+  eventId           String
+  personId          String
+  registrationId    String?
+  qrTokenHash       String             @unique
+  ticketNumber      Int? // Sequential number for this person's tickets (1, 2, 3, etc)
+  status            TicketStatus       @default(ACTIVE)
+  checkedInAt       DateTime?
+  createdAt         DateTime           @default(now())
+  Event             Event              @relation(fields: [eventId], references: [id])
+  PersonProfile     PersonProfile      @relation(fields: [personId], references: [id])
   EventRegistration EventRegistration? @relation(fields: [registrationId], references: [id])
 
   @@index([eventId, personId])
@@ -584,7 +585,7 @@ model MembershipTier {
   updatedAt          DateTime     @updatedAt
   validationRequired Boolean      @default(false)
   mvaEnabled         Boolean      @default(true)
-  accentColor        String?      // Hex color for wallet passes and UI (e.g., "#2563eb")
+  accentColor        String? // Hex color for wallet passes and UI (e.g., "#2563eb")
   Membership         Membership[]
   Organizer          Organizer    @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
@@ -683,10 +684,10 @@ model Organizer {
   platformFeeFixed         Int?
   platformFeePercent       Decimal?
   // Conversion tracking – organizer's analytics/ad-platform IDs
-  googleAnalyticsId        String?           // GA4 Measurement ID (e.g. G-XXXXXXXXXX)
-  facebookPixelId          String?           // Meta/Facebook Pixel ID
-  googleAdsConversionId    String?           // Google Ads Conversion tracking ID (AW-XXXXXXXXX)
-  googleAdsConversionLabel String?           // Google Ads Conversion label
+  googleAnalyticsId        String? // GA4 Measurement ID (e.g. G-XXXXXXXXXX)
+  facebookPixelId          String? // Meta/Facebook Pixel ID
+  googleAdsConversionId    String? // Google Ads Conversion tracking ID (AW-XXXXXXXXX)
+  googleAdsConversionLabel String? // Google Ads Conversion label
   AuditLog                 AuditLog[]
   CoursePeriod             CoursePeriod[]
   CreditNote               CreditNote[]
@@ -729,18 +730,18 @@ model Payment {
   rawPayload                 Json
   createdAt                  DateTime        @default(now())
   // Platform fee tracking for Stripe Connect
-  platformFeeCents           Int?            // Application fee collected by platform
-  stripeFeeCents             Int?            // Stripe processing fee (from balance transaction)
-  netAmountCents             Int?            // Amount transferred to connected account
-  stripeBalanceTransactionId String?         // For reconciliation with Stripe
+  platformFeeCents           Int? // Application fee collected by platform
+  stripeFeeCents             Int? // Stripe processing fee (from balance transaction)
+  netAmountCents             Int? // Amount transferred to connected account
+  stripeBalanceTransactionId String? // For reconciliation with Stripe
   // Stripe payment method details
-  stripePaymentIntentId      String?         // pi_xxx
-  stripePaymentMethodId      String?         // pm_xxx  
-  stripePaymentMethodType    String?         // card, klarna, vipps, etc.
-  stripeCardBrand            String?         // visa, mastercard, etc.
-  stripeCardLast4            String?         // Last 4 digits
-  stripeCardFingerprint      String?         // Card fingerprint for fraud detection
-  stripeCustomerId           String?         // cus_xxx - Stripe customer ID
+  stripePaymentIntentId      String? // pi_xxx
+  stripePaymentMethodId      String? // pm_xxx  
+  stripePaymentMethodType    String? // card, klarna, vipps, etc.
+  stripeCardBrand            String? // visa, mastercard, etc.
+  stripeCardLast4            String? // Last 4 digits
+  stripeCardFingerprint      String? // Card fingerprint for fraud detection
+  stripeCustomerId           String? // cus_xxx - Stripe customer ID
   Order                      Order           @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
@@ -789,6 +790,7 @@ model PersonProfile {
   UserAccount               UserAccount?        @relation(fields: [userId], references: [id])
   Registration              Registration[]
   Ticket                    Ticket[]
+  SlotHold                  SlotHold[]
 
   @@index([email])
 }
@@ -811,6 +813,7 @@ model Registration {
   refundPercentage   Int?
   stripeRefundId     String?
   customFieldValues  Json?
+  bookedSlots        Int[] // For PRIVATE template: indices of booked time slots
   CreditNote         CreditNote[]
   Order              Order?             @relation(fields: [orderId], references: [id])
   PairGroup          PairGroup?         @relation(fields: [pairGroupId], references: [id])
@@ -823,6 +826,25 @@ model Registration {
 
   @@unique([trackId, personId])
   @@index([periodId, trackId])
+}
+
+/// Temporary hold on time slots to prevent double-booking during checkout flow.
+/// Holds expire after a set duration (default 10 minutes) and are cleaned up automatically.
+model SlotHold {
+  id         String   @id @default(uuid())
+  trackId    String
+  slotIndex  Int // Which slot index is being held
+  sessionKey String // Anonymous session ID (browser fingerprint or cookie)
+  personId   String? // If logged in, link to PersonProfile
+  expiresAt  DateTime // When this hold expires
+  createdAt  DateTime @default(now())
+
+  CourseTrack   CourseTrack    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  PersonProfile PersonProfile? @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([trackId, slotIndex, sessionKey]) // One session can only hold a slot once
+  @@index([trackId, expiresAt])
+  @@index([sessionKey])
 }
 
 model Tag {
@@ -868,16 +890,16 @@ model TrackSession {
 }
 
 model UserAccount {
-  id              String            @id @default(uuid())
-  supabaseUid     String            @unique
-  email           String            @unique
-  createdAt       DateTime          @default(now())
-  AuditLog        AuditLog[]
-  CheckIn         CheckIn[]
-  PersonProfile   PersonProfile?
-  UserAccountRole UserAccountRole[]
-  UserInvitation  UserInvitation[]  // Invitations sent by this user
-  Attendance      Attendance[]
+  id                    String            @id @default(uuid())
+  supabaseUid           String            @unique
+  email                 String            @unique
+  createdAt             DateTime          @default(now())
+  AuditLog              AuditLog[]
+  CheckIn               CheckIn[]
+  PersonProfile         PersonProfile?
+  UserAccountRole       UserAccountRole[]
+  UserInvitation        UserInvitation[] // Invitations sent by this user
+  Attendance            Attendance[]
   ScheduledTasksCreated ScheduledTask[] // Scheduled tasks created by this user
 }
 
@@ -909,8 +931,8 @@ model UserInvitation {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  Organizer   Organizer   @relation(fields: [organizerId], references: [id])
-  InvitedBy   UserAccount @relation(fields: [invitedById], references: [id])
+  Organizer Organizer   @relation(fields: [organizerId], references: [id])
+  InvitedBy UserAccount @relation(fields: [invitedById], references: [id])
 
   @@unique([email, organizerId])
   @@index([token])
@@ -1128,35 +1150,35 @@ enum WaitlistStatus {
 
 /// PDF Template for ticket generation - managed by platform admin
 model PdfTemplate {
-  id              String          @id @default(uuid())
-  name            String          // e.g., "Event Ticket", "Course Ticket", "Receipt"
-  type            PdfTemplateType
-  isDefault       Boolean         @default(false)
-  isActive        Boolean         @default(true)
-  
+  id        String          @id @default(uuid())
+  name      String // e.g., "Event Ticket", "Course Ticket", "Receipt"
+  type      PdfTemplateType
+  isDefault Boolean         @default(false)
+  isActive  Boolean         @default(true)
+
   // Template configuration (JSON with layout settings)
-  headerConfig    Json?           // Logo position, title, colors
-  bodyConfig      Json?           // Field positions, fonts, sizes
-  footerConfig    Json?           // Legal text, terms, contact info
-  qrConfig        Json?           // QR code position, size
-  
+  headerConfig Json? // Logo position, title, colors
+  bodyConfig   Json? // Field positions, fonts, sizes
+  footerConfig Json? // Legal text, terms, contact info
+  qrConfig     Json? // QR code position, size
+
   // Norwegian legal compliance fields to include
-  includeSellerInfo       Boolean @default(true)  // Organizer details
-  includePlatformInfo     Boolean @default(true)  // Platform as agent
-  includeBuyerInfo        Boolean @default(true)  // Customer details
-  includeVatBreakdown     Boolean @default(true)  // MVA specification
-  includePaymentInfo      Boolean @default(true)  // Payment method/date
-  includeTerms            Boolean @default(true)  // Terms and conditions
-  
+  includeSellerInfo   Boolean @default(true) // Organizer details
+  includePlatformInfo Boolean @default(true) // Platform as agent
+  includeBuyerInfo    Boolean @default(true) // Customer details
+  includeVatBreakdown Boolean @default(true) // MVA specification
+  includePaymentInfo  Boolean @default(true) // Payment method/date
+  includeTerms        Boolean @default(true) // Terms and conditions
+
   // Custom text fields
-  headerText      String?
-  footerText      String?
-  termsText       String?
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  createdById     String?
-  
+  headerText String?
+  footerText String?
+  termsText  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+
   @@unique([type, isDefault])
   @@index([type, isActive])
 }
@@ -1172,66 +1194,66 @@ enum PdfTemplateType {
 
 /// Scheduled task for cron job administration
 model ScheduledTask {
-  id              String            @id @default(uuid())
-  organizerId     String?           // null = platform-wide task
-  name            String            // Human-readable name
-  taskType        ScheduledTaskType
-  cronExpression  String            // Standard cron expression (e.g., "0 8 * * *")
-  isActive        Boolean           @default(true)
-  
+  id             String            @id @default(uuid())
+  organizerId    String? // null = platform-wide task
+  name           String // Human-readable name
+  taskType       ScheduledTaskType
+  cronExpression String // Standard cron expression (e.g., "0 8 * * *")
+  isActive       Boolean           @default(true)
+
   // Configuration (JSON with task-specific settings)
-  config          Json?             // e.g., { hoursBefore: 24, templateSlug: "session-reminder" }
-  
+  config Json? // e.g., { hoursBefore: 24, templateSlug: "session-reminder" }
+
   // Execution tracking
-  lastRunAt       DateTime?
-  lastRunStatus   TaskRunStatus?
-  lastRunMessage  String?
-  nextRunAt       DateTime?
-  runCount        Int               @default(0)
-  failCount       Int               @default(0)
-  
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  createdById     String?
-  
-  Organizer       Organizer?        @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-  CreatedBy       UserAccount?      @relation(fields: [createdById], references: [id])
-  TaskRuns        ScheduledTaskRun[]
-  
+  lastRunAt      DateTime?
+  lastRunStatus  TaskRunStatus?
+  lastRunMessage String?
+  nextRunAt      DateTime?
+  runCount       Int            @default(0)
+  failCount      Int            @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+
+  Organizer Organizer?         @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  CreatedBy UserAccount?       @relation(fields: [createdById], references: [id])
+  TaskRuns  ScheduledTaskRun[]
+
   @@unique([organizerId, taskType]) // One task per type per org (or platform)
   @@index([isActive, nextRunAt])
   @@index([organizerId])
 }
 
 model ScheduledTaskRun {
-  id              String          @id @default(uuid())
-  taskId          String
-  startedAt       DateTime        @default(now())
-  completedAt     DateTime?
-  status          TaskRunStatus
-  message         String?
-  itemsProcessed  Int             @default(0)
-  itemsFailed     Int             @default(0)
-  details         Json?           // Additional run details (e.g., list of sent emails)
-  
-  Task            ScheduledTask   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  
+  id             String        @id @default(uuid())
+  taskId         String
+  startedAt      DateTime      @default(now())
+  completedAt    DateTime?
+  status         TaskRunStatus
+  message        String?
+  itemsProcessed Int           @default(0)
+  itemsFailed    Int           @default(0)
+  details        Json? // Additional run details (e.g., list of sent emails)
+
+  Task ScheduledTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
   @@index([taskId, startedAt])
 }
 
 enum ScheduledTaskType {
-  SESSION_REMINDER        // Send reminders before class
-  BREAK_REMINDER          // Notify about upcoming break periods
-  MISSED_SESSION_NOTIFY   // Notify participants who missed a session
-  LOW_ATTENDANCE_WARN     // Weekly low attendance warnings
-  MEMBERSHIP_EXPIRY_WARN  // Membership expiration reminders
-  WAITLIST_CLEANUP        // Clean up expired waitlist offers
-  REPORT_GENERATION       // Generate periodic reports
+  SESSION_REMINDER // Send reminders before class
+  BREAK_REMINDER // Notify about upcoming break periods
+  MISSED_SESSION_NOTIFY // Notify participants who missed a session
+  LOW_ATTENDANCE_WARN // Weekly low attendance warnings
+  MEMBERSHIP_EXPIRY_WARN // Membership expiration reminders
+  WAITLIST_CLEANUP // Clean up expired waitlist offers
+  REPORT_GENERATION // Generate periodic reports
 }
 
 enum TaskRunStatus {
   RUNNING
   SUCCESS
-  PARTIAL   // Some items processed, some failed
+  PARTIAL // Some items processed, some failed
   FAILED
 }

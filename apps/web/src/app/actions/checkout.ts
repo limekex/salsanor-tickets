@@ -231,6 +231,7 @@ export async function createOrderFromCart(items: { trackId: string, role?: strin
                         personId: personId!,
                         status: 'DRAFT',
                         chosenRole: item.role as any,
+                        bookedSlots: item.selectedSlots ?? [],  // For PRIVATE template slot bookings
                     }))
                 }
             }

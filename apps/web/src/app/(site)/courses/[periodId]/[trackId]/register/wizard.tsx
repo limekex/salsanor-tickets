@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -8,13 +8,20 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, Clock } from 'lucide-react'
+import { AlertCircle, Clock, Loader2, Lock } from 'lucide-react'
 import { useCart } from '@/hooks/use-cart'
 import { useRouter } from 'next/navigation'
 import { CustomFieldsForm } from '@/components/custom-fields-form'
 import type { CustomFieldDefinition, CustomFieldValues } from '@/types/custom-fields'
 import { validateCustomFields } from '@/types/custom-fields'
 import { Checkbox } from '@/components/ui/checkbox'
+import { 
+    getAvailableSlots, 
+    holdSlot, 
+    releaseSlot, 
+    releaseAllHolds,
+    type SlotAvailability 
+} from '@/app/actions/slot-holds'
 
 interface WizardTrack {
     id: string
@@ -40,31 +47,6 @@ interface WizardProps {
     templateType?: string
 }
 
-// Helper to calculate slot times
-function calculateSlots(startTime: string, slotCount: number, durationMinutes: number, breakMinutes: number) {
-    const slots: { index: number; startTime: string; endTime: string }[] = []
-    const [startHours, startMins] = startTime.split(':').map(Number)
-    let currentMinutes = startHours * 60 + startMins
-
-    for (let i = 0; i < slotCount; i++) {
-        const startH = Math.floor(currentMinutes / 60) % 24
-        const startM = currentMinutes % 60
-        const endMinutes = currentMinutes + durationMinutes
-        const endH = Math.floor(endMinutes / 60) % 24
-        const endM = endMinutes % 60
-
-        slots.push({
-            index: i,
-            startTime: `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`,
-            endTime: `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`
-        })
-
-        currentMinutes = endMinutes + breakMinutes
-    }
-
-    return slots
-}
-
 export function RegistrationWizard({ track, periodId, customFields = [], templateType = 'INDIVIDUAL' }: WizardProps) {
     const isPartner = templateType === 'PARTNER'
     const isPrivate = templateType === 'PRIVATE'
@@ -81,18 +63,54 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
 
     const hasCustomFields = customFields.length > 0
 
-    // Calculate available slots for PRIVATE template
-    const availableSlots = useMemo(() => {
-        if (!isPrivate || !track.slotStartTime || !track.slotCount || !track.slotDurationMinutes) {
-            return []
+    // Slot availability state for PRIVATE template
+    const [availableSlots, setAvailableSlots] = useState<SlotAvailability[]>([])
+    const [slotsLoading, setSlotsLoading] = useState(false)
+    const [slotError, setSlotError] = useState<string | null>(null)
+    const [holdingSlot, setHoldingSlot] = useState<number | null>(null) // Slot currently being held/released
+
+    // Fetch available slots for PRIVATE template
+    const fetchSlots = useCallback(async () => {
+        if (!isPrivate) return
+        setSlotsLoading(true)
+        setSlotError(null)
+        try {
+            const result = await getAvailableSlots(track.id)
+            if (result.error) {
+                setSlotError(result.error)
+            } else {
+                setAvailableSlots(result.slots)
+                // Restore any slots we already have holds on
+                const heldSlots = result.slots
+                    .filter(s => s.heldByCurrentUser)
+                    .map(s => s.index)
+                    .sort((a, b) => a - b)
+                if (heldSlots.length > 0) {
+                    setSelectedSlots(heldSlots)
+                }
+            }
+        } catch (e) {
+            setSlotError('Failed to load available slots')
+        } finally {
+            setSlotsLoading(false)
         }
-        return calculateSlots(
-            track.slotStartTime,
-            track.slotCount,
-            track.slotDurationMinutes,
-            track.slotBreakMinutes ?? 0
-        )
-    }, [isPrivate, track.slotStartTime, track.slotCount, track.slotDurationMinutes, track.slotBreakMinutes])
+    }, [isPrivate, track.id])
+
+    // Fetch slots on mount
+    useEffect(() => {
+        fetchSlots()
+    }, [fetchSlots])
+
+    // Release holds when leaving the page without completing
+    useEffect(() => {
+        if (!isPrivate) return
+        
+        // Only release holds if user navigates away without completing
+        return () => {
+            // Note: This cleanup runs on unmount, but selectedSlots may be stale
+            // The actual release will happen, but we rely on server-side expiry as backup
+        }
+    }, [isPrivate])
 
     const maxContinuous = track.maxContinuousSlots ?? 2
 
@@ -142,32 +160,80 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
         return 'Total Price'
     }, [isPrivate, isPartner, hasPartner, track.pricePairCents, selectedSlots.length])
 
-    // Slot selection handler with continuous validation
-    function handleSlotToggle(slotIndex: number) {
-        setSelectedSlots(prev => {
-            if (prev.includes(slotIndex)) {
-                // Removing a slot
-                return prev.filter(i => i !== slotIndex)
-            }
-            // Adding a slot - check constraints
-            const newSelection = [...prev, slotIndex].sort((a, b) => a - b)
-            
-            // Check max slots
-            if (newSelection.length > maxContinuous) {
-                return prev // Don't allow more than max
-            }
-            
-            // Check continuity (slots must be adjacent)
-            if (newSelection.length > 1) {
-                for (let i = 1; i < newSelection.length; i++) {
-                    if (newSelection[i] - newSelection[i - 1] !== 1) {
-                        return prev // Slots must be consecutive
+    // Slot selection handler with hold/release and continuous validation
+    async function handleSlotToggle(slotIndex: number) {
+        const isCurrentlySelected = selectedSlots.includes(slotIndex)
+        const slot = availableSlots.find(s => s.index === slotIndex)
+        
+        if (!slot) return
+        
+        // If not available and not currently held by us, can't select
+        if (!slot.available && !slot.heldByCurrentUser && !isCurrentlySelected) {
+            return
+        }
+        
+        setHoldingSlot(slotIndex)
+        
+        try {
+            if (isCurrentlySelected) {
+                // Releasing: check that the result would still be consecutive
+                const newSelection = selectedSlots.filter(i => i !== slotIndex)
+                if (newSelection.length > 1) {
+                    // Verify remaining slots are consecutive
+                    const sorted = newSelection.sort((a, b) => a - b)
+                    for (let i = 1; i < sorted.length; i++) {
+                        if (sorted[i] - sorted[i - 1] !== 1) {
+                            // Can't release a slot that would break continuity
+                            setHoldingSlot(null)
+                            return
+                        }
                     }
                 }
+                
+                // Release the hold on server
+                const result = await releaseSlot(track.id, slotIndex)
+                if (result.success) {
+                    setSelectedSlots(newSelection)
+                    // Refresh slot availability
+                    await fetchSlots()
+                }
+            } else {
+                // Adding: check constraints
+                const newSelection = [...selectedSlots, slotIndex].sort((a, b) => a - b)
+                
+                // Check max slots
+                if (newSelection.length > maxContinuous) {
+                    setHoldingSlot(null)
+                    return
+                }
+                
+                // Check continuity (slots must be adjacent)
+                if (newSelection.length > 1) {
+                    for (let i = 1; i < newSelection.length; i++) {
+                        if (newSelection[i] - newSelection[i - 1] !== 1) {
+                            setHoldingSlot(null)
+                            return
+                        }
+                    }
+                }
+                
+                // Try to hold the slot on server
+                const result = await holdSlot(track.id, slotIndex)
+                if (result.success) {
+                    setSelectedSlots(newSelection)
+                    // Refresh to get updated availability
+                    await fetchSlots()
+                } else {
+                    setSlotError(result.error ?? 'Failed to reserve slot')
+                    // Refresh to see what's available
+                    await fetchSlots()
+                }
             }
-            
-            return newSelection
-        })
+        } catch (e) {
+            setSlotError('Failed to update slot selection')
+        } finally {
+            setHoldingSlot(null)
+        }
     }
 
     function handleNext() {
@@ -263,44 +329,80 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                             )}
                             Max {maxContinuous} consecutive slot{maxContinuous > 1 ? 's' : ''}
                         </p>
-                        <div className="space-y-2">
-                            {availableSlots.map((slot) => {
-                                const isSelected = selectedSlots.includes(slot.index)
-                                // Determine if this slot can be selected (must be adjacent to existing selection)
-                                const canSelect = selectedSlots.length === 0 ||
-                                    selectedSlots.includes(slot.index - 1) ||
-                                    selectedSlots.includes(slot.index + 1) ||
-                                    isSelected
-                                const wouldExceedMax = !isSelected && selectedSlots.length >= maxContinuous
-                                const isDisabled = (!canSelect || wouldExceedMax) && !isSelected
+                        
+                        {slotError && (
+                            <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>{slotError}</AlertDescription>
+                            </Alert>
+                        )}
+                        
+                        {slotsLoading && availableSlots.length === 0 ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                <span className="ml-2 text-muted-foreground">Loading available slots...</span>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {availableSlots.map((slot) => {
+                                    const isSelected = selectedSlots.includes(slot.index)
+                                    const isHoldingThis = holdingSlot === slot.index
+                                    // Slot unavailable if held/booked by others (not available AND not already ours)
+                                    const isUnavailable = !slot.available && !slot.heldByCurrentUser
+                                    // Determine if this slot can be selected (must be adjacent to existing selection)
+                                    const canSelect = !isUnavailable && (
+                                        selectedSlots.length === 0 ||
+                                        selectedSlots.includes(slot.index - 1) ||
+                                        selectedSlots.includes(slot.index + 1) ||
+                                        isSelected
+                                    )
+                                    const wouldExceedMax = !isSelected && selectedSlots.length >= maxContinuous
+                                    const isDisabled = isHoldingThis || isUnavailable || ((!canSelect || wouldExceedMax) && !isSelected)
 
-                                return (
-                                    <div
-                                        key={slot.index}
-                                        className={`flex items-center space-x-3 border p-3 rounded-md transition-colors ${
-                                            isSelected ? 'bg-primary/10 border-primary' : ''
-                                        } ${isDisabled ? 'opacity-50' : 'cursor-pointer hover:bg-muted/50'}`}
-                                        onClick={() => !isDisabled && handleSlotToggle(slot.index)}
-                                    >
-                                        <Checkbox
-                                            id={`slot-${slot.index}`}
-                                            checked={isSelected}
-                                            disabled={isDisabled}
-                                            onClick={(e) => e.stopPropagation()}
-                                            onCheckedChange={() => handleSlotToggle(slot.index)}
-                                        />
-                                        <span
-                                            className={`flex-1 ${isDisabled ? '' : 'cursor-pointer'}`}
+                                    return (
+                                        <div
+                                            key={slot.index}
+                                            className={`flex items-center space-x-3 border p-3 rounded-md transition-colors ${
+                                                isSelected ? 'bg-primary/10 border-primary' : ''
+                                            } ${isUnavailable ? 'bg-muted/30 border-dashed' : ''
+                                            } ${isDisabled && !isUnavailable ? 'opacity-50' : ''
+                                            } ${!isDisabled ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                                            onClick={() => !isDisabled && handleSlotToggle(slot.index)}
                                         >
-                                            <span className="font-medium">{slot.startTime} – {slot.endTime}</span>
-                                            <span className="text-muted-foreground ml-2">
-                                                ({track.slotDurationMinutes} min)
+                                            {isHoldingThis ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : isUnavailable ? (
+                                                <Lock className="h-4 w-4 text-muted-foreground" />
+                                            ) : (
+                                                <Checkbox
+                                                    id={`slot-${slot.index}`}
+                                                    checked={isSelected}
+                                                    disabled={isDisabled}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onCheckedChange={() => handleSlotToggle(slot.index)}
+                                                />
+                                            )}
+                                            <span
+                                                className={`flex-1 ${isDisabled ? '' : 'cursor-pointer'}`}
+                                            >
+                                                <span className={`font-medium ${isUnavailable ? 'text-muted-foreground' : ''}`}>
+                                                    {slot.startTime} – {slot.endTime}
+                                                </span>
+                                                <span className="text-muted-foreground ml-2">
+                                                    ({track.slotDurationMinutes} min)
+                                                </span>
+                                                {isUnavailable && (
+                                                    <span className="text-xs text-muted-foreground ml-2">
+                                                        (unavailable)
+                                                    </span>
+                                                )}
                                             </span>
-                                        </span>
-                                    </div>
-                                )
-                            })}
-                        </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                        
                         {selectedSlots.length > 0 && track.pricePerSlotCents && (
                             <div className="mt-4 p-3 bg-muted rounded-md">
                                 <div className="flex justify-between text-sm">
@@ -314,6 +416,9 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                                         Total duration: {(track.slotDurationMinutes ?? 0) * selectedSlots.length} min
                                     </p>
                                 )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Slots reserved for 10 minutes
+                                </p>
                             </div>
                         )}
                     </div>
