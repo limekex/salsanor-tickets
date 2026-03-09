@@ -289,15 +289,14 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                                             onClick={(e) => e.stopPropagation()}
                                             onCheckedChange={() => handleSlotToggle(slot.index)}
                                         />
-                                        <Label
-                                            htmlFor={`slot-${slot.index}`}
+                                        <span
                                             className={`flex-1 ${isDisabled ? '' : 'cursor-pointer'}`}
                                         >
                                             <span className="font-medium">{slot.startTime} – {slot.endTime}</span>
                                             <span className="text-muted-foreground ml-2">
                                                 ({track.slotDurationMinutes} min)
                                             </span>
-                                        </Label>
+                                        </span>
                                     </div>
                                 )
                             })}
