@@ -286,6 +286,7 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                                             id={`slot-${slot.index}`}
                                             checked={isSelected}
                                             disabled={isDisabled}
+                                            onClick={(e) => e.stopPropagation()}
                                             onCheckedChange={() => handleSlotToggle(slot.index)}
                                         />
                                         <Label
