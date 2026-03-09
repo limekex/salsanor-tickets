@@ -66,7 +66,17 @@ export default async function TrackDetailPage({ params }: PageProps) {
         locationAddress?: string | null
         latitude?: number | null
         longitude?: number | null
+        // Template and slot booking fields
+        templateType?: string | null
+        pricePerSlotCents?: number | null
+        slotStartTime?: string | null
+        slotDurationMinutes?: number | null
+        slotBreakMinutes?: number | null
+        slotCount?: number | null
+        maxContinuousSlots?: number | null
     }
+
+    const isPrivateTemplate = trackWithExtras.templateType === 'PRIVATE'
 
     // Check if current user is org admin
     let isOrgAdmin = false
@@ -203,13 +213,26 @@ export default async function TrackDetailPage({ params }: PageProps) {
                 <Card className="h-fit">
                     <CardContent className="py-rn-6 space-y-rn-4">
                         <div className="text-center">
-                            <p className="rn-body font-medium text-lg mb-rn-1">
-                                {formatPrice(track.priceSingleCents)}
-                            </p>
-                            {effectiveMemberPrice && effectiveMemberPrice < track.priceSingleCents && (
-                                <p className="rn-meta text-rn-primary">
-                                    {organizer.name} member: {formatPrice(effectiveMemberPrice)}
-                                </p>
+                            {isPrivateTemplate && trackWithExtras.pricePerSlotCents ? (
+                                <>
+                                    <p className="rn-body font-medium text-lg mb-rn-1">
+                                        {formatPrice(trackWithExtras.pricePerSlotCents)} per slot
+                                    </p>
+                                    <p className="rn-meta text-rn-text-muted">
+                                        {trackWithExtras.slotDurationMinutes} min slots · Book up to {trackWithExtras.maxContinuousSlots ?? 2}
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="rn-body font-medium text-lg mb-rn-1">
+                                        {formatPrice(track.priceSingleCents)}
+                                    </p>
+                                    {effectiveMemberPrice && effectiveMemberPrice < track.priceSingleCents && (
+                                        <p className="rn-meta text-rn-primary">
+                                            {organizer.name} member: {formatPrice(effectiveMemberPrice)}
+                                        </p>
+                                    )}
+                                </>
                             )}
                         </div>
                         <div className="space-y-rn-2">

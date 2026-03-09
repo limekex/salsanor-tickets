@@ -21,6 +21,11 @@ type CourseTrack = {
   memberPriceSingleCents?: number | null
   memberPricePairCents?: number | null
   capacityTotal: number
+  // Template type and slot booking fields
+  templateType?: string | null
+  pricePerSlotCents?: number | null
+  slotDurationMinutes?: number | null
+  slotCount?: number | null
 }
 
 type CoursePeriod = {
@@ -94,32 +99,49 @@ export function CourseCard({
       
       <CardContent className="flex-1 space-y-2">
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span>Single:</span>
-            <span className="font-semibold">{formatPrice(track.priceSingleCents)}</span>
-          </div>
-          {track.pricePairCents && (
-            <div className="flex justify-between">
-              <span>Couple:</span>
-              <span className="font-semibold text-green-600">{formatPrice(track.pricePairCents)}</span>
-            </div>
-          )}
-          {/* Show member pricing */}
-          {hasMemberPrice && (
-            <div className="flex justify-between text-green-600">
-              <span>Member:</span>
-              <span className="font-semibold">{formatPrice(track.memberPriceSingleCents!)}</span>
-            </div>
-          )}
-          {!hasMemberPrice && memberDiscountPercent && (
-            <div className="text-xs text-green-600 font-medium">
-              {organizerName} members -{memberDiscountPercent}%
-            </div>
-          )}
-          {discountInfo?.hasMultiCourseDiscount && (
-            <div className="text-xs text-blue-600 font-medium">
-              Multi-course discounts available
-            </div>
+          {/* PRIVATE template: Show slot-based pricing */}
+          {track.templateType === 'PRIVATE' && track.pricePerSlotCents ? (
+            <>
+              <div className="flex justify-between">
+                <span>Per slot:</span>
+                <span className="font-semibold">{formatPrice(track.pricePerSlotCents)}</span>
+              </div>
+              {track.slotDurationMinutes && (
+                <div className="text-xs text-muted-foreground">
+                  {track.slotDurationMinutes} min slots · {track.slotCount} available
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between">
+                <span>Single:</span>
+                <span className="font-semibold">{formatPrice(track.priceSingleCents)}</span>
+              </div>
+              {track.pricePairCents && (
+                <div className="flex justify-between">
+                  <span>Couple:</span>
+                  <span className="font-semibold text-green-600">{formatPrice(track.pricePairCents)}</span>
+                </div>
+              )}
+              {/* Show member pricing */}
+              {hasMemberPrice && (
+                <div className="flex justify-between text-green-600">
+                  <span>Member:</span>
+                  <span className="font-semibold">{formatPrice(track.memberPriceSingleCents!)}</span>
+                </div>
+              )}
+              {!hasMemberPrice && memberDiscountPercent && (
+                <div className="text-xs text-green-600 font-medium">
+                  {organizerName} members -{memberDiscountPercent}%
+                </div>
+              )}
+              {discountInfo?.hasMultiCourseDiscount && (
+                <div className="text-xs text-blue-600 font-medium">
+                  Multi-course discounts available
+                </div>
+              )}
+            </>
           )}
         </div>
         

@@ -28,11 +28,43 @@ async function main() {
     await deletePeriodByCode(testPeriodCode)
     await deletePeriodByCode(templateTestPeriodCode)
 
-    // Delete @test.com users
+    // Delete @test.com users (comprehensive cleanup for all FK relations)
     const testUsers = await prisma.userAccount.findMany({
         where: { email: { contains: '@test.com' } }
     })
     for (const user of testUsers) {
+        const profiles = await prisma.personProfile.findMany({ where: { userId: user.id } })
+        for (const profile of profiles) {
+            // Delete in order respecting FK constraints:
+            // 1. Attendance → Registration
+            const regs = await prisma.registration.findMany({ where: { personId: profile.id } })
+            for (const reg of regs) {
+                await prisma.attendance.deleteMany({ where: { registrationId: reg.id } })
+            }
+            // 2. WaitlistEntry → Registration
+            await prisma.waitlistEntry.deleteMany({ where: { Registration: { personId: profile.id } } })
+            // 3. Registration → PersonProfile
+            await prisma.registration.deleteMany({ where: { personId: profile.id } })
+            // 4. Order FKs: CreditNote, Invoice, Payment, EventRegistration, Membership (order-related) → Order → PersonProfile
+            const orders = await prisma.order.findMany({ where: { purchaserPersonId: profile.id } })
+            for (const order of orders) {
+                await prisma.creditNote.deleteMany({ where: { orderId: order.id } })
+                await prisma.invoice.deleteMany({ where: { orderId: order.id } })
+                await prisma.payment.deleteMany({ where: { orderId: order.id } })
+                await prisma.eventRegistration.deleteMany({ where: { orderId: order.id } })
+            }
+            await prisma.order.deleteMany({ where: { purchaserPersonId: profile.id } })
+            // 5. CheckIn → Ticket → PersonProfile, then Ticket → PersonProfile
+            const tickets = await prisma.ticket.findMany({ where: { personId: profile.id } })
+            for (const ticket of tickets) {
+                await prisma.checkIn.deleteMany({ where: { ticketId: ticket.id } })
+            }
+            await prisma.ticket.deleteMany({ where: { personId: profile.id } })
+            // 6. Membership → PersonProfile
+            await prisma.membership.deleteMany({ where: { personId: profile.id } })
+            // 7. EventTicket → PersonProfile
+            await prisma.eventTicket.deleteMany({ where: { personId: profile.id } })
+        }
         await prisma.personProfile.deleteMany({ where: { userId: user.id } })
         await prisma.userAccount.delete({ where: { id: user.id } })
     }
@@ -48,7 +80,13 @@ async function main() {
     })
 
     for (const org of existingOrganizers) {
-        // Delete events first
+        // Delete events and their related data first
+        const events = await prisma.event.findMany({ where: { organizerId: org.id } })
+        for (const event of events) {
+            await prisma.eventRegistration.deleteMany({ where: { eventId: event.id } })
+            await prisma.eventSession.deleteMany({ where: { eventId: event.id } })
+            await prisma.eventTicket.deleteMany({ where: { eventId: event.id } })
+        }
         await prisma.event.deleteMany({ where: { organizerId: org.id } })
         
         // Get all periods for this organizer
@@ -57,23 +95,59 @@ async function main() {
         })
         
         for (const p of periods) {
-            // Clean up period data
+            // Clean up period data - respecting FK constraints
+            // 1. Attendance → Registration
+            await prisma.attendance.deleteMany({
+                where: { Registration: { periodId: p.id } }
+            })
             await prisma.waitlistEntry.deleteMany({
                 where: { Registration: { periodId: p.id } }
             })
             await prisma.registration.deleteMany({ where: { periodId: p.id } })
+            // Order FKs: Invoice, CreditNote, Payment
+            await prisma.invoice.deleteMany({
+                where: { Order: { periodId: p.id } }
+            })
+            await prisma.creditNote.deleteMany({
+                where: { Order: { periodId: p.id } }
+            })
             await prisma.payment.deleteMany({
                 where: { Order: { periodId: p.id } }
             })
             await prisma.order.deleteMany({ where: { periodId: p.id } })
+            // 2. CheckIn → Ticket
+            const tickets = await prisma.ticket.findMany({ where: { periodId: p.id } })
+            for (const ticket of tickets) {
+                await prisma.checkIn.deleteMany({ where: { ticketId: ticket.id } })
+            }
             await prisma.ticket.deleteMany({ where: { periodId: p.id } })
             await prisma.discountRule.deleteMany({ where: { periodId: p.id } })
+            // 3. TrackSession → CourseTrack
+            const tracks = await prisma.courseTrack.findMany({ where: { periodId: p.id } })
+            for (const track of tracks) {
+                await prisma.trackSession.deleteMany({ where: { trackId: track.id } })
+            }
             await prisma.courseTrack.deleteMany({ where: { periodId: p.id } })
             await prisma.coursePeriod.delete({ where: { id: p.id } })
         }
         
         // Delete user roles for this org
         await prisma.userAccountRole.deleteMany({ where: { organizerId: org.id } })
+        
+        // Delete remaining organizer-level FKs (in dependency order)
+        await prisma.auditLog.deleteMany({ where: { organizerId: org.id } })
+        await prisma.scheduledTask.deleteMany({ where: { organizerId: org.id } })
+        await prisma.invoice.deleteMany({ where: { organizerId: org.id } })
+        await prisma.creditNote.deleteMany({ where: { Order: { organizerId: org.id } } })
+        await prisma.payment.deleteMany({ where: { Order: { organizerId: org.id } } })
+        await prisma.eventRegistration.deleteMany({ where: { Order: { organizerId: org.id } } })
+        await prisma.registration.deleteMany({ where: { Order: { organizerId: org.id } } })
+        await prisma.order.deleteMany({ where: { organizerId: org.id } })
+        await prisma.membership.deleteMany({ where: { organizerId: org.id } })
+        await prisma.membershipTier.deleteMany({ where: { organizerId: org.id } })
+        await prisma.orgDiscountRule.deleteMany({ where: { organizerId: org.id } })
+        await prisma.emailTemplate.deleteMany({ where: { organizerId: org.id } })
+        await prisma.userInvitation.deleteMany({ where: { organizerId: org.id } })
         
         // Finally delete the organizer
         await prisma.organizer.delete({ where: { id: org.id } })
@@ -776,16 +850,25 @@ async function main() {
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'INDIVIDUAL',
+            deliveryMethod: 'IN_PERSON',
             title: 'Morning Yoga (Individual)',
-            description: 'A weekly yoga class for all levels. No partner required.',
+            description: 'A weekly yoga class for all levels. No partner required. Individual registration only.',
             weekday: 1, // Monday
             timeStart: '07:00',
             timeEnd: '08:00',
             levelLabel: 'All levels',
             locationName: 'SalsaNor Studio',
             locationAddress: 'Torggata 15, 0181 Oslo',
+            latitude: 59.9171,
+            longitude: 10.7506,
             capacityTotal: 20,
             priceSingleCents: 120000,
+            memberPriceSingleCents: 100000, // Member discount
+            waitlistEnabled: true,
+            allowSelfCheckIn: true,
+            checkInWindowBefore: 30,
+            checkInWindowAfter: 15,
         }
     })
 
@@ -793,17 +876,32 @@ async function main() {
     const partnerTrack = await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'PARTNER',
+            deliveryMethod: 'IN_PERSON',
             title: 'Salsa Beginner (Partner)',
-            description: 'Classic partner salsa course for beginners. Includes experience-level survey.',
+            description: 'Classic partner salsa course for beginners. Choose your role (Leader/Follower) at registration.',
             weekday: 2, // Tuesday
             timeStart: '19:00',
             timeEnd: '20:00',
             levelLabel: 'Beginner',
             locationName: 'SalsaNor Studio',
             locationAddress: 'Torggata 15, 0181 Oslo',
+            latitude: 59.9171,
+            longitude: 10.7506,
             capacityTotal: 30,
+            capacityLeaders: 15,
+            capacityFollowers: 15,
+            rolePolicy: 'ANY',
+            roleALabel: 'Leader',
+            roleBLabel: 'Follower',
             priceSingleCents: 150000,
             pricePairCents: 250000,
+            memberPriceSingleCents: 125000,
+            memberPricePairCents: 200000,
+            waitlistEnabled: true,
+            allowSelfCheckIn: true,
+            checkInWindowBefore: 30,
+            checkInWindowAfter: 30,
         }
     })
 
@@ -866,135 +964,220 @@ async function main() {
         }
     })
 
-    // --- VIRTUAL: Online fitness class ---
+    // --- VIRTUAL: Online fitness class via Zoom ---
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'VIRTUAL',
+            deliveryMethod: 'VIRTUAL',
             title: 'Online Fitness (Virtual)',
-            description: 'Live-streamed fitness class via Zoom. Join from anywhere.',
+            description: 'Live-streamed fitness class via Zoom. Join from anywhere in the world. Link provided after registration.',
             weekday: 3, // Wednesday
             timeStart: '18:00',
             timeEnd: '19:00',
             levelLabel: 'All levels',
             capacityTotal: 100,
+            capacityLeaders: 50,
+            capacityFollowers: 50,
+            rolePolicy: 'ANY',
             priceSingleCents: 80000,
+            pricePairCents: 140000,
+            memberPriceSingleCents: 65000,
+            meetingUrl: 'https://zoom.us/j/1234567890',
+            meetingPassword: 'fitness2026',
+            waitlistEnabled: true,
         }
     })
 
-    // --- WORKSHOP: One-time masterclass ---
+    // --- WORKSHOP: One-time masterclass (non-recurring) ---
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'WORKSHOP',
+            deliveryMethod: 'IN_PERSON',
             title: 'Bachata Masterclass (Workshop)',
-            description: 'Single-session masterclass with a guest instructor. No recurring commitment.',
+            description: 'Single-session masterclass with international guest instructor. Non-recurring event. Pair discount available.',
             weekday: 6, // Saturday
             timeStart: '13:00',
             timeEnd: '16:00',
             levelLabel: 'Intermediate+',
             locationName: 'SalsaNor Studio',
             locationAddress: 'Torggata 15, 0181 Oslo',
+            latitude: 59.9171,
+            longitude: 10.7506,
             capacityTotal: 40,
             priceSingleCents: 59900,
             pricePairCents: 99900,
+            memberPriceSingleCents: 49900,
+            memberPricePairCents: 89900,
+            waitlistEnabled: true,
+            allowSelfCheckIn: true,
+            checkInWindowBefore: 60,
+            checkInWindowAfter: 30,
         }
     })
 
-    // --- DROP_IN: Open gym / practice session ---
+    // --- DROP_IN: Open gym / practice session (pay per visit, no commitment) ---
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'DROP_IN',
+            deliveryMethod: 'IN_PERSON',
             title: 'Open Practice (Drop-In)',
-            description: 'No commitment required. Drop in whenever you like. Pay per session.',
+            description: 'No commitment required. Drop in whenever you like. Pay per session. Perfect for practicing with a partner.',
             weekday: 5, // Friday
             timeStart: '20:00',
             timeEnd: '22:00',
             levelLabel: 'All levels',
             locationName: 'SalsaNor Studio',
             locationAddress: 'Torggata 15, 0181 Oslo',
+            latitude: 59.9171,
+            longitude: 10.7506,
             capacityTotal: 50,
             priceSingleCents: 15000, // 150 kr per session
+            memberPriceSingleCents: 10000, // 100 kr for members
+            waitlistEnabled: false, // No waitlist for drop-in
+            allowSelfCheckIn: true,
+            checkInWindowBefore: 15,
+            checkInWindowAfter: 60,
         }
     })
 
-    // --- KIDS_YOUTH: After-school dance class ---
+    // --- KIDS_YOUTH: After-school dance class (age restricted) ---
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'KIDS_YOUTH',
+            deliveryMethod: 'IN_PERSON',
             title: 'Kids Dance Class (Kids/Youth)',
-            description: 'Fun dance class for kids aged 6–12. Guardian contact required at registration.',
+            description: 'Fun dance class for kids aged 6–12. Parent/guardian contact required at registration. Pickup instructions provided.',
             weekday: 4, // Thursday
             timeStart: '16:00',
             timeEnd: '17:00',
             levelLabel: 'Beginner',
             locationName: 'SalsaNor Studio',
             locationAddress: 'Torggata 15, 0181 Oslo',
+            latitude: 59.9171,
+            longitude: 10.7506,
             capacityTotal: 15,
             priceSingleCents: 100000,
+            memberPriceSingleCents: 85000,
+            minAge: 6,  // Age restriction!
+            maxAge: 12, // Age restriction!
+            waitlistEnabled: true,
+            allowSelfCheckIn: false, // Kids need supervised check-in
         }
     })
 
-    // --- TEAM: Group / corporate booking ---
+    // --- TEAM: Group / corporate booking (team size restrictions) ---
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'TEAM',
+            deliveryMethod: 'IN_PERSON',
             title: 'Team Building Dance (Team)',
-            description: 'Corporate team-building dance session. Register your whole team.',
+            description: 'Corporate team-building dance session. Register your team of 4-8 people. Price is per team, not per person.',
             weekday: 2, // Tuesday
             timeStart: '17:00',
             timeEnd: '18:30',
             levelLabel: 'All levels',
             locationName: 'SalsaNor Studio',
             locationAddress: 'Torggata 15, 0181 Oslo',
-            capacityTotal: 60,
-            priceSingleCents: 75000, // Per person
+            latitude: 59.9171,
+            longitude: 10.7506,
+            capacityTotal: 8, // 8 teams max
+            priceSingleCents: 500000, // 5000 kr per TEAM
+            memberPriceSingleCents: 400000, // Member discount per team
+            teamMinSize: 4, // Min team size
+            teamMaxSize: 8, // Max team size
+            waitlistEnabled: true,
         }
     })
 
-    // --- SUBSCRIPTION: Unlimited monthly access ---
+    // --- SUBSCRIPTION: Unlimited monthly access (recurring billing) ---
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'SUBSCRIPTION',
+            deliveryMethod: 'HYBRID', // Can attend in-person or online
             title: 'Unlimited Monthly Access (Subscription)',
-            description: 'Subscribe and attend as many classes as you want each month.',
-            weekday: 0, // Sunday (placeholder weekday for subscription)
+            description: 'Subscribe for unlimited classes! Attend any regular class in person or join virtual sessions. Auto-renews monthly. Cancel anytime.',
+            weekday: 0, // Sunday (indicates any day for subscription)
             timeStart: '00:00',
-            timeEnd: '00:00',
+            timeEnd: '23:59',
             levelLabel: 'All levels',
-            capacityTotal: 999,
+            locationName: 'All SalsaNor Locations',
+            locationAddress: 'Multiple venues in Oslo',
+            capacityTotal: 200, // Max subscribers
             priceSingleCents: 199900, // 1999 kr / month
+            memberPriceSingleCents: 179900, // 1799 kr member discount
+            waitlistEnabled: true, // Waitlist if max subscribers reached
+            meetingUrl: 'https://zoom.us/j/subscription', // Access to virtual classes
         }
     })
 
-    // --- PRIVATE: 1-on-1 coaching session ---
+    // --- PRIVATE: 1-on-1 coaching with slot booking ---
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'PRIVATE',
+            deliveryMethod: 'IN_PERSON',
             title: 'Private Lesson (Private/1-on-1)',
-            description: 'Book a private lesson with your preferred instructor.',
+            description: 'Book a private lesson with our head instructor. Slots available from 10:00-15:00 on Saturdays. 45-minute sessions with 15-minute breaks. Book up to 2 consecutive slots for extended sessions.',
             weekday: 6, // Saturday
             timeStart: '10:00',
-            timeEnd: '11:00',
+            timeEnd: '15:00', // Calculated from slots but stored for reference
             levelLabel: 'All levels',
-            locationName: 'SalsaNor Studio',
+            locationName: 'SalsaNor Private Studio',
             locationAddress: 'Torggata 15, 0181 Oslo',
-            capacityTotal: 1,
-            priceSingleCents: 89900, // 899 kr per session
+            latitude: 59.9171,
+            longitude: 10.7506,
+            capacityTotal: 1, // 1 person per slot
+            priceSingleCents: 89900, // Base price (not used for slot booking)
+            memberPriceSingleCents: 79900, // Member base price
+            // SLOT BOOKING CONFIG:
+            slotStartTime: '10:00', // First slot at 10:00
+            slotDurationMinutes: 45, // 45 min per slot
+            slotBreakMinutes: 15, // 15 min break between
+            slotCount: 5, // 5 slots available (10:00, 11:00, 12:00, 13:00, 14:00)
+            pricePerSlotCents: 89900, // 899 kr per 45-min slot
+            maxContinuousSlots: 2, // Max 2 slots in a row (90 min session)
+            waitlistEnabled: true,
         }
     })
 
-    // --- CUSTOM: Fully configurable course ---
+    // --- CUSTOM: Fully configurable for specialized use cases ---
     await prisma.courseTrack.create({
         data: {
             periodId: templatePeriod.id,
+            templateType: 'CUSTOM',
+            deliveryMethod: 'HYBRID',
             title: 'Cooking Class (Custom)',
-            description: 'A custom course type using the CUSTOM template for anything not covered by other templates.',
+            description: 'An advanced cooking workshop combining in-person instruction with online recipe access. All fields enabled for maximum flexibility. Pair discount for couples!',
             weekday: 3, // Wednesday
             timeStart: '18:30',
             timeEnd: '21:00',
-            levelLabel: 'All levels',
+            levelLabel: 'Intermediate',
             locationName: 'Matkurs Studio',
-            capacityTotal: 12,
-            priceSingleCents: 89900,
+            locationAddress: 'Mathallen, Vulkan 5, 0178 Oslo',
+            latitude: 59.9225,
+            longitude: 10.7520,
+            capacityTotal: 24,
+            capacityLeaders: 12, // 12 chef stations
+            capacityFollowers: 12, // +1 assistant per station
+            rolePolicy: 'ANY', // Book as chef or assistant
+            roleALabel: 'Chef', // Custom role labels
+            roleBLabel: 'Sous Chef',
+            priceSingleCents: 149900, // 1499 kr single
+            pricePairCents: 249900, // 2499 kr pair
+            memberPriceSingleCents: 129900,
+            memberPricePairCents: 219900,
+            minAge: 18, // Adults only
+            meetingUrl: 'https://recipes.example.com/class', // Online recipe access
+            waitlistEnabled: true,
+            allowSelfCheckIn: true,
+            checkInWindowBefore: 30,
+            checkInWindowAfter: 15,
         }
     })
 

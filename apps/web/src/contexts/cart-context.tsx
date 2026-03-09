@@ -13,6 +13,7 @@ export interface CourseCartItem {
     role?: 'LEADER' | 'FOLLOWER'   // only relevant for PARTNER template
     hasPartner?: boolean             // only relevant for PARTNER template
     partnerEmail?: string
+    selectedSlots?: number[]         // only relevant for PRIVATE template (slot indices)
     priceSnapshot: number
     addedAt: number
 }
