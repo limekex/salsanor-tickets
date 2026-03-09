@@ -87,6 +87,7 @@ export interface PricingTrack {
     pricePairCents: number | null
     memberPriceSingleCents?: number | null  // Fixed member price (if set, skip discount engine)
     memberPricePairCents?: number | null    // Fixed member price for pairs
+    pricePerSlotCents?: number | null       // PRIVATE template: price per time slot
 }
 
 export interface CartItem {
@@ -94,6 +95,7 @@ export interface CartItem {
     role?: 'LEADER' | 'FOLLOWER' // Role in that track (PARTNER template only)
     hasPartner?: boolean // If true, applies pair price (PARTNER template only)
     partnerEmail?: string // Meta
+    selectedSlots?: number[] // PRIVATE template: indices of selected time slots
     track: PricingTrack // Snapshot of track data for calculation
 }
 
@@ -137,12 +139,21 @@ export function calculatePricing(
 
     // 1. Initialize Line Items with Base Price
     // If user is a member and track has fixed member price, use that instead of base price
+    // For PRIVATE template with slots, use pricePerSlotCents × selectedSlots.length
     let lineItems: PricingLineItem[] = cartItems.map(item => {
         let basePrice: number
         let usesFixedMemberPrice = false
         
-        // Check if member with fixed member price
-        if (context.isMember) {
+        // Check for PRIVATE template with slot-based pricing
+        const hasSlotPricing = item.selectedSlots && 
+            item.selectedSlots.length > 0 && 
+            item.track.pricePerSlotCents
+        
+        if (hasSlotPricing) {
+            // PRIVATE template: price per slot × number of slots
+            basePrice = item.track.pricePerSlotCents! * item.selectedSlots!.length
+        } else if (context.isMember) {
+            // Check if member with fixed member price
             const memberPrice = item.hasPartner && item.track.memberPricePairCents
                 ? item.track.memberPricePairCents
                 : item.track.memberPriceSingleCents

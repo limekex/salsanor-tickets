@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto'
 import { getEffectiveDiscountRules, getEffectiveDiscountRulesForEvent } from './discounts'
 import { readUtmCookie } from '@/lib/utm'
 
-export async function getCartPricing(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string }[]) {
+export async function getCartPricing(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string, selectedSlots?: number[] }[]) {
     if (!items.length) return null
 
     // Fetch all tracks involved
@@ -22,7 +22,8 @@ export async function getCartPricing(items: { trackId: string, role?: string, ha
             priceSingleCents: true,
             pricePairCents: true,
             memberPriceSingleCents: true,
-            memberPricePairCents: true
+            memberPricePairCents: true,
+            pricePerSlotCents: true  // For PRIVATE template slot-based pricing
         }
     })
 
@@ -78,12 +79,14 @@ export async function getCartPricing(items: { trackId: string, role?: string, ha
         return {
             ...item,
             role: item.role as any,
+            selectedSlots: item.selectedSlots,  // For PRIVATE template
             track: {
                 id: track.id,
                 priceSingleCents: track.priceSingleCents,
                 pricePairCents: track.pricePairCents,
                 memberPriceSingleCents: track.memberPriceSingleCents,
-                memberPricePairCents: track.memberPricePairCents
+                memberPricePairCents: track.memberPricePairCents,
+                pricePerSlotCents: track.pricePerSlotCents  // For PRIVATE template slot pricing
             }
         }
     })
@@ -91,7 +94,7 @@ export async function getCartPricing(items: { trackId: string, role?: string, ha
     return calculatePricing(fullCartItems, rules, { isMember, membershipTierId })
 }
 
-export async function createOrderFromCart(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string }[]) {
+export async function createOrderFromCart(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string, selectedSlots?: number[] }[]) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

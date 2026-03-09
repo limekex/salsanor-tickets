@@ -168,6 +168,11 @@ export default function CartPage() {
                                                     {item.hasPartner && ` (+ Partner)`}
                                                 </p>
                                             )}
+                                            {item.selectedSlots && item.selectedSlots.length > 0 && (
+                                                <p className="text-sm text-muted-foreground">
+                                                    {item.selectedSlots.length} slot{item.selectedSlots.length > 1 ? 's' : ''} selected
+                                                </p>
+                                            )}
                                             {item.organizerName && (
                                                 <p className="text-xs text-muted-foreground mt-1">
                                                     {item.organizerName}
