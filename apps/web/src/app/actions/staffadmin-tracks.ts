@@ -73,6 +73,18 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
         pricePairCents: formData.get('pricePairCents') || undefined,
         memberPriceSingleCents: formData.get('memberPriceSingleCents') || undefined,
         memberPricePairCents: formData.get('memberPricePairCents') || undefined,
+        // Virtual meeting fields
+        meetingUrl: formData.get('meetingUrl') || undefined,
+        meetingPassword: formData.get('meetingPassword') || undefined,
+        // Age restriction fields
+        minAge: formData.get('minAge') || undefined,
+        maxAge: formData.get('maxAge') || undefined,
+        // Team configuration fields
+        teamMinSize: formData.get('teamMinSize') || undefined,
+        teamMaxSize: formData.get('teamMaxSize') || undefined,
+        // Custom role labels
+        roleALabel: formData.get('roleALabel') || undefined,
+        roleBLabel: formData.get('roleBLabel') || undefined,
     }
 
     const result = courseTrackSchema.safeParse(raw)
@@ -180,6 +192,18 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
         pricePairCents: formData.get('pricePairCents') || undefined,
         memberPriceSingleCents: formData.get('memberPriceSingleCents') || undefined,
         memberPricePairCents: formData.get('memberPricePairCents') || undefined,
+        // Virtual meeting fields
+        meetingUrl: formData.get('meetingUrl') || undefined,
+        meetingPassword: formData.get('meetingPassword') || undefined,
+        // Age restriction fields
+        minAge: formData.get('minAge') || undefined,
+        maxAge: formData.get('maxAge') || undefined,
+        // Team configuration fields
+        teamMinSize: formData.get('teamMinSize') || undefined,
+        teamMaxSize: formData.get('teamMaxSize') || undefined,
+        // Custom role labels
+        roleALabel: formData.get('roleALabel') || undefined,
+        roleBLabel: formData.get('roleBLabel') || undefined,
     }
 
     const result = courseTrackSchema.safeParse(raw)

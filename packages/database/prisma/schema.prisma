@@ -180,6 +180,8 @@ model CourseTrack {
   capacityTotal          Int
   capacityLeaders        Int?
   capacityFollowers      Int?
+  roleALabel             String?        // Custom label for "Leader" role (e.g., "Driver", "Role A")
+  roleBLabel             String?        // Custom label for "Follower" role (e.g., "Navigator", "Role B")
   rolePolicy             TrackRole      @default(ANY)
   waitlistEnabled        Boolean        @default(true)
   priceSingleCents       Int
@@ -194,6 +196,27 @@ model CourseTrack {
   allowDashboardCheckIn  Boolean        @default(false)  // Allow participants to check in from /my dashboard
   geofenceEnabled        Boolean        @default(false)  // Require location check for dashboard check-in
   geofenceRadius         Int?           // Radius in meters for geofence check
+  
+  // Virtual meeting fields (VIRTUAL template / VIRTUAL/HYBRID delivery)
+  meetingUrl             String?        // Zoom, Google Meet, etc. link
+  meetingPassword        String?        // Optional meeting password
+  
+  // Age restrictions (KIDS_YOUTH template)
+  minAge                 Int?           // Minimum participant age
+  maxAge                 Int?           // Maximum participant age
+  
+  // Team configuration (TEAM template)
+  teamMinSize            Int?           // Minimum team size
+  teamMaxSize            Int?           // Maximum team size
+  
+  // Slot booking configuration (PRIVATE template)
+  slotStartTime          String?        // Start of availability window (HH:mm, e.g., "12:00")
+  slotDurationMinutes    Int?           // Duration of each slot in minutes (e.g., 30)
+  slotBreakMinutes       Int?           // Break between slots in minutes (e.g., 5)
+  slotCount              Int?           // Number of slots available per session
+  pricePerSlotCents      Int?           // Price per slot in cents
+  maxContinuousSlots     Int?           // Max slots a user can book at once (e.g., 2)
+  
   CoursePeriod           CoursePeriod   @relation(fields: [periodId], references: [id])
   Registration           Registration[]
   TrackSession           TrackSession[]
