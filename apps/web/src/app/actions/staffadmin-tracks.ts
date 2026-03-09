@@ -85,6 +85,13 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
         // Custom role labels
         roleALabel: formData.get('roleALabel') || undefined,
         roleBLabel: formData.get('roleBLabel') || undefined,
+        // Slot booking fields (PRIVATE template)
+        slotStartTime: formData.get('slotStartTime') || undefined,
+        slotDurationMinutes: formData.get('slotDurationMinutes') || undefined,
+        slotBreakMinutes: formData.get('slotBreakMinutes') || undefined,
+        slotCount: formData.get('slotCount') || undefined,
+        pricePerSlotCents: formData.get('pricePerSlotCents') || undefined,
+        maxContinuousSlots: formData.get('maxContinuousSlots') || undefined,
     }
 
     const result = courseTrackSchema.safeParse(raw)
@@ -204,6 +211,13 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
         // Custom role labels
         roleALabel: formData.get('roleALabel') || undefined,
         roleBLabel: formData.get('roleBLabel') || undefined,
+        // Slot booking fields (PRIVATE template)
+        slotStartTime: formData.get('slotStartTime') || undefined,
+        slotDurationMinutes: formData.get('slotDurationMinutes') || undefined,
+        slotBreakMinutes: formData.get('slotBreakMinutes') || undefined,
+        slotCount: formData.get('slotCount') || undefined,
+        pricePerSlotCents: formData.get('pricePerSlotCents') || undefined,
+        maxContinuousSlots: formData.get('maxContinuousSlots') || undefined,
     }
 
     const result = courseTrackSchema.safeParse(raw)

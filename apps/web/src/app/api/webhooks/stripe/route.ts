@@ -540,6 +540,15 @@ export async function POST(req: Request) {
                             })
                         } else if (order.orderType === 'COURSE_PERIOD' && order.CoursePeriod) {
                             const trackNames = order.Registration.map(r => r.CourseTrack?.title || 'Track')
+                            
+                            // Build trackInfo with slot booking details
+                            const trackInfo = order.Registration.map(r => ({
+                                name: r.CourseTrack?.title || 'Track',
+                                bookedSlots: r.bookedSlots ?? [],
+                                slotStartTime: r.CourseTrack?.slotStartTime ?? null,
+                                slotDurationMinutes: r.CourseTrack?.slotDurationMinutes ?? null,
+                            }))
+                            
                             const period = order.CoursePeriod
 
                             // Get the course ticket with QR code
@@ -623,6 +632,7 @@ export async function POST(req: Request) {
                                 const pdfBuffer = await generateCourseTicketPDF({
                                     periodName: period.name,
                                     trackNames: trackNames,
+                                    trackInfo: trackInfo,
                                     startDate: period.startDate || new Date(),
                                     endDate: period.endDate || new Date(),
                                     qrToken: courseTicket.qrTokenHash,

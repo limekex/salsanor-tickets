@@ -814,6 +814,7 @@ model Registration {
   stripeRefundId     String?
   customFieldValues  Json?
   bookedSlots        Int[] // For PRIVATE template: indices of booked time slots
+  bookedWeeks        Int[] // For PRIVATE template: which weeks are booked (empty = all weeks)
   CreditNote         CreditNote[]
   Order              Order?             @relation(fields: [orderId], references: [id])
   PairGroup          PairGroup?         @relation(fields: [pairGroupId], references: [id])
@@ -834,6 +835,7 @@ model SlotHold {
   id         String   @id @default(uuid())
   trackId    String
   slotIndex  Int // Which slot index is being held
+  weekIndex  Int? // Which week (0-based) - null means all weeks
   sessionKey String // Anonymous session ID (browser fingerprint or cookie)
   personId   String? // If logged in, link to PersonProfile
   expiresAt  DateTime // When this hold expires
@@ -842,7 +844,7 @@ model SlotHold {
   CourseTrack   CourseTrack    @relation(fields: [trackId], references: [id], onDelete: Cascade)
   PersonProfile PersonProfile? @relation(fields: [personId], references: [id], onDelete: Cascade)
 
-  @@unique([trackId, slotIndex, sessionKey]) // One session can only hold a slot once
+  @@unique([trackId, slotIndex, weekIndex, sessionKey]) // One session can only hold a slot+week once
   @@index([trackId, expiresAt])
   @@index([sessionKey])
 }

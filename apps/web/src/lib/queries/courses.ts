@@ -479,6 +479,96 @@ export async function getCourseTrackCapacity(trackId: string) {
 }
 
 /**
+ * Get capacity info for PRIVATE template tracks (slot-based).
+ * For PRIVATE template, capacity = number of slots × number of weeks.
+ */
+export async function getPrivateTemplateCapacity(trackId: string) {
+  const track = await prisma.courseTrack.findUnique({
+    where: { id: trackId },
+    select: {
+      templateType: true,
+      weekday: true,
+      slotCount: true,
+      CoursePeriod: {
+        select: {
+          startDate: true,
+          endDate: true
+        }
+      }
+    }
+  })
+
+  if (!track || track.templateType !== 'PRIVATE' || !track.slotCount) {
+    return null
+  }
+
+  // Calculate number of weeks in period
+  const weeks = calculateWeeksInPeriod(
+    track.CoursePeriod.startDate,
+    track.CoursePeriod.endDate,
+    track.weekday
+  )
+
+  // Total possible slot-sessions (each slot × each week)
+  const totalSlotSessions = track.slotCount * weeks
+
+  // Get all confirmed registrations with booked slots
+  const registrations = await prisma.registration.findMany({
+    where: {
+      trackId,
+      status: { in: ['ACTIVE', 'PENDING_PAYMENT'] },
+      bookedSlots: { isEmpty: false }
+    },
+    select: {
+      bookedSlots: true,
+      bookedWeeks: true
+    }
+  })
+
+  // Count total booked slot-sessions
+  let bookedSlotSessions = 0
+  for (const reg of registrations) {
+    const slots = reg.bookedSlots.length
+    // If bookedWeeks is empty, assume all weeks (legacy or full booking)
+    const weeksBooked = reg.bookedWeeks.length > 0 ? reg.bookedWeeks.length : weeks
+    bookedSlotSessions += slots * weeksBooked
+  }
+
+  return {
+    total: totalSlotSessions,
+    booked: bookedSlotSessions,
+    available: totalSlotSessions - bookedSlotSessions,
+    isFull: bookedSlotSessions >= totalSlotSessions,
+    weeks,
+    slotsPerWeek: track.slotCount
+  }
+}
+
+/**
+ * Helper: Calculate number of weeks in a period for a given weekday
+ */
+function calculateWeeksInPeriod(
+  periodStart: Date,
+  periodEnd: Date,
+  trackWeekday: number
+): number {
+  let count = 0
+  const currentDate = new Date(periodStart)
+  
+  // Find first occurrence of track's weekday
+  const dayOfWeek = currentDate.getDay()
+  const daysUntilTarget = (trackWeekday - dayOfWeek + 7) % 7
+  currentDate.setDate(currentDate.getDate() + daysUntilTarget)
+  
+  while (currentDate <= periodEnd) {
+    count++
+    currentDate.setDate(currentDate.getDate() + 7)
+  }
+  
+  return count
+}
+
+/**
  * Check if course period code is available for organizer
  */
 export async function isCoursePeriodSlugAvailable(code: string, organizerId: string, excludeId?: string) {

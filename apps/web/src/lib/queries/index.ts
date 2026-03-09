@@ -55,6 +55,7 @@ export {
   getCourseTrackByIdOrSlug,
   getAvailableCourseLevels,
   getCourseTrackCapacity,
+  getPrivateTemplateCapacity,
   isCoursePeriodSlugAvailable,
 } from './courses'
 

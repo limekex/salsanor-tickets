@@ -147,6 +147,13 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
             // Custom role labels
             roleALabel: track.roleALabel || '',
             roleBLabel: track.roleBLabel || '',
+            // Slot booking fields (PRIVATE template)
+            slotStartTime: track.slotStartTime || '12:00',
+            slotDurationMinutes: track.slotDurationMinutes || 30,
+            slotBreakMinutes: track.slotBreakMinutes || 0,
+            slotCount: track.slotCount || 8,
+            pricePerSlotCents: track.pricePerSlotCents || 50000,
+            maxContinuousSlots: track.maxContinuousSlots || 2,
         } : {
             periodId,
             title: '',
@@ -189,6 +196,13 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
             // Custom role labels (defaults for dance)
             roleALabel: '',
             roleBLabel: '',
+            // Slot booking fields (PRIVATE template defaults)
+            slotStartTime: '12:00',
+            slotDurationMinutes: 30,
+            slotBreakMinutes: 0,
+            slotCount: 8,
+            pricePerSlotCents: 50000,
+            maxContinuousSlots: 2,
         },
     })
 
@@ -312,6 +326,13 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
         // Custom role labels
         if (data.roleALabel) formData.append('roleALabel', data.roleALabel)
         if (data.roleBLabel) formData.append('roleBLabel', data.roleBLabel)
+        // Slot booking fields (PRIVATE template)
+        if (data.slotStartTime) formData.append('slotStartTime', data.slotStartTime)
+        if (data.slotDurationMinutes !== undefined) formData.append('slotDurationMinutes', data.slotDurationMinutes.toString())
+        if (data.slotBreakMinutes !== undefined) formData.append('slotBreakMinutes', data.slotBreakMinutes.toString())
+        if (data.slotCount !== undefined) formData.append('slotCount', data.slotCount.toString())
+        if (data.pricePerSlotCents !== undefined) formData.append('pricePerSlotCents', data.pricePerSlotCents.toString())
+        if (data.maxContinuousSlots !== undefined) formData.append('maxContinuousSlots', data.maxContinuousSlots.toString())
 
         startTransition(async () => {
             const result = isEditing 
@@ -438,7 +459,7 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
                                     return (
                                     <FormItem>
                                         <FormLabel>{T.fields.templateType}</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select template type">
@@ -478,7 +499,7 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
                                             <FormLabel>{T.fields.deliveryMethod}</FormLabel>
                                             <Select 
                                                 onValueChange={field.onChange} 
-                                                defaultValue={field.value}
+                                                value={field.value}
                                                 disabled={isVirtualTemplate}
                                             >
                                                 <FormControl>
@@ -532,7 +553,7 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>{T.fields.weekday}</FormLabel>
-                                        <Select onValueChange={(val: string) => field.onChange(parseInt(val))} defaultValue={field.value.toString()}>
+                                        <Select onValueChange={(val: string) => field.onChange(parseInt(val))} value={field.value.toString()}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select day" />
@@ -834,7 +855,7 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>{T.fields.rolePolicy}</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <Select onValueChange={field.onChange} value={field.value}>
                                                     <FormControl>
                                                         <SelectTrigger className="w-full max-w-xs">
                                                             <SelectValue placeholder="Select policy" />
@@ -1086,10 +1107,41 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
                             Time Slot Configuration
                         </CardTitle>
                         <CardDescription>
-                            Configure available time slots for private lessons. Participants can book individual slots.
+                            Configure available time slots for private lessons. Participants can book individual slots that repeat each week of the course period.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
+                        {/* Weekday Selection for PRIVATE template */}
+                        <FormField
+                            control={form.control}
+                            name="weekday"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Day of Week</FormLabel>
+                                    <Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString()}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select day for private lessons" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="1">Monday</SelectItem>
+                                            <SelectItem value="2">Tuesday</SelectItem>
+                                            <SelectItem value="3">Wednesday</SelectItem>
+                                            <SelectItem value="4">Thursday</SelectItem>
+                                            <SelectItem value="5">Friday</SelectItem>
+                                            <SelectItem value="6">Saturday</SelectItem>
+                                            <SelectItem value="7">Sunday</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormDescription className="text-xs">
+                                        Day when private lesson slots are available (slots repeat weekly)
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <FormField
                                 control={form.control}

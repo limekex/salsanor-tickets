@@ -77,12 +77,23 @@ export async function GET(
         CourseTrack: {
           select: {
             title: true,
+            templateType: true,
+            slotStartTime: true,
+            slotDurationMinutes: true,
           },
         },
       },
     });
 
     const trackNames = registrations.map(r => r.CourseTrack.title);
+    
+    // Build trackInfo with slot booking details for PRIVATE tracks
+    const trackInfo = registrations.map(r => ({
+      name: r.CourseTrack.title,
+      bookedSlots: r.bookedSlots ?? [],
+      slotStartTime: r.CourseTrack.slotStartTime,
+      slotDurationMinutes: r.CourseTrack.slotDurationMinutes,
+    }));
 
     // Generate Google Wallet save URL
     const saveUrl = generateGoogleCoursePassUrl({
@@ -96,6 +107,7 @@ export async function GET(
       venueName: ticket.CoursePeriod.locationName || undefined,
       city: ticket.CoursePeriod.city,
       trackNames: trackNames.length > 0 ? trackNames : ['Course enrollment'],
+      trackInfo: trackInfo.length > 0 ? trackInfo : undefined,
       organizerName: ticket.CoursePeriod.Organizer.name,
       organizerEmail: ticket.CoursePeriod.Organizer.contactEmail || undefined,
       organizerWebsite: ticket.CoursePeriod.Organizer.website || undefined,

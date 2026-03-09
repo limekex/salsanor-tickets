@@ -3,9 +3,37 @@
 import { prisma } from '@/lib/db'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
+import { differenceInWeeks, addWeeks, startOfWeek, isBefore, isAfter } from 'date-fns'
 
 // How long a hold lasts before expiring (in minutes)
 const HOLD_DURATION_MINUTES = 10
+
+/**
+ * Calculate the weeks within a course period.
+ * Returns array of { weekIndex, startDate, endDate } for each week.
+ */
+function calculatePeriodWeeks(
+    periodStart: Date,
+    periodEnd: Date,
+    trackWeekday: number // 0 = Sunday, 1 = Monday, etc.
+): { weekIndex: number; date: Date }[] {
+    const weeks: { weekIndex: number; date: Date }[] = []
+    
+    // Find the first occurrence of the track's weekday on or after periodStart
+    let currentDate = new Date(periodStart)
+    const dayOfWeek = currentDate.getDay()
+    const daysUntilTarget = (trackWeekday - dayOfWeek + 7) % 7
+    currentDate.setDate(currentDate.getDate() + daysUntilTarget)
+    
+    let weekIndex = 0
+    while (currentDate <= periodEnd) {
+        weeks.push({ weekIndex, date: new Date(currentDate) })
+        weekIndex++
+        currentDate.setDate(currentDate.getDate() + 7)
+    }
+    
+    return weeks
+}
 
 /**
  * Get or create a session key for anonymous slot holds.
@@ -53,6 +81,22 @@ export interface SlotAvailability {
     available: boolean
     heldByCurrentUser: boolean
     bookedCount: number  // For capacity tracking if needed
+}
+
+export interface WeekInfo {
+    weekIndex: number
+    date: Date
+    formattedDate: string
+}
+
+export interface SlotWeekAvailability {
+    slotIndex: number
+    weekIndex: number
+    startTime: string
+    endTime: string
+    weekDate: Date
+    available: boolean
+    heldByCurrentUser: boolean
 }
 
 /**
@@ -168,8 +212,172 @@ export async function getAvailableSlots(trackId: string): Promise<{
 }
 
 /**
+ * Get available slots per week for a PRIVATE template track.
+ * Returns a grid of (slot × week) availability for per-week booking.
+ */
+export async function getAvailableSlotsPerWeek(trackId: string): Promise<{
+    weeks: WeekInfo[]
+    slotsPerWeek: SlotWeekAvailability[]
+    slotTimes: { index: number; startTime: string; endTime: string }[]
+    pricePerSlotCents: number
+    error?: string
+}> {
+    const sessionKey = await getSessionKey()
+    const personId = await getCurrentPersonId()
+    
+    // Get track with slot configuration and period info
+    const track = await prisma.courseTrack.findUnique({
+        where: { id: trackId },
+        select: {
+            id: true,
+            weekday: true,
+            slotStartTime: true,
+            slotDurationMinutes: true,
+            slotBreakMinutes: true,
+            slotCount: true,
+            pricePerSlotCents: true,
+            maxContinuousSlots: true,
+            CoursePeriod: {
+                select: {
+                    startDate: true,
+                    endDate: true
+                }
+            }
+        }
+    })
+    
+    if (!track || !track.slotStartTime || !track.slotCount || !track.slotDurationMinutes) {
+        return { weeks: [], slotsPerWeek: [], slotTimes: [], pricePerSlotCents: 0, error: 'Track not found or not configured for slot booking' }
+    }
+    
+    // Calculate weeks in the period
+    const periodWeeks = calculatePeriodWeeks(
+        track.CoursePeriod.startDate,
+        track.CoursePeriod.endDate,
+        track.weekday
+    )
+    
+    const weeks: WeekInfo[] = periodWeeks.map(w => ({
+        weekIndex: w.weekIndex,
+        date: w.date,
+        formattedDate: w.date.toLocaleDateString('nb-NO', { 
+            day: 'numeric', 
+            month: 'short' 
+        })
+    }))
+    
+    // Clean up expired holds first
+    await prisma.slotHold.deleteMany({
+        where: {
+            expiresAt: { lt: new Date() }
+        }
+    })
+    
+    // Get all active holds for this track (with weekIndex)
+    const activeHolds = await prisma.slotHold.findMany({
+        where: {
+            trackId,
+            expiresAt: { gt: new Date() }
+        },
+        select: {
+            slotIndex: true,
+            weekIndex: true,
+            sessionKey: true,
+            personId: true
+        }
+    })
+    
+    // Get all confirmed bookings with their booked weeks
+    const confirmedBookings = await prisma.registration.findMany({
+        where: {
+            trackId,
+            status: { in: ['ACTIVE', 'PENDING_PAYMENT'] },
+            bookedSlots: { isEmpty: false }
+        },
+        select: {
+            bookedSlots: true,
+            bookedWeeks: true
+        }
+    })
+    
+    // Build set of (slotIndex, weekIndex) that are booked
+    const bookedSlotWeeks = new Set<string>()
+    for (const reg of confirmedBookings) {
+        const regWeeks = reg.bookedWeeks.length > 0 
+            ? reg.bookedWeeks 
+            : weeks.map(w => w.weekIndex) // Empty = all weeks
+        
+        for (const slotIdx of reg.bookedSlots) {
+            for (const weekIdx of regWeeks) {
+                bookedSlotWeeks.add(`${slotIdx}-${weekIdx}`)
+            }
+        }
+    }
+    
+    // Build slot times
+    const slotTimes: { index: number; startTime: string; endTime: string }[] = []
+    const [startHours, startMins] = track.slotStartTime.split(':').map(Number)
+    let currentMinutes = startHours * 60 + startMins
+    
+    for (let i = 0; i < track.slotCount; i++) {
+        const startH = Math.floor(currentMinutes / 60) % 24
+        const startM = currentMinutes % 60
+        const endMinutes = currentMinutes + track.slotDurationMinutes
+        const endH = Math.floor(endMinutes / 60) % 24
+        const endM = endMinutes % 60
+        
+        slotTimes.push({
+            index: i,
+            startTime: `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`,
+            endTime: `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`
+        })
+        
+        currentMinutes = endMinutes + (track.slotBreakMinutes ?? 0)
+    }
+    
+    // Build availability grid
+    const slotsPerWeek: SlotWeekAvailability[] = []
+    
+    for (const slot of slotTimes) {
+        for (const week of weeks) {
+            const key = `${slot.index}-${week.weekIndex}`
+            const isBooked = bookedSlotWeeks.has(key)
+            
+            // Check holds for this specific slot+week
+            const holdForSlotWeek = activeHolds.find(
+                h => h.slotIndex === slot.index && h.weekIndex === week.weekIndex
+            )
+            const heldByOther = holdForSlotWeek && 
+                holdForSlotWeek.sessionKey !== sessionKey && 
+                holdForSlotWeek.personId !== personId
+            const heldByCurrentUser = !!(holdForSlotWeek && 
+                (holdForSlotWeek.sessionKey === sessionKey || 
+                 (personId && holdForSlotWeek.personId === personId)))
+            
+            slotsPerWeek.push({
+                slotIndex: slot.index,
+                weekIndex: week.weekIndex,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                weekDate: week.date,
+                available: !heldByOther && !isBooked,
+                heldByCurrentUser
+            })
+        }
+    }
+    
+    return { 
+        weeks, 
+        slotsPerWeek, 
+        slotTimes, 
+        pricePerSlotCents: track.pricePerSlotCents ?? 0 
+    }
+}
+
+/**
  * Hold a slot for the current session.
  * Creates or extends an existing hold.
+ * Note: weekIndex=null means "all weeks" (for backward compatibility)
  */
 export async function holdSlot(trackId: string, slotIndex: number): Promise<{
     success: boolean
@@ -193,22 +401,90 @@ export async function holdSlot(trackId: string, slotIndex: number): Promise<{
     }
     
     try {
-        // Upsert the hold (create or extend)
-        await prisma.slotHold.upsert({
+        // For all-weeks holds (weekIndex=null), use findFirst + update/create
+        // because Prisma upsert doesn't handle null in compound unique well
+        const existingHold = await prisma.slotHold.findFirst({
             where: {
-                trackId_slotIndex_sessionKey: {
+                trackId,
+                slotIndex,
+                weekIndex: null,
+                sessionKey
+            }
+        })
+        
+        if (existingHold) {
+            await prisma.slotHold.update({
+                where: { id: existingHold.id },
+                data: { expiresAt, personId }
+            })
+        } else {
+            await prisma.slotHold.create({
+                data: {
                     trackId,
                     slotIndex,
+                    weekIndex: null,
+                    sessionKey,
+                    personId,
+                    expiresAt
+                }
+            })
+        }
+        
+        return { success: true, expiresAt }
+    } catch (e: any) {
+        console.error('Failed to hold slot:', e)
+        return { success: false, error: 'Failed to hold slot' }
+    }
+}
+
+/**
+ * Hold a slot+week combination for per-week booking (Option B).
+ */
+export async function holdSlotWeek(
+    trackId: string, 
+    slotIndex: number, 
+    weekIndex: number
+): Promise<{
+    success: boolean
+    expiresAt?: Date
+    error?: string
+}> {
+    const sessionKey = await getSessionKey()
+    const personId = await getCurrentPersonId()
+    const expiresAt = new Date(Date.now() + HOLD_DURATION_MINUTES * 60 * 1000)
+    
+    // Check if slot+week is available
+    const { slotsPerWeek, error } = await getAvailableSlotsPerWeek(trackId)
+    if (error) return { success: false, error }
+    
+    const slotWeek = slotsPerWeek.find(
+        sw => sw.slotIndex === slotIndex && sw.weekIndex === weekIndex
+    )
+    if (!slotWeek) return { success: false, error: 'Invalid slot/week combination' }
+    
+    // Allow if available OR already held by current user
+    if (!slotWeek.available && !slotWeek.heldByCurrentUser) {
+        return { success: false, error: 'Slot is not available for this week' }
+    }
+    
+    try {
+        await prisma.slotHold.upsert({
+            where: {
+                trackId_slotIndex_weekIndex_sessionKey: {
+                    trackId,
+                    slotIndex,
+                    weekIndex,
                     sessionKey
                 }
             },
             update: {
                 expiresAt,
-                personId // Update personId if user logged in since
+                personId
             },
             create: {
                 trackId,
                 slotIndex,
+                weekIndex,
                 sessionKey,
                 personId,
                 expiresAt
@@ -217,7 +493,7 @@ export async function holdSlot(trackId: string, slotIndex: number): Promise<{
         
         return { success: true, expiresAt }
     } catch (e: any) {
-        console.error('Failed to hold slot:', e)
+        console.error('Failed to hold slot+week:', e)
         return { success: false, error: 'Failed to hold slot' }
     }
 }
@@ -236,6 +512,7 @@ export async function releaseSlot(trackId: string, slotIndex: number): Promise<{
             where: {
                 trackId,
                 slotIndex,
+                weekIndex: null,
                 sessionKey
             }
         })
@@ -243,6 +520,36 @@ export async function releaseSlot(trackId: string, slotIndex: number): Promise<{
         return { success: true }
     } catch (e: any) {
         console.error('Failed to release slot:', e)
+        return { success: false, error: 'Failed to release slot' }
+    }
+}
+
+/**
+ * Release a slot+week hold for per-week booking.
+ */
+export async function releaseSlotWeek(
+    trackId: string, 
+    slotIndex: number, 
+    weekIndex: number
+): Promise<{
+    success: boolean
+    error?: string
+}> {
+    const sessionKey = await getSessionKey()
+    
+    try {
+        await prisma.slotHold.deleteMany({
+            where: {
+                trackId,
+                slotIndex,
+                weekIndex,
+                sessionKey
+            }
+        })
+        
+        return { success: true }
+    } catch (e: any) {
+        console.error('Failed to release slot+week:', e)
         return { success: false, error: 'Failed to release slot' }
     }
 }
@@ -284,10 +591,13 @@ export async function confirmSlotBooking(
     const sessionKey = await getSessionKey()
     
     try {
-        // Update registration with booked slots
+        // Update registration with booked slots (bookedWeeks empty = all weeks)
         await prisma.registration.update({
             where: { id: registrationId },
-            data: { bookedSlots: selectedSlots }
+            data: { 
+                bookedSlots: selectedSlots,
+                bookedWeeks: [] // Empty = all weeks
+            }
         })
         
         // Delete the holds (they're now confirmed)
@@ -307,6 +617,49 @@ export async function confirmSlotBooking(
 }
 
 /**
+ * Convert per-week holds to confirmed booking (Option B).
+ * Called from checkout action when order is paid.
+ */
+export async function confirmSlotWeekBooking(
+    registrationId: string,
+    trackId: string,
+    selectedSlots: number[],
+    selectedWeeks: number[]
+): Promise<{ success: boolean; error?: string }> {
+    const sessionKey = await getSessionKey()
+    
+    try {
+        // Update registration with booked slots AND weeks
+        await prisma.registration.update({
+            where: { id: registrationId },
+            data: { 
+                bookedSlots: selectedSlots,
+                bookedWeeks: selectedWeeks
+            }
+        })
+        
+        // Delete the per-week holds (they're now confirmed)
+        for (const slotIndex of selectedSlots) {
+            for (const weekIndex of selectedWeeks) {
+                await prisma.slotHold.deleteMany({
+                    where: {
+                        trackId,
+                        slotIndex,
+                        weekIndex,
+                        sessionKey
+                    }
+                })
+            }
+        }
+        
+        return { success: true }
+    } catch (e: any) {
+        console.error('Failed to confirm per-week slot booking:', e)
+        return { success: false, error: 'Failed to confirm booking' }
+    }
+}
+
+/**
  * Get current user's held slots for a track.
  * Used to restore selection when returning to the registration page.
  */
@@ -317,6 +670,7 @@ export async function getMyHeldSlots(trackId: string): Promise<number[]> {
     const holds = await prisma.slotHold.findMany({
         where: {
             trackId,
+            weekIndex: null, // All-weeks holds only
             expiresAt: { gt: new Date() },
             OR: [
                 { sessionKey },
@@ -327,4 +681,34 @@ export async function getMyHeldSlots(trackId: string): Promise<number[]> {
     })
     
     return holds.map(h => h.slotIndex).sort((a, b) => a - b)
+}
+
+/**
+ * Get current user's held slot+week combinations for per-week booking.
+ * Returns array of { slotIndex, weekIndex } pairs.
+ */
+export async function getMyHeldSlotWeeks(trackId: string): Promise<{
+    slotIndex: number
+    weekIndex: number
+}[]> {
+    const sessionKey = await getSessionKey()
+    const personId = await getCurrentPersonId()
+    
+    const holds = await prisma.slotHold.findMany({
+        where: {
+            trackId,
+            weekIndex: { not: null }, // Per-week holds only
+            expiresAt: { gt: new Date() },
+            OR: [
+                { sessionKey },
+                ...(personId ? [{ personId }] : [])
+            ]
+        },
+        select: { slotIndex: true, weekIndex: true }
+    })
+    
+    return holds
+        .filter(h => h.weekIndex !== null)
+        .map(h => ({ slotIndex: h.slotIndex, weekIndex: h.weekIndex! }))
+        .sort((a, b) => a.slotIndex - b.slotIndex || a.weekIndex - b.weekIndex)
 }

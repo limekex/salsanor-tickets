@@ -112,6 +112,8 @@ export interface CourseCartItem {
   organizerId: string
   organizerName: string
   pricePerItem: number // in cents
+  selectedSlots?: number[] // For PRIVATE template: slot indices
+  selectedWeeks?: number[] // For PRIVATE template: week indices (per-week booking)
 }
 
 /**

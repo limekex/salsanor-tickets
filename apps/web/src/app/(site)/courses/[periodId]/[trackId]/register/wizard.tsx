@@ -16,11 +16,16 @@ import type { CustomFieldDefinition, CustomFieldValues } from '@/types/custom-fi
 import { validateCustomFields } from '@/types/custom-fields'
 import { Checkbox } from '@/components/ui/checkbox'
 import { 
-    getAvailableSlots, 
-    holdSlot, 
-    releaseSlot, 
+    getAvailableSlots,
+    getAvailableSlotsPerWeek,
+    holdSlot,
+    holdSlotWeek,
+    releaseSlot,
+    releaseSlotWeek,
     releaseAllHolds,
-    type SlotAvailability 
+    type SlotAvailability,
+    type SlotWeekAvailability,
+    type WeekInfo
 } from '@/app/actions/slot-holds'
 
 interface WizardTrack {
@@ -63,30 +68,42 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
 
     const hasCustomFields = customFields.length > 0
 
-    // Slot availability state for PRIVATE template
+    // Slot availability state for PRIVATE template (legacy all-weeks mode)
     const [availableSlots, setAvailableSlots] = useState<SlotAvailability[]>([])
     const [slotsLoading, setSlotsLoading] = useState(false)
     const [slotError, setSlotError] = useState<string | null>(null)
     const [holdingSlot, setHoldingSlot] = useState<number | null>(null) // Slot currently being held/released
+    
+    // Per-week slot booking state (Option B)
+    const [weeks, setWeeks] = useState<WeekInfo[]>([])
+    const [slotsPerWeek, setSlotsPerWeek] = useState<SlotWeekAvailability[]>([])
+    const [slotTimes, setSlotTimes] = useState<{ index: number; startTime: string; endTime: string }[]>([])
+    const [selectedSlotWeeks, setSelectedSlotWeeks] = useState<{ slotIndex: number; weekIndex: number }[]>([])
+    const [holdingSlotWeek, setHoldingSlotWeek] = useState<{ slotIndex: number; weekIndex: number } | null>(null)
+    const [slotPricePerWeek, setSlotPricePerWeek] = useState(0)
 
-    // Fetch available slots for PRIVATE template
+    // Fetch available slots for PRIVATE template (per-week mode)
     const fetchSlots = useCallback(async () => {
         if (!isPrivate) return
         setSlotsLoading(true)
         setSlotError(null)
         try {
-            const result = await getAvailableSlots(track.id)
+            // Use per-week availability
+            const result = await getAvailableSlotsPerWeek(track.id)
             if (result.error) {
                 setSlotError(result.error)
             } else {
-                setAvailableSlots(result.slots)
-                // Restore any slots we already have holds on
-                const heldSlots = result.slots
-                    .filter(s => s.heldByCurrentUser)
-                    .map(s => s.index)
-                    .sort((a, b) => a - b)
-                if (heldSlots.length > 0) {
-                    setSelectedSlots(heldSlots)
+                setWeeks(result.weeks)
+                setSlotsPerWeek(result.slotsPerWeek)
+                setSlotTimes(result.slotTimes)
+                setSlotPricePerWeek(result.pricePerSlotCents)
+                
+                // Restore any slot+week combinations we already have holds on
+                const heldSlotWeeks = result.slotsPerWeek
+                    .filter(sw => sw.heldByCurrentUser)
+                    .map(sw => ({ slotIndex: sw.slotIndex, weekIndex: sw.weekIndex }))
+                if (heldSlotWeeks.length > 0) {
+                    setSelectedSlotWeeks(heldSlotWeeks)
                 }
             }
         } catch (e) {
@@ -140,106 +157,86 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
 
     // Calculate price based on template type
     const price = useMemo(() => {
-        if (isPrivate && track.pricePerSlotCents && selectedSlots.length > 0) {
-            // PRIVATE: price per slot × number of slots selected
-            return (track.pricePerSlotCents * selectedSlots.length) / 100
+        if (isPrivate && slotPricePerWeek > 0 && selectedSlotWeeks.length > 0) {
+            // PRIVATE: price per slot per week × number of slot+week selections
+            return (slotPricePerWeek * selectedSlotWeeks.length) / 100
         }
         if (isPartner && hasPartner && track.pricePairCents) {
             return track.pricePairCents / 100
         }
         return track.priceSingleCents / 100
-    }, [isPrivate, isPartner, hasPartner, track, selectedSlots.length])
+    }, [isPrivate, isPartner, hasPartner, track, selectedSlotWeeks.length, slotPricePerWeek])
+
+    // Count unique slots and weeks in selection
+    const selectedSlotsCount = useMemo(() => {
+        return new Set(selectedSlotWeeks.map(sw => sw.slotIndex)).size
+    }, [selectedSlotWeeks])
+    
+    const selectedWeeksCount = useMemo(() => {
+        return new Set(selectedSlotWeeks.map(sw => sw.weekIndex)).size
+    }, [selectedSlotWeeks])
 
     const priceLabel = useMemo(() => {
-        if (isPrivate && selectedSlots.length > 0) {
-            return `Total (${selectedSlots.length} slot${selectedSlots.length > 1 ? 's' : ''})`
+        if (isPrivate && selectedSlotWeeks.length > 0) {
+            return `Total (${selectedSlotWeeks.length} session${selectedSlotWeeks.length > 1 ? 's' : ''})`
         }
         if (isPartner && hasPartner && track.pricePairCents) {
             return 'Total Couple Price'
         }
         return 'Total Price'
-    }, [isPrivate, isPartner, hasPartner, track.pricePairCents, selectedSlots.length])
+    }, [isPrivate, isPartner, hasPartner, track.pricePairCents, selectedSlotWeeks.length])
 
-    // Slot selection handler with hold/release and continuous validation
-    async function handleSlotToggle(slotIndex: number) {
-        const isCurrentlySelected = selectedSlots.includes(slotIndex)
-        const slot = availableSlots.find(s => s.index === slotIndex)
+    // Per-week slot selection handler
+    async function handleSlotWeekToggle(slotIndex: number, weekIndex: number) {
+        const key = `${slotIndex}-${weekIndex}`
+        const isCurrentlySelected = selectedSlotWeeks.some(
+            sw => sw.slotIndex === slotIndex && sw.weekIndex === weekIndex
+        )
+        const slotWeek = slotsPerWeek.find(
+            sw => sw.slotIndex === slotIndex && sw.weekIndex === weekIndex
+        )
         
-        if (!slot) return
+        if (!slotWeek) return
         
         // If not available and not currently held by us, can't select
-        if (!slot.available && !slot.heldByCurrentUser && !isCurrentlySelected) {
+        if (!slotWeek.available && !slotWeek.heldByCurrentUser && !isCurrentlySelected) {
             return
         }
         
-        setHoldingSlot(slotIndex)
+        setHoldingSlotWeek({ slotIndex, weekIndex })
         
         try {
             if (isCurrentlySelected) {
-                // Releasing: check that the result would still be consecutive
-                const newSelection = selectedSlots.filter(i => i !== slotIndex)
-                if (newSelection.length > 1) {
-                    // Verify remaining slots are consecutive
-                    const sorted = newSelection.sort((a, b) => a - b)
-                    for (let i = 1; i < sorted.length; i++) {
-                        if (sorted[i] - sorted[i - 1] !== 1) {
-                            // Can't release a slot that would break continuity
-                            setHoldingSlot(null)
-                            return
-                        }
-                    }
-                }
-                
-                // Release the hold on server
-                const result = await releaseSlot(track.id, slotIndex)
+                // Releasing
+                const result = await releaseSlotWeek(track.id, slotIndex, weekIndex)
                 if (result.success) {
-                    setSelectedSlots(newSelection)
-                    // Refresh slot availability
+                    setSelectedSlotWeeks(prev => 
+                        prev.filter(sw => !(sw.slotIndex === slotIndex && sw.weekIndex === weekIndex))
+                    )
                     await fetchSlots()
                 }
             } else {
-                // Adding: check constraints
-                const newSelection = [...selectedSlots, slotIndex].sort((a, b) => a - b)
-                
-                // Check max slots
-                if (newSelection.length > maxContinuous) {
-                    setHoldingSlot(null)
-                    return
-                }
-                
-                // Check continuity (slots must be adjacent)
-                if (newSelection.length > 1) {
-                    for (let i = 1; i < newSelection.length; i++) {
-                        if (newSelection[i] - newSelection[i - 1] !== 1) {
-                            setHoldingSlot(null)
-                            return
-                        }
-                    }
-                }
-                
-                // Try to hold the slot on server
-                const result = await holdSlot(track.id, slotIndex)
+                // Adding
+                const result = await holdSlotWeek(track.id, slotIndex, weekIndex)
                 if (result.success) {
-                    setSelectedSlots(newSelection)
-                    // Refresh to get updated availability
+                    setSelectedSlotWeeks(prev => [...prev, { slotIndex, weekIndex }])
                     await fetchSlots()
                 } else {
                     setSlotError(result.error ?? 'Failed to reserve slot')
-                    // Refresh to see what's available
                     await fetchSlots()
                 }
             }
         } catch (e) {
             setSlotError('Failed to update slot selection')
         } finally {
-            setHoldingSlot(null)
+            setHoldingSlotWeek(null)
         }
     }
 
     function handleNext() {
         // Validate PRIVATE slot selection before advancing
-        if (isPrivate && step === 1 && selectedSlots.length === 0) {
-            return // Must select at least one slot
+        if (isPrivate && step === 1 && selectedSlotWeeks.length === 0) {
+            return // Must select at least one slot+week
         }
         // Validate custom fields before advancing past that step
         if (customFieldStep !== null && step === customFieldStep) {
@@ -257,8 +254,12 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
         if (!currentOrganizerId || !currentOrganizerName) return
         // For PARTNER, role is required; for others it is not
         if (isPartner && !role) return
-        // For PRIVATE, at least one slot must be selected
-        if (isPrivate && selectedSlots.length === 0) return
+        // For PRIVATE, at least one slot+week must be selected
+        if (isPrivate && selectedSlotWeeks.length === 0) return
+
+        // Extract unique slots and weeks from selection
+        const uniqueSlots = [...new Set(selectedSlotWeeks.map(sw => sw.slotIndex))].sort((a, b) => a - b)
+        const uniqueWeeks = [...new Set(selectedSlotWeeks.map(sw => sw.weekIndex))].sort((a, b) => a - b)
 
         addCourseItem({
             trackId: track.id,
@@ -269,7 +270,8 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
             role: isPartner ? role! : undefined,
             hasPartner: isPartner ? hasPartner : undefined,
             partnerEmail: isPartner && hasPartner && partnerEmail ? partnerEmail : undefined,
-            selectedSlots: isPrivate ? selectedSlots : undefined,
+            selectedSlots: isPrivate ? uniqueSlots : undefined,
+            selectedWeeks: isPrivate ? uniqueWeeks : undefined,
             priceSnapshot: price
         })
 
@@ -284,10 +286,10 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
     // ── Is the Next/Add button disabled? ──────────────────────────────────────
     const isNextDisabled = 
         (isPartner && step === 1 && !role) ||
-        (isPrivate && step === 1 && selectedSlots.length === 0)
+        (isPrivate && step === 1 && selectedSlotWeeks.length === 0)
 
     return (
-        <Card className="max-w-md mx-auto">
+        <Card className="max-w-2xl mx-auto">
             <CardHeader>
                 <CardTitle>Register for {track.title}</CardTitle>
                 <CardDescription>Step {step} of {totalSteps}</CardDescription>
@@ -316,18 +318,18 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                     </Alert>
                 )}
 
-                {/* ── PRIVATE: Step 1 — Slot selection ──────────────────── */}
+                {/* ── PRIVATE: Step 1 — Per-week slot selection ──────────────────── */}
                 {isPrivate && step === 1 && (
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                             <Clock className="h-5 w-5 text-muted-foreground" />
-                            <Label className="text-base">Select your time slot(s):</Label>
+                            <Label className="text-base">Select your sessions:</Label>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            {track.pricePerSlotCents && (
-                                <>{(track.pricePerSlotCents / 100).toLocaleString('nb-NO')},- per {track.slotDurationMinutes} min slot · </>
+                            {slotPricePerWeek > 0 && (
+                                <>{(slotPricePerWeek / 100).toLocaleString('nb-NO')},- per session · </>
                             )}
-                            Max {maxContinuous} consecutive slot{maxContinuous > 1 ? 's' : ''}
+                            Click cells to select time slots for specific weeks
                         </p>
                         
                         {slotError && (
@@ -337,87 +339,86 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                             </Alert>
                         )}
                         
-                        {slotsLoading && availableSlots.length === 0 ? (
+                        {slotsLoading && slotTimes.length === 0 ? (
                             <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                 <span className="ml-2 text-muted-foreground">Loading available slots...</span>
                             </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {availableSlots.map((slot) => {
-                                    const isSelected = selectedSlots.includes(slot.index)
-                                    const isHoldingThis = holdingSlot === slot.index
-                                    // Slot unavailable if held/booked by others (not available AND not already ours)
-                                    const isUnavailable = !slot.available && !slot.heldByCurrentUser
-                                    // Determine if this slot can be selected (must be adjacent to existing selection)
-                                    const canSelect = !isUnavailable && (
-                                        selectedSlots.length === 0 ||
-                                        selectedSlots.includes(slot.index - 1) ||
-                                        selectedSlots.includes(slot.index + 1) ||
-                                        isSelected
-                                    )
-                                    const wouldExceedMax = !isSelected && selectedSlots.length >= maxContinuous
-                                    const isDisabled = isHoldingThis || isUnavailable || ((!canSelect || wouldExceedMax) && !isSelected)
-
-                                    return (
-                                        <div
-                                            key={slot.index}
-                                            className={`flex items-center space-x-3 border p-3 rounded-md transition-colors ${
-                                                isSelected ? 'bg-primary/10 border-primary' : ''
-                                            } ${isUnavailable ? 'bg-muted/30 border-dashed' : ''
-                                            } ${isDisabled && !isUnavailable ? 'opacity-50' : ''
-                                            } ${!isDisabled ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-                                            onClick={() => !isDisabled && handleSlotToggle(slot.index)}
-                                        >
-                                            {isHoldingThis ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : isUnavailable ? (
-                                                <Lock className="h-4 w-4 text-muted-foreground" />
-                                            ) : (
-                                                <Checkbox
-                                                    id={`slot-${slot.index}`}
-                                                    checked={isSelected}
-                                                    disabled={isDisabled}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onCheckedChange={() => handleSlotToggle(slot.index)}
-                                                />
-                                            )}
-                                            <span
-                                                className={`flex-1 ${isDisabled ? '' : 'cursor-pointer'}`}
-                                            >
-                                                <span className={`font-medium ${isUnavailable ? 'text-muted-foreground' : ''}`}>
-                                                    {slot.startTime} – {slot.endTime}
-                                                </span>
-                                                <span className="text-muted-foreground ml-2">
-                                                    ({track.slotDurationMinutes} min)
-                                                </span>
-                                                {isUnavailable && (
-                                                    <span className="text-xs text-muted-foreground ml-2">
-                                                        (unavailable)
-                                                    </span>
-                                                )}
-                                            </span>
-                                        </div>
-                                    )
-                                })}
+                        ) : weeks.length > 0 && slotTimes.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full border-collapse text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th className="border p-2 bg-muted/50 font-medium text-left min-w-[80px]">Time</th>
+                                            {weeks.map(week => (
+                                                <th key={week.weekIndex} className="border p-2 bg-muted/50 font-medium text-center min-w-[70px]">
+                                                    <div className="text-xs text-muted-foreground">Week {week.weekIndex + 1}</div>
+                                                    <div>{week.formattedDate}</div>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {slotTimes.map(slot => (
+                                            <tr key={slot.index}>
+                                                <td className="border p-2 font-medium bg-muted/30">
+                                                    {slot.startTime}–{slot.endTime}
+                                                </td>
+                                                {weeks.map(week => {
+                                                    const slotWeek = slotsPerWeek.find(
+                                                        sw => sw.slotIndex === slot.index && sw.weekIndex === week.weekIndex
+                                                    )
+                                                    const isSelected = selectedSlotWeeks.some(
+                                                        sw => sw.slotIndex === slot.index && sw.weekIndex === week.weekIndex
+                                                    )
+                                                    const isHoldingThis = holdingSlotWeek?.slotIndex === slot.index && 
+                                                                         holdingSlotWeek?.weekIndex === week.weekIndex
+                                                    const isUnavailable = slotWeek && !slotWeek.available && !slotWeek.heldByCurrentUser
+                                                    const isDisabled = isHoldingThis || isUnavailable
+                                                    
+                                                    return (
+                                                        <td 
+                                                            key={`${slot.index}-${week.weekIndex}`}
+                                                            className={`border p-2 text-center cursor-pointer transition-colors ${
+                                                                isSelected ? 'bg-primary/20 border-primary' : ''
+                                                            } ${isUnavailable ? 'bg-muted/50 cursor-not-allowed' : 'hover:bg-muted/30'
+                                                            }`}
+                                                            onClick={() => !isDisabled && handleSlotWeekToggle(slot.index, week.weekIndex)}
+                                                        >
+                                                            {isHoldingThis ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                                            ) : isUnavailable ? (
+                                                                <Lock className="h-4 w-4 text-muted-foreground mx-auto" />
+                                                            ) : isSelected ? (
+                                                                <div className="w-4 h-4 bg-primary rounded mx-auto" />
+                                                            ) : (
+                                                                <div className="w-4 h-4 border rounded mx-auto" />
+                                                            )}
+                                                        </td>
+                                                    )
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
+                        ) : (
+                            <p className="text-muted-foreground text-center py-4">No slots available</p>
                         )}
                         
-                        {selectedSlots.length > 0 && track.pricePerSlotCents && (
+                        {selectedSlotWeeks.length > 0 && slotPricePerWeek > 0 && (
                             <div className="mt-4 p-3 bg-muted rounded-md">
                                 <div className="flex justify-between text-sm">
-                                    <span>Selected: {selectedSlots.length} slot{selectedSlots.length > 1 ? 's' : ''}</span>
+                                    <span>Selected: {selectedSlotWeeks.length} session{selectedSlotWeeks.length > 1 ? 's' : ''}</span>
                                     <span className="font-medium">
-                                        {((track.pricePerSlotCents * selectedSlots.length) / 100).toLocaleString('nb-NO')},-
+                                        {((slotPricePerWeek * selectedSlotWeeks.length) / 100).toLocaleString('nb-NO')},-
                                     </span>
                                 </div>
-                                {selectedSlots.length > 1 && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Total duration: {(track.slotDurationMinutes ?? 0) * selectedSlots.length} min
-                                    </p>
-                                )}
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    Slots reserved for 10 minutes
+                                    {selectedSlotsCount} time slot{selectedSlotsCount > 1 ? 's' : ''} × {selectedWeeksCount} week{selectedWeeksCount > 1 ? 's' : ''}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Sessions reserved for 10 minutes
                                 </p>
                             </div>
                         )}

@@ -40,7 +40,9 @@ export async function POST(request: NextRequest) {
                     include: {
                         CourseTrack: {
                             select: {
-                                title: true
+                                title: true,
+                                slotStartTime: true,
+                                slotDurationMinutes: true,
                             }
                         }
                     }
@@ -97,6 +99,15 @@ export async function POST(request: NextRequest) {
                     const { DEFAULT_PLATFORM_INFO } = await import('@/lib/tickets/legal-requirements')
                     
                     const trackNames = order.Registration.map(r => r.CourseTrack.title)
+                    
+                    // Build trackInfo with slot booking details
+                    const trackInfo = order.Registration.map(r => ({
+                        name: r.CourseTrack.title,
+                        bookedSlots: r.bookedSlots ?? [],
+                        slotStartTime: r.CourseTrack.slotStartTime,
+                        slotDurationMinutes: r.CourseTrack.slotDurationMinutes,
+                    }))
+                    
                     const period = order.CoursePeriod
                     
                     // Get the course ticket with QR code
@@ -177,6 +188,7 @@ export async function POST(request: NextRequest) {
                         const pdfBuffer = await generateCourseTicketPDF({
                             periodName: period.name,
                             trackNames: trackNames,
+                            trackInfo: trackInfo,
                             startDate: period.startDate || new Date(),
                             endDate: period.endDate || new Date(),
                             qrToken: courseTicket.qrTokenHash,

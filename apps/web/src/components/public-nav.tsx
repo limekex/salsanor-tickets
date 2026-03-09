@@ -28,7 +28,7 @@ export function PublicNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { items, isLoaded } = useCart()
-  const { user, hasRole, isGlobalAdmin, isOrgAdmin } = useUser()
+  const { user, isLoading: userLoading, hasRole, isGlobalAdmin, isOrgAdmin } = useUser()
   const router = useRouter()
   
   // Recalculate count on every render when items change
@@ -75,7 +75,10 @@ export function PublicNav() {
               <Link href="/events">Events</Link>
             </Button>
             
-            {user ? (
+            {userLoading ? (
+              // Show skeleton while loading
+              <div className="h-8 w-20 bg-muted animate-pulse rounded" />
+            ) : user ? (
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -258,7 +261,13 @@ export function PublicNav() {
                   </div>
                 </Button>
                 
-                {user ? (
+                {userLoading ? (
+                  // Show skeleton while loading
+                  <div className="border-t border-rn-border pt-rn-2 mt-rn-2">
+                    <div className="h-8 w-full bg-muted animate-pulse rounded mb-2" />
+                    <div className="h-8 w-full bg-muted animate-pulse rounded" />
+                  </div>
+                ) : user ? (
                   <>
                     {/* My Page Section */}
                     <div className="border-t border-rn-border pt-rn-2 mt-rn-2">

@@ -14,9 +14,10 @@ interface OnboardingFormProps {
     email: string
     existingProfile?: PersonProfile | null
     isUpdate?: boolean
+    redirectTo?: string
 }
 
-export function OnboardingForm({ email, existingProfile, isUpdate = false }: OnboardingFormProps) {
+export function OnboardingForm({ email, existingProfile, isUpdate = false, redirectTo }: OnboardingFormProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -42,8 +43,8 @@ export function OnboardingForm({ email, existingProfile, isUpdate = false }: Onb
             setError(result.error)
             setLoading(false)
         } else if (result.success) {
-            // Success! Redirect to home
-            router.push('/')
+            // Success! Redirect to specified URL or home
+            router.push(redirectTo || '/')
             router.refresh()
         } else {
             // Unexpected error occurred

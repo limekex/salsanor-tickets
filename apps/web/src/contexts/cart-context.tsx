@@ -14,6 +14,7 @@ export interface CourseCartItem {
     hasPartner?: boolean             // only relevant for PARTNER template
     partnerEmail?: string
     selectedSlots?: number[]         // only relevant for PRIVATE template (slot indices)
+    selectedWeeks?: number[]         // only relevant for PRIVATE template (week indices for per-week booking)
     priceSnapshot: number
     addedAt: number
 }

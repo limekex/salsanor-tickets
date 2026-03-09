@@ -1,4 +1,5 @@
 import { getCourseTrackDetails } from '@/app/actions/courses'
+import { getPrivateTemplateCapacity } from '@/lib/queries/courses'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -54,8 +55,6 @@ export default async function TrackDetailPage({ params }: PageProps) {
     const period = track.CoursePeriod
     const organizer = period.Organizer
     const isSalesOpen = period.salesOpenAt < new Date() && period.salesCloseAt > new Date()
-    const availableSpots = track.capacityTotal - track._count.Registration
-    const isFull = availableSpots <= 0
     const weekDayLabel = formatWeekday(track.weekday)
     
     // Type assertion for fields that may not be in cached Prisma types yet
@@ -77,6 +76,29 @@ export default async function TrackDetailPage({ params }: PageProps) {
     }
 
     const isPrivateTemplate = trackWithExtras.templateType === 'PRIVATE'
+
+    // Calculate capacity - PRIVATE templates use slot-based capacity
+    let availableSpots: number
+    let isFull: boolean
+    let capacityLabel: string
+
+    if (isPrivateTemplate) {
+        const privateCapacity = await getPrivateTemplateCapacity(track.id)
+        if (privateCapacity) {
+            availableSpots = privateCapacity.available
+            isFull = privateCapacity.isFull
+            capacityLabel = `${privateCapacity.available} of ${privateCapacity.total} slot-sessions available`
+        } else {
+            // Fallback to regular capacity
+            availableSpots = track.capacityTotal - track._count.Registration
+            isFull = availableSpots <= 0
+            capacityLabel = `${availableSpots} spots left`
+        }
+    } else {
+        availableSpots = track.capacityTotal - track._count.Registration
+        isFull = availableSpots <= 0
+        capacityLabel = `${availableSpots} spots left`
+    }
 
     // Check if current user is org admin
     let isOrgAdmin = false
@@ -254,7 +276,7 @@ export default async function TrackDetailPage({ params }: PageProps) {
                                 {isFull ? (
                                     <span className="text-rn-danger">Full</span>
                                 ) : (
-                                    <span>{availableSpots} spots left</span>
+                                    <span>{capacityLabel}</span>
                                 )}
                             </p>
                         </div>

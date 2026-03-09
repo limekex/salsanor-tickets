@@ -2,26 +2,34 @@
 'use client'
 
 import { useCart } from '@/hooks/use-cart'
+import { useUser } from '@/hooks'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Trash2, AlertCircle, ShoppingCart, Plus, Minus } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useTransition } from 'react'
 import { getCartPricing, createOrderFromCart, createEventOrderFromCart } from '@/app/actions/checkout'
 import { checkDuplicateRegistrations } from '@/app/actions/registration-check'
+import { login, signup } from '@/app/actions/auth'
 import { PricingResult } from '@/lib/pricing/engine'
 import { useRouter } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatPrice } from '@/lib/formatters'
 
 export default function CartPage() {
     const { items, removeItem, updateEventQuantity, clearCart, isLoaded, getCartOrganizerId, getCartOrganizerName } = useCart()
+    const { user, isLoading: userLoading } = useUser()
     const [pricing, setPricing] = useState<PricingResult | null>(null)
     const [loading, setLoading] = useState(false)
     const [checkoutPending, startCheckout] = useTransition()
+    const [authPending, startAuth] = useTransition()
     const [error, setError] = useState<string | null>(null)
+    const [authError, setAuthError] = useState<string | null>(null)
+    const [authMessage, setAuthMessage] = useState<string | null>(null)
     const [duplicates, setDuplicates] = useState<{ id: string; CourseTrack: { id: string; title: string } }[]>([])
     const router = useRouter()
     
@@ -110,6 +118,30 @@ export default function CartPage() {
         })
     }
 
+    async function handleLogin(formData: FormData) {
+        setAuthError(null)
+        setAuthMessage(null)
+        startAuth(async () => {
+            const result = await login(null, formData)
+            if (result?.error) {
+                setAuthError(result.error)
+            }
+        })
+    }
+
+    async function handleSignup(formData: FormData) {
+        setAuthError(null)
+        setAuthMessage(null)
+        startAuth(async () => {
+            const result = await signup(null, formData)
+            if (result?.error) {
+                setAuthError(result.error)
+            } else if (result?.message) {
+                setAuthMessage(result.message)
+            }
+        })
+    }
+
     // Show loading state during checkout
     if (checkoutPending) {
         return (
@@ -170,7 +202,10 @@ export default function CartPage() {
                                             )}
                                             {item.selectedSlots && item.selectedSlots.length > 0 && (
                                                 <p className="text-sm text-muted-foreground">
-                                                    {item.selectedSlots.length} slot{item.selectedSlots.length > 1 ? 's' : ''} selected
+                                                    {item.selectedWeeks && item.selectedWeeks.length > 0 
+                                                        ? `${item.selectedSlots.length} slot${item.selectedSlots.length > 1 ? 's' : ''} × ${item.selectedWeeks.length} week${item.selectedWeeks.length > 1 ? 's' : ''}`
+                                                        : `${item.selectedSlots.length} slot${item.selectedSlots.length > 1 ? 's' : ''} selected`
+                                                    }
                                                 </p>
                                             )}
                                             {item.organizerName && (
@@ -356,16 +391,103 @@ export default function CartPage() {
                             </div>
                         )}
                     </CardContent>
-                    <CardFooter>
-                        <Button 
-                            className="w-full" 
-                            size="lg" 
-                            onClick={handleCheckout} 
-                            disabled={loading || checkoutPending || (items.filter(i => i.type === 'course').length > 0 && !pricing) || duplicates.length > 0}
-                        >
-                            {checkoutPending ? 'Processing...' : 'Proceed to Checkout'}
-                        </Button>
-                    </CardFooter>
+                    
+                    {/* Show auth form if not logged in, otherwise show checkout button */}
+                    {userLoading ? (
+                        <CardFooter>
+                            <div className="w-full h-10 bg-muted animate-pulse rounded" />
+                        </CardFooter>
+                    ) : !user ? (
+                        <CardContent className="pt-0">
+                            <Separator className="mb-4" />
+                            <Tabs defaultValue="login" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="login">Login</TabsTrigger>
+                                    <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value="login" className="mt-4">
+                                    <form action={handleLogin} className="space-y-3">
+                                        <input type="hidden" name="redirectTo" value="/cart" />
+                                        <div className="space-y-1">
+                                            <Label htmlFor="cart-login-email" className="text-sm">Email</Label>
+                                            <Input 
+                                                id="cart-login-email" 
+                                                name="email" 
+                                                type="email" 
+                                                placeholder="you@example.com" 
+                                                required 
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="cart-login-password" className="text-sm">Password</Label>
+                                                <Button
+                                                    type="button"
+                                                    variant="link"
+                                                    className="h-auto p-0 text-xs text-muted-foreground hover:text-primary"
+                                                    onClick={() => router.push('/auth/forgot-password')}
+                                                >
+                                                    Forgot password?
+                                                </Button>
+                                            </div>
+                                            <Input 
+                                                id="cart-login-password" 
+                                                name="password" 
+                                                type="password" 
+                                                required 
+                                            />
+                                        </div>
+                                        {authError && <p className="text-sm text-destructive">{authError}</p>}
+                                        <Button className="w-full" disabled={authPending}>
+                                            {authPending ? 'Logging in...' : 'Login to Checkout'}
+                                        </Button>
+                                    </form>
+                                </TabsContent>
+
+                                <TabsContent value="signup" className="mt-4">
+                                    <form action={handleSignup} className="space-y-3">
+                                        <input type="hidden" name="redirectTo" value="/cart" />
+                                        <div className="space-y-1">
+                                            <Label htmlFor="cart-signup-email" className="text-sm">Email</Label>
+                                            <Input 
+                                                id="cart-signup-email" 
+                                                name="email" 
+                                                type="email" 
+                                                placeholder="you@example.com"
+                                                required 
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="cart-signup-password" className="text-sm">Password</Label>
+                                            <Input 
+                                                id="cart-signup-password" 
+                                                name="password" 
+                                                type="password" 
+                                                required 
+                                            />
+                                        </div>
+                                        {authError && <p className="text-sm text-destructive">{authError}</p>}
+                                        {authMessage && <p className="text-sm text-green-600">{authMessage}</p>}
+                                        <Button className="w-full" disabled={authPending}>
+                                            {authPending ? 'Creating Account...' : 'Sign Up to Checkout'}
+                                        </Button>
+                                    </form>
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    ) : (
+                        <CardFooter>
+                            <Button 
+                                className="w-full" 
+                                size="lg" 
+                                onClick={handleCheckout} 
+                                disabled={loading || checkoutPending || (items.filter(i => i.type === 'course').length > 0 && !pricing) || duplicates.length > 0}
+                            >
+                                {checkoutPending ? 'Processing...' : 'Proceed to Checkout'}
+                            </Button>
+                        </CardFooter>
+                    )}
                 </Card>
             </div>
         </div>

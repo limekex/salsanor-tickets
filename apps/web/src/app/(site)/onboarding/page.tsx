@@ -3,7 +3,12 @@ import { redirect } from 'next/navigation'
 import { OnboardingForm } from './onboarding-form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default async function OnboardingPage() {
+interface OnboardingPageProps {
+    searchParams: Promise<{ redirectTo?: string }>
+}
+
+export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
+    const { redirectTo } = await searchParams
     const { needsOnboarding, userAccount, needsConsentUpdate } = await checkOnboardingStatus()
 
     console.log('Onboarding check:', { needsOnboarding, hasAccount: !!userAccount, hasProfile: !!userAccount?.PersonProfile, needsConsentUpdate })
@@ -39,6 +44,7 @@ export default async function OnboardingPage() {
                         email={userAccount.email || ''} 
                         existingProfile={userAccount.PersonProfile}
                         isUpdate={isUpdate}
+                        redirectTo={redirectTo}
                     />
                 </CardContent>
             </Card>

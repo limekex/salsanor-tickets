@@ -11,6 +11,41 @@ import { join } from 'path';
  * 
  * Pass Style: eventTicket (used for recurring series passes)
  */
+export interface CourseTrackInfo {
+  name: string
+  bookedSlots?: number[]           // For PRIVATE template: slot indices
+  bookedWeeks?: number[]           // For PRIVATE template: week indices
+  slotStartTime?: string | null    // For PRIVATE template: "HH:mm"
+  slotDurationMinutes?: number | null
+}
+
+/**
+ * Format booked slots into readable time range
+ */
+function formatSlotTimes(
+  bookedSlots: number[],
+  slotStartTime: string,
+  slotDurationMinutes: number,
+  slotBreakMinutes: number = 0
+): string {
+  if (!bookedSlots.length) return ''
+  const sorted = [...bookedSlots].sort((a, b) => a - b)
+  const [startHours, startMins] = slotStartTime.split(':').map(Number)
+  
+  const firstSlotMinutes = startHours * 60 + startMins + 
+    sorted[0] * (slotDurationMinutes + slotBreakMinutes)
+  const lastSlotEndMinutes = startHours * 60 + startMins + 
+    sorted[sorted.length - 1] * (slotDurationMinutes + slotBreakMinutes) + slotDurationMinutes
+  
+  const fmt = (m: number) => {
+    const h = Math.floor(m / 60) % 24
+    const mins = m % 60
+    return `${h.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
+  }
+  
+  return `${fmt(firstSlotMinutes)} - ${fmt(lastSlotEndMinutes)}`
+}
+
 interface CoursePassData {
   // Core identifiers
   ticketId: string;           // Unique UUID - used as serialNumber
@@ -25,7 +60,8 @@ interface CoursePassData {
   city: string;
   
   // Tracks registered for
-  trackNames: string[];       // e.g., ["Salsa Beginners", "Bachata Intermediate"]
+  trackNames: string[];       // e.g., ["Salsa Beginners", "Bachata Intermediate"] - backward compat
+  trackInfo?: CourseTrackInfo[];  // New: includes slot booking info
   
   // Organizer (course owner)
   organizerName: string;
@@ -223,10 +259,25 @@ export async function generateAppleCoursePass(data: CoursePassData): Promise<Buf
     value: data.periodCode,
   });
 
+  // Build full track list with slot times if available
+  let trackListStr = ''
+  if (data.trackInfo && data.trackInfo.length > 0) {
+    trackListStr = data.trackInfo.map(track => {
+      let line = track.name
+      if (track.bookedSlots && track.bookedSlots.length > 0 && track.slotStartTime && track.slotDurationMinutes) {
+        const slotTimes = formatSlotTimes(track.bookedSlots, track.slotStartTime, track.slotDurationMinutes)
+        line += `\n  Time: ${slotTimes}`
+      }
+      return line
+    }).join('\n')
+  } else {
+    trackListStr = data.trackNames.join('\n')
+  }
+
   pass.backFields.push({
     key: 'tracksFull',
     label: 'Enrolled Tracks',
-    value: data.trackNames.join('\n'),
+    value: trackListStr,
   });
 
   pass.backFields.push({

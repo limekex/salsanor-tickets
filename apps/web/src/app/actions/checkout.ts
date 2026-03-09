@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto'
 import { getEffectiveDiscountRules, getEffectiveDiscountRulesForEvent } from './discounts'
 import { readUtmCookie } from '@/lib/utm'
 
-export async function getCartPricing(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string, selectedSlots?: number[] }[]) {
+export async function getCartPricing(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string, selectedSlots?: number[], selectedWeeks?: number[] }[]) {
     if (!items.length) return null
 
     // Fetch all tracks involved
@@ -94,7 +94,7 @@ export async function getCartPricing(items: { trackId: string, role?: string, ha
     return calculatePricing(fullCartItems, rules, { isMember, membershipTierId })
 }
 
-export async function createOrderFromCart(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string, selectedSlots?: number[] }[]) {
+export async function createOrderFromCart(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string, selectedSlots?: number[], selectedWeeks?: number[] }[]) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -232,6 +232,7 @@ export async function createOrderFromCart(items: { trackId: string, role?: strin
                         status: 'DRAFT',
                         chosenRole: item.role as any,
                         bookedSlots: item.selectedSlots ?? [],  // For PRIVATE template slot bookings
+                        bookedWeeks: item.selectedWeeks ?? [],  // For PRIVATE template per-week bookings
                     }))
                 }
             }
