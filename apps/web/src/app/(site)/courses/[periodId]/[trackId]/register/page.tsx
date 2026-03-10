@@ -37,10 +37,17 @@ export default async function RegisterPage({ params }: PageProps) {
         maxContinuousSlots?: number | null
     }
 
+    // Extract period dates for PRIVATE template display
+    const periodWithDates = track.CoursePeriod as typeof track.CoursePeriod & {
+        startDate?: Date | string | null
+        endDate?: Date | string | null
+    }
+
     // Build wizard track data, explicitly including slot booking fields
     const wizardTrack = {
         id: track.id,
         title: track.title,
+        weekday: track.weekday,
         priceSingleCents: track.priceSingleCents,
         pricePairCents: track.pricePairCents,
         // Slot booking fields
@@ -50,6 +57,9 @@ export default async function RegisterPage({ params }: PageProps) {
         slotCount: trackWithSlots.slotCount,
         pricePerSlotCents: trackWithSlots.pricePerSlotCents,
         maxContinuousSlots: trackWithSlots.maxContinuousSlots,
+        // Period dates for slot table header
+        periodStartDate: periodWithDates?.startDate ? new Date(periodWithDates.startDate).toISOString() : null,
+        periodEndDate: periodWithDates?.endDate ? new Date(periodWithDates.endDate).toISOString() : null,
         CoursePeriod: track.CoursePeriod
     }
 

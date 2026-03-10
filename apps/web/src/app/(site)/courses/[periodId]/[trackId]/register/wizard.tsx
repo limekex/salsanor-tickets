@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -8,13 +8,14 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, Clock, Loader2, Lock } from 'lucide-react'
+import { AlertCircle, Clock, Loader2, Lock, CloudOff, Check } from 'lucide-react'
+import { toast } from 'sonner'
+import { formatWeekday, formatDateShort } from '@/lib/formatters'
 import { useCart } from '@/hooks/use-cart'
 import { useRouter } from 'next/navigation'
 import { CustomFieldsForm } from '@/components/custom-fields-form'
 import type { CustomFieldDefinition, CustomFieldValues } from '@/types/custom-fields'
 import { validateCustomFields } from '@/types/custom-fields'
-import { Checkbox } from '@/components/ui/checkbox'
 import { 
     getAvailableSlots,
     getAvailableSlotsPerWeek,
@@ -23,6 +24,7 @@ import {
     releaseSlot,
     releaseSlotWeek,
     releaseAllHolds,
+    syncSlotWeekHolds,
     type SlotAvailability,
     type SlotWeekAvailability,
     type WeekInfo
@@ -31,6 +33,7 @@ import {
 interface WizardTrack {
     id: string
     title: string
+    weekday?: number
     priceSingleCents: number
     pricePairCents?: number | null
     // Slot booking fields for PRIVATE
@@ -40,6 +43,9 @@ interface WizardTrack {
     slotCount?: number | null
     pricePerSlotCents?: number | null
     maxContinuousSlots?: number | null
+    // Period dates for display
+    periodStartDate?: string | null
+    periodEndDate?: string | null
     CoursePeriod?: {
         Organizer?: { id?: string; name?: string }
     } | null
@@ -74,13 +80,18 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
     const [slotError, setSlotError] = useState<string | null>(null)
     const [holdingSlot, setHoldingSlot] = useState<number | null>(null) // Slot currently being held/released
     
-    // Per-week slot booking state (Option B)
+    // Per-week slot booking state (Option B) - Optimistic UI
     const [weeks, setWeeks] = useState<WeekInfo[]>([])
     const [slotsPerWeek, setSlotsPerWeek] = useState<SlotWeekAvailability[]>([])
     const [slotTimes, setSlotTimes] = useState<{ index: number; startTime: string; endTime: string }[]>([])
     const [selectedSlotWeeks, setSelectedSlotWeeks] = useState<{ slotIndex: number; weekIndex: number }[]>([])
-    const [holdingSlotWeek, setHoldingSlotWeek] = useState<{ slotIndex: number; weekIndex: number } | null>(null)
     const [slotPricePerWeek, setSlotPricePerWeek] = useState(0)
+    
+    // Optimistic UI state for debounced batch saves
+    const [isSyncing, setIsSyncing] = useState(false)
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+    const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const pendingSelectionsRef = useRef<{ slotIndex: number; weekIndex: number }[]>([])
 
     // Fetch available slots for PRIVATE template (per-week mode)
     const fetchSlots = useCallback(async () => {
@@ -186,9 +197,85 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
         return 'Total Price'
     }, [isPrivate, isPartner, hasPartner, track.pricePairCents, selectedSlotWeeks.length])
 
-    // Per-week slot selection handler
-    async function handleSlotWeekToggle(slotIndex: number, weekIndex: number) {
-        const key = `${slotIndex}-${weekIndex}`
+    // Debounced batch sync to server
+    const syncSelectionsToServer = useCallback(async (selections: { slotIndex: number; weekIndex: number }[]) => {
+        setIsSyncing(true)
+        setSlotError(null)
+        
+        try {
+            const result = await syncSlotWeekHolds(track.id, selections)
+            
+            if (result.success) {
+                // Handle conflicts - remove them from selection
+                if (result.conflicts.length > 0) {
+                    setSelectedSlotWeeks(result.syncedSelections)
+                    setSlotError(`${result.conflicts.length} slot(s) were taken by someone else`)
+                    // Refresh availability
+                    await fetchSlots()
+                }
+                setHasUnsavedChanges(false)
+            } else {
+                setSlotError(result.error ?? 'Failed to sync selections')
+            }
+        } catch (e) {
+            setSlotError('Failed to sync selections')
+        } finally {
+            setIsSyncing(false)
+        }
+    }, [track.id, fetchSlots])
+
+    // Schedule debounced sync when selections change
+    const scheduleSyncToServer = useCallback((newSelections: { slotIndex: number; weekIndex: number }[]) => {
+        // Cancel any pending sync
+        if (syncTimeoutRef.current) {
+            clearTimeout(syncTimeoutRef.current)
+        }
+        
+        pendingSelectionsRef.current = newSelections
+        setHasUnsavedChanges(true)
+        
+        // Schedule sync after 500ms of inactivity
+        syncTimeoutRef.current = setTimeout(() => {
+            syncSelectionsToServer(pendingSelectionsRef.current)
+        }, 500)
+    }, [syncSelectionsToServer])
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (syncTimeoutRef.current) {
+                clearTimeout(syncTimeoutRef.current)
+            }
+        }
+    }, [])
+
+    // Helper to find the longest consecutive slot sequence for a week
+    function getMaxConsecutiveInWeek(selections: { slotIndex: number; weekIndex: number }[], weekIdx: number): number {
+        const slotsInWeek = selections
+            .filter(s => s.weekIndex === weekIdx)
+            .map(s => s.slotIndex)
+            .sort((a, b) => a - b)
+        
+        if (slotsInWeek.length === 0) return 0
+        if (slotsInWeek.length === 1) return 1
+        
+        let maxConsecutive = 1
+        let currentConsecutive = 1
+        
+        for (let i = 1; i < slotsInWeek.length; i++) {
+            if (slotsInWeek[i] === slotsInWeek[i - 1] + 1) {
+                currentConsecutive++
+                maxConsecutive = Math.max(maxConsecutive, currentConsecutive)
+            } else {
+                currentConsecutive = 1
+            }
+        }
+        
+        return maxConsecutive
+    }
+
+    // Per-week slot selection handler - OPTIMISTIC UI
+    function handleSlotWeekToggle(slotIndex: number, weekIndex: number) {
         const isCurrentlySelected = selectedSlotWeeks.some(
             sw => sw.slotIndex === slotIndex && sw.weekIndex === weekIndex
         )
@@ -203,34 +290,38 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
             return
         }
         
-        setHoldingSlotWeek({ slotIndex, weekIndex })
+        // Immediately update local state (optimistic)
+        let newSelections: { slotIndex: number; weekIndex: number }[]
         
-        try {
-            if (isCurrentlySelected) {
-                // Releasing
-                const result = await releaseSlotWeek(track.id, slotIndex, weekIndex)
-                if (result.success) {
-                    setSelectedSlotWeeks(prev => 
-                        prev.filter(sw => !(sw.slotIndex === slotIndex && sw.weekIndex === weekIndex))
-                    )
-                    await fetchSlots()
-                }
-            } else {
-                // Adding
-                const result = await holdSlotWeek(track.id, slotIndex, weekIndex)
-                if (result.success) {
-                    setSelectedSlotWeeks(prev => [...prev, { slotIndex, weekIndex }])
-                    await fetchSlots()
-                } else {
-                    setSlotError(result.error ?? 'Failed to reserve slot')
-                    await fetchSlots()
+        if (isCurrentlySelected) {
+            // Remove from selection
+            newSelections = selectedSlotWeeks.filter(
+                sw => !(sw.slotIndex === slotIndex && sw.weekIndex === weekIndex)
+            )
+        } else {
+            // Check maxContinuousSlots limit before adding
+            const maxSlots = track.maxContinuousSlots
+            if (maxSlots && maxSlots > 0) {
+                // Simulate adding this slot
+                const testSelections = [...selectedSlotWeeks, { slotIndex, weekIndex }]
+                const consecutiveCount = getMaxConsecutiveInWeek(testSelections, weekIndex)
+                
+                if (consecutiveCount > maxSlots) {
+                    toast.warning(`Maximum ${maxSlots} consecutive slot${maxSlots > 1 ? 's' : ''} allowed`, {
+                        description: 'You cannot book more consecutive time slots in a row.'
+                    })
+                    return
                 }
             }
-        } catch (e) {
-            setSlotError('Failed to update slot selection')
-        } finally {
-            setHoldingSlotWeek(null)
+            
+            // Add to selection
+            newSelections = [...selectedSlotWeeks, { slotIndex, weekIndex }]
         }
+        
+        setSelectedSlotWeeks(newSelections)
+        
+        // Schedule debounced sync to server
+        scheduleSyncToServer(newSelections)
     }
 
     function handleNext() {
@@ -257,7 +348,7 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
         // For PRIVATE, at least one slot+week must be selected
         if (isPrivate && selectedSlotWeeks.length === 0) return
 
-        // Extract unique slots and weeks from selection
+        // Extract unique slots and weeks for backward compatibility
         const uniqueSlots = [...new Set(selectedSlotWeeks.map(sw => sw.slotIndex))].sort((a, b) => a - b)
         const uniqueWeeks = [...new Set(selectedSlotWeeks.map(sw => sw.weekIndex))].sort((a, b) => a - b)
 
@@ -270,8 +361,27 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
             role: isPartner ? role! : undefined,
             hasPartner: isPartner ? hasPartner : undefined,
             partnerEmail: isPartner && hasPartner && partnerEmail ? partnerEmail : undefined,
+            // Keep these for backward compatibility
             selectedSlots: isPrivate ? uniqueSlots : undefined,
             selectedWeeks: isPrivate ? uniqueWeeks : undefined,
+            // NEW: Full session matrix - each entry is one session
+            selectedSlotWeeks: isPrivate ? selectedSlotWeeks : undefined,
+            // Slot time details for all unique slots
+            slotDetails: isPrivate && slotTimes.length > 0 
+                ? slotTimes.filter(st => uniqueSlots.includes(st.index)).map(st => ({
+                    slotIndex: st.index,
+                    startTime: st.startTime,
+                    endTime: st.endTime
+                }))
+                : undefined,
+            // Week details for all unique weeks
+            weekDetails: isPrivate && weeks.length > 0
+                ? weeks.filter(w => uniqueWeeks.includes(w.weekIndex)).map(w => ({
+                    weekIndex: w.weekIndex,
+                    weekStart: w.date.toISOString()
+                }))
+                : undefined,
+            weekday: isPrivate ? track.weekday : undefined,
             priceSnapshot: price
         })
 
@@ -286,7 +396,7 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
     // ── Is the Next/Add button disabled? ──────────────────────────────────────
     const isNextDisabled = 
         (isPartner && step === 1 && !role) ||
-        (isPrivate && step === 1 && selectedSlotWeeks.length === 0)
+        (isPrivate && step === 1 && (selectedSlotWeeks.length === 0 || isSyncing || hasUnsavedChanges))
 
     return (
         <Card className="max-w-2xl mx-auto">
@@ -330,6 +440,9 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                                 <>{(slotPricePerWeek / 100).toLocaleString('nb-NO')},- per session · </>
                             )}
                             Click cells to select time slots for specific weeks
+                            {track.maxContinuousSlots && track.maxContinuousSlots > 0 && (
+                                <> · Max {track.maxContinuousSlots} consecutive slot{track.maxContinuousSlots > 1 ? 's' : ''}</>
+                            )}
                         </p>
                         
                         {slotError && (
@@ -346,14 +459,24 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                             </div>
                         ) : weeks.length > 0 && slotTimes.length > 0 ? (
                             <div className="overflow-x-auto">
+                                {/* Table header showing weekday and period range */}
+                                <div className="mb-2 px-1">
+                                    <h3 className="font-medium text-base capitalize">
+                                        {track.weekday !== undefined ? `${formatWeekday(track.weekday)}s` : 'Sessions'}
+                                    </h3>
+                                    {track.periodStartDate && track.periodEndDate && (
+                                        <p className="text-sm text-muted-foreground">
+                                            {formatDateShort(new Date(track.periodStartDate))} – {formatDateShort(new Date(track.periodEndDate))}
+                                        </p>
+                                    )}
+                                </div>
                                 <table className="w-full border-collapse text-sm">
                                     <thead>
                                         <tr>
                                             <th className="border p-2 bg-muted/50 font-medium text-left min-w-[80px]">Time</th>
                                             {weeks.map(week => (
                                                 <th key={week.weekIndex} className="border p-2 bg-muted/50 font-medium text-center min-w-[70px]">
-                                                    <div className="text-xs text-muted-foreground">Week {week.weekIndex + 1}</div>
-                                                    <div>{week.formattedDate}</div>
+                                                    {week.formattedDate}
                                                 </th>
                                             ))}
                                         </tr>
@@ -371,28 +494,25 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                                                     const isSelected = selectedSlotWeeks.some(
                                                         sw => sw.slotIndex === slot.index && sw.weekIndex === week.weekIndex
                                                     )
-                                                    const isHoldingThis = holdingSlotWeek?.slotIndex === slot.index && 
-                                                                         holdingSlotWeek?.weekIndex === week.weekIndex
-                                                    const isUnavailable = slotWeek && !slotWeek.available && !slotWeek.heldByCurrentUser
-                                                    const isDisabled = isHoldingThis || isUnavailable
+                                                    const isUnavailable = slotWeek && !slotWeek.available && !slotWeek.heldByCurrentUser && !isSelected
                                                     
                                                     return (
                                                         <td 
                                                             key={`${slot.index}-${week.weekIndex}`}
                                                             className={`border p-2 text-center cursor-pointer transition-colors ${
-                                                                isSelected ? 'bg-primary/20 border-primary' : ''
+                                                                isSelected ? 'bg-primary/10 border-primary' : ''
                                                             } ${isUnavailable ? 'bg-muted/50 cursor-not-allowed' : 'hover:bg-muted/30'
                                                             }`}
-                                                            onClick={() => !isDisabled && handleSlotWeekToggle(slot.index, week.weekIndex)}
+                                                            onClick={() => !isUnavailable && handleSlotWeekToggle(slot.index, week.weekIndex)}
                                                         >
-                                                            {isHoldingThis ? (
-                                                                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                                                            ) : isUnavailable ? (
+                                                            {isUnavailable ? (
                                                                 <Lock className="h-4 w-4 text-muted-foreground mx-auto" />
                                                             ) : isSelected ? (
-                                                                <div className="w-4 h-4 bg-primary rounded mx-auto" />
+                                                                <div className="w-5 h-5 bg-primary rounded-full mx-auto flex items-center justify-center">
+                                                                    <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />
+                                                                </div>
                                                             ) : (
-                                                                <div className="w-4 h-4 border rounded mx-auto" />
+                                                                <div className="w-5 h-5 border-2 border-muted-foreground/30 rounded-full mx-auto" />
                                                             )}
                                                         </td>
                                                     )
@@ -417,9 +537,21 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                                 <p className="text-xs text-muted-foreground mt-1">
                                     {selectedSlotsCount} time slot{selectedSlotsCount > 1 ? 's' : ''} × {selectedWeeksCount} week{selectedWeeksCount > 1 ? 's' : ''}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Sessions reserved for 10 minutes
-                                </p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                    {isSyncing ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            <span>Reserving...</span>
+                                        </>
+                                    ) : hasUnsavedChanges ? (
+                                        <>
+                                            <CloudOff className="h-3 w-3" />
+                                            <span>Syncing...</span>
+                                        </>
+                                    ) : (
+                                        <span>Sessions reserved for 10 minutes</span>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

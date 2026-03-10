@@ -95,7 +95,8 @@ export interface CartItem {
     role?: 'LEADER' | 'FOLLOWER' // Role in that track (PARTNER template only)
     hasPartner?: boolean // If true, applies pair price (PARTNER template only)
     partnerEmail?: string // Meta
-    selectedSlots?: number[] // PRIVATE template: indices of selected time slots
+    selectedSlots?: number[] // DEPRECATED: use selectedSlotWeeks for session count
+    selectedSlotWeeks?: { slotIndex: number; weekIndex: number }[] // PRIVATE template: each entry = 1 session
     track: PricingTrack // Snapshot of track data for calculation
 }
 
@@ -139,19 +140,20 @@ export function calculatePricing(
 
     // 1. Initialize Line Items with Base Price
     // If user is a member and track has fixed member price, use that instead of base price
-    // For PRIVATE template with slots, use pricePerSlotCents × selectedSlots.length
+    // For PRIVATE template with slots, use pricePerSlotCents × number of sessions
     let lineItems: PricingLineItem[] = cartItems.map(item => {
         let basePrice: number
         let usesFixedMemberPrice = false
         
         // Check for PRIVATE template with slot-based pricing
-        const hasSlotPricing = item.selectedSlots && 
-            item.selectedSlots.length > 0 && 
-            item.track.pricePerSlotCents
+        // Session count = selectedSlotWeeks.length (each entry is one session)
+        // Fallback to selectedSlots.length for backward compatibility
+        const sessionCount = item.selectedSlotWeeks?.length ?? item.selectedSlots?.length ?? 0
+        const hasSlotPricing = sessionCount > 0 && item.track.pricePerSlotCents
         
         if (hasSlotPricing) {
-            // PRIVATE template: price per slot × number of slots
-            basePrice = item.track.pricePerSlotCents! * item.selectedSlots!.length
+            // PRIVATE template: price per session × number of sessions
+            basePrice = item.track.pricePerSlotCents! * sessionCount
         } else if (context.isMember) {
             // Check if member with fixed member price
             const memberPrice = item.hasPartner && item.track.memberPricePairCents
@@ -314,9 +316,8 @@ export function calculatePricing(
         }
     }
 
-    const subtotalCents = cartItems.reduce((sum, item) => {
-        return sum + (item.hasPartner && item.track.pricePairCents ? item.track.pricePairCents : item.track.priceSingleCents)
-    }, 0)
+    // Subtotal should be sum of all base prices (before discounts)
+    const subtotalCents = lineItems.reduce((sum, li) => sum + li.basePriceCents, 0)
 
     const finalTotalCents = lineItems.reduce((sum, li) => sum + li.finalPriceCents, 0)
     const discountTotalCents = subtotalCents - finalTotalCents

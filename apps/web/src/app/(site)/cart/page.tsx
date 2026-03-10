@@ -18,7 +18,54 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { formatPrice } from '@/lib/formatters'
+import { formatPrice, formatWeekday, formatDateShort } from '@/lib/formatters'
+
+// Helper to get slot time range string for given slot indices
+function getSlotTimesForIndices(
+    slotIndices: number[], 
+    slotDetails?: { slotIndex: number; startTime: string; endTime: string }[]
+): string {
+    if (!slotDetails || slotDetails.length === 0 || slotIndices.length === 0) return ''
+    const times = slotIndices
+        .map(idx => slotDetails.find(s => s.slotIndex === idx))
+        .filter(Boolean)
+        .sort((a, b) => a!.slotIndex - b!.slotIndex)
+        .map(s => `${s!.startTime}–${s!.endTime}`)
+    return times.join(' and ')
+}
+
+// Helper to group selectedSlotWeeks by week and return per-week breakdown
+function getPerWeekBreakdown(
+    selectedSlotWeeks: { slotIndex: number; weekIndex: number }[],
+    slotDetails?: { slotIndex: number; startTime: string; endTime: string }[],
+    weekDetails?: { weekIndex: number; weekStart: string }[]
+): { weekIndex: number; weekLabel: string; slotTimes: string }[] {
+    if (!selectedSlotWeeks || selectedSlotWeeks.length === 0) return []
+    
+    // Group by week
+    const byWeek = new Map<number, number[]>()
+    for (const sw of selectedSlotWeeks) {
+        const slots = byWeek.get(sw.weekIndex) || []
+        slots.push(sw.slotIndex)
+        byWeek.set(sw.weekIndex, slots)
+    }
+    
+    // Convert to array with labels
+    const result: { weekIndex: number; weekLabel: string; slotTimes: string }[] = []
+    const sortedWeeks = [...byWeek.keys()].sort((a, b) => a - b)
+    
+    for (const weekIdx of sortedWeeks) {
+        const slotIndices = byWeek.get(weekIdx) || []
+        const weekInfo = weekDetails?.find(w => w.weekIndex === weekIdx)
+        const weekLabel = weekInfo 
+            ? formatDateShort(new Date(weekInfo.weekStart))
+            : `Week ${weekIdx + 1}`
+        const slotTimes = getSlotTimesForIndices(slotIndices, slotDetails)
+        result.push({ weekIndex: weekIdx, weekLabel, slotTimes })
+    }
+    
+    return result
+}
 
 export default function CartPage() {
     const { items, removeItem, updateEventQuantity, clearCart, isLoaded, getCartOrganizerId, getCartOrganizerName } = useCart()
@@ -200,13 +247,33 @@ export default function CartPage() {
                                                     {item.hasPartner && ` (+ Partner)`}
                                                 </p>
                                             )}
-                                            {item.selectedSlots && item.selectedSlots.length > 0 && (
-                                                <p className="text-sm text-muted-foreground">
-                                                    {item.selectedWeeks && item.selectedWeeks.length > 0 
-                                                        ? `${item.selectedSlots.length} slot${item.selectedSlots.length > 1 ? 's' : ''} × ${item.selectedWeeks.length} week${item.selectedWeeks.length > 1 ? 's' : ''}`
-                                                        : `${item.selectedSlots.length} slot${item.selectedSlots.length > 1 ? 's' : ''} selected`
-                                                    }
-                                                </p>
+                                            {/* PRIVATE template: Per-week slot breakdown */}
+                                            {item.selectedSlotWeeks && item.selectedSlotWeeks.length > 0 && (
+                                                <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                                                    {/* Weekday header */}
+                                                    {item.weekday !== undefined && (
+                                                        <p className="font-medium capitalize">{formatWeekday(item.weekday)}s</p>
+                                                    )}
+                                                    {/* Per-week breakdown */}
+                                                    <div className="text-xs space-y-0.5 pl-2 border-l-2 border-muted">
+                                                        {getPerWeekBreakdown(item.selectedSlotWeeks, item.slotDetails, item.weekDetails).map(week => (
+                                                            <p key={week.weekIndex}>
+                                                                <span className="text-muted-foreground">{week.weekLabel}:</span>{' '}
+                                                                <span>{week.slotTimes}</span>
+                                                            </p>
+                                                        ))}
+                                                    </div>
+                                                    {/* Total sessions */}
+                                                    <p className="text-xs font-medium mt-1">
+                                                        {item.selectedSlotWeeks.length} session{item.selectedSlotWeeks.length > 1 ? 's' : ''} total
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {/* Legacy display for old cart items without selectedSlotWeeks */}
+                                            {!item.selectedSlotWeeks && item.selectedSlots && item.selectedSlots.length > 0 && (
+                                                <div className="text-sm text-muted-foreground">
+                                                    <p>{item.selectedSlots.length} slot{item.selectedSlots.length > 1 ? 's' : ''} selected</p>
+                                                </div>
                                             )}
                                             {item.organizerName && (
                                                 <p className="text-xs text-muted-foreground mt-1">

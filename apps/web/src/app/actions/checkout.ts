@@ -9,7 +9,15 @@ import { randomUUID } from 'crypto'
 import { getEffectiveDiscountRules, getEffectiveDiscountRulesForEvent } from './discounts'
 import { readUtmCookie } from '@/lib/utm'
 
-export async function getCartPricing(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string, selectedSlots?: number[], selectedWeeks?: number[] }[]) {
+export async function getCartPricing(items: { 
+    trackId: string, 
+    role?: string, 
+    hasPartner?: boolean, 
+    partnerEmail?: string, 
+    selectedSlots?: number[], 
+    selectedWeeks?: number[],
+    selectedSlotWeeks?: { slotIndex: number; weekIndex: number }[]
+}[]) {
     if (!items.length) return null
 
     // Fetch all tracks involved
@@ -79,7 +87,8 @@ export async function getCartPricing(items: { trackId: string, role?: string, ha
         return {
             ...item,
             role: item.role as any,
-            selectedSlots: item.selectedSlots,  // For PRIVATE template
+            selectedSlots: item.selectedSlots,  // For backward compatibility
+            selectedSlotWeeks: item.selectedSlotWeeks,  // For PRIVATE template (each entry = 1 session)
             track: {
                 id: track.id,
                 priceSingleCents: track.priceSingleCents,
@@ -94,7 +103,15 @@ export async function getCartPricing(items: { trackId: string, role?: string, ha
     return calculatePricing(fullCartItems, rules, { isMember, membershipTierId })
 }
 
-export async function createOrderFromCart(items: { trackId: string, role?: string, hasPartner?: boolean, partnerEmail?: string, selectedSlots?: number[], selectedWeeks?: number[] }[]) {
+export async function createOrderFromCart(items: { 
+    trackId: string, 
+    role?: string, 
+    hasPartner?: boolean, 
+    partnerEmail?: string, 
+    selectedSlots?: number[], 
+    selectedWeeks?: number[],
+    selectedSlotWeeks?: { slotIndex: number; weekIndex: number }[]
+}[]) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

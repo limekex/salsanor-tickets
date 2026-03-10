@@ -13,8 +13,14 @@ export interface CourseCartItem {
     role?: 'LEADER' | 'FOLLOWER'   // only relevant for PARTNER template
     hasPartner?: boolean             // only relevant for PARTNER template
     partnerEmail?: string
-    selectedSlots?: number[]         // only relevant for PRIVATE template (slot indices)
-    selectedWeeks?: number[]         // only relevant for PRIVATE template (week indices for per-week booking)
+    selectedSlots?: number[]         // DEPRECATED: use selectedSlotWeeks instead
+    selectedWeeks?: number[]         // DEPRECATED: use selectedSlotWeeks instead
+    // PRIVATE template: full session matrix (each entry = 1 session)
+    selectedSlotWeeks?: { slotIndex: number; weekIndex: number }[]
+    // PRIVATE template display info:
+    slotDetails?: { slotIndex: number; startTime: string; endTime: string }[]  // time ranges per slot index
+    weekDetails?: { weekIndex: number; weekStart: string }[]  // week start dates
+    weekday?: number  // 0=Sunday, 1=Monday, etc.
     priceSnapshot: number
     addedAt: number
 }

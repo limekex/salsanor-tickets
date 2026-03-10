@@ -712,3 +712,124 @@ export async function getMyHeldSlotWeeks(trackId: string): Promise<{
         .map(h => ({ slotIndex: h.slotIndex, weekIndex: h.weekIndex! }))
         .sort((a, b) => a.slotIndex - b.slotIndex || a.weekIndex - b.weekIndex)
 }
+
+/**
+ * Batch sync slot+week selections for per-week booking.
+ * Takes the desired selection state and syncs database holds in one transaction.
+ * 
+ * This is optimized for performance:
+ * - Single database transaction
+ * - Concurrent creates/deletes
+ * - No per-click database calls needed
+ * 
+ * Returns the current availability state after sync (for conflict detection).
+ */
+export async function syncSlotWeekHolds(
+    trackId: string,
+    desiredSelections: { slotIndex: number; weekIndex: number }[]
+): Promise<{
+    success: boolean
+    syncedSelections: { slotIndex: number; weekIndex: number }[]
+    conflicts: { slotIndex: number; weekIndex: number }[]
+    error?: string
+}> {
+    const sessionKey = await getSessionKey()
+    const personId = await getCurrentPersonId()
+    const expiresAt = new Date(Date.now() + HOLD_DURATION_MINUTES * 60 * 1000)
+    
+    try {
+        // Get current state in parallel
+        const [currentHolds, slotsPerWeekResult] = await Promise.all([
+            prisma.slotHold.findMany({
+                where: {
+                    trackId,
+                    weekIndex: { not: null },
+                    expiresAt: { gt: new Date() },
+                    OR: [
+                        { sessionKey },
+                        ...(personId ? [{ personId }] : [])
+                    ]
+                },
+                select: { id: true, slotIndex: true, weekIndex: true }
+            }),
+            // Get availability to check for conflicts
+            getAvailableSlotsPerWeek(trackId)
+        ])
+        
+        if (slotsPerWeekResult.error) {
+            return { success: false, syncedSelections: [], conflicts: [], error: slotsPerWeekResult.error }
+        }
+        
+        const currentHoldSet = new Set(
+            currentHolds.map(h => `${h.slotIndex}-${h.weekIndex}`)
+        )
+        const desiredSet = new Set(
+            desiredSelections.map(s => `${s.slotIndex}-${s.weekIndex}`)
+        )
+        
+        // Calculate diff
+        const toAdd: { slotIndex: number; weekIndex: number }[] = []
+        const toRemove: string[] = [] // hold IDs
+        const conflicts: { slotIndex: number; weekIndex: number }[] = []
+        
+        // Check what needs to be added
+        for (const sel of desiredSelections) {
+            const key = `${sel.slotIndex}-${sel.weekIndex}`
+            if (!currentHoldSet.has(key)) {
+                // Need to add this hold - check availability
+                const slotWeek = slotsPerWeekResult.slotsPerWeek.find(
+                    sw => sw.slotIndex === sel.slotIndex && sw.weekIndex === sel.weekIndex
+                )
+                if (slotWeek && (slotWeek.available || slotWeek.heldByCurrentUser)) {
+                    toAdd.push(sel)
+                } else {
+                    // Conflict - slot is not available
+                    conflicts.push(sel)
+                }
+            }
+        }
+        
+        // Check what needs to be removed
+        for (const hold of currentHolds) {
+            const key = `${hold.slotIndex}-${hold.weekIndex}`
+            if (!desiredSet.has(key)) {
+                toRemove.push(hold.id)
+            }
+        }
+        
+        // Execute changes in transaction
+        await prisma.$transaction(async (tx) => {
+            // Delete removed holds
+            if (toRemove.length > 0) {
+                await tx.slotHold.deleteMany({
+                    where: { id: { in: toRemove } }
+                })
+            }
+            
+            // Create new holds
+            if (toAdd.length > 0) {
+                await tx.slotHold.createMany({
+                    data: toAdd.map(sel => ({
+                        trackId,
+                        slotIndex: sel.slotIndex,
+                        weekIndex: sel.weekIndex,
+                        sessionKey,
+                        personId,
+                        expiresAt
+                    })),
+                    skipDuplicates: true
+                })
+            }
+        })
+        
+        // Calculate what actually got synced (desired minus conflicts)
+        const syncedSelections = desiredSelections.filter(
+            sel => !conflicts.some(c => c.slotIndex === sel.slotIndex && c.weekIndex === sel.weekIndex)
+        )
+        
+        return { success: true, syncedSelections, conflicts }
+    } catch (e: any) {
+        console.error('Failed to sync slot+week holds:', e)
+        return { success: false, syncedSelections: [], conflicts: [], error: 'Failed to sync selections' }
+    }
+}
