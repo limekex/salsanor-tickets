@@ -8,6 +8,8 @@ export const courseTrackSchema = z.object({
     description: z.string().optional(),
     imageUrl: z.string().url().optional().or(z.literal('')),
     levelLabel: z.string().optional(),
+    templateType: z.enum(['CUSTOM', 'INDIVIDUAL', 'PARTNER', 'VIRTUAL', 'WORKSHOP', 'DROP_IN', 'KIDS_YOUTH', 'TEAM', 'SUBSCRIPTION', 'PRIVATE']),
+    deliveryMethod: z.enum(['IN_PERSON', 'VIRTUAL', 'HYBRID']),
     weekday: z.coerce.number().min(1).max(7), // 1=Mon, 7=Sun
     timeStart: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Must be HH:MM"),
     timeEnd: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Must be HH:MM"),
@@ -29,8 +31,27 @@ export const courseTrackSchema = z.object({
     checkInWindowAfter: z.coerce.number().min(0).max(240).optional(),
     priceSingleCents: z.coerce.number().min(0),
     pricePairCents: z.coerce.number().optional(),
-    memberPriceSingleCents: z.coerce.number().optional(),
-    memberPricePairCents: z.coerce.number().optional(),
+    memberPriceSingleCents: z.union([z.coerce.number().min(0), z.null()]).optional(),
+    memberPricePairCents: z.union([z.coerce.number().min(0), z.null()]).optional(),
+    // Virtual meeting fields (VIRTUAL template / VIRTUAL/HYBRID delivery)
+    meetingUrl: z.string().url().optional().or(z.literal('')),
+    meetingPassword: z.string().optional(),
+    // Age restrictions (KIDS_YOUTH template)
+    minAge: z.coerce.number().min(0).max(100).optional(),
+    maxAge: z.coerce.number().min(0).max(100).optional(),
+    // Team configuration (TEAM template)
+    teamMinSize: z.coerce.number().min(1).optional(),
+    teamMaxSize: z.coerce.number().min(1).optional(),
+    // Custom role labels (PARTNER template)
+    roleALabel: z.string().max(50).optional(),
+    roleBLabel: z.string().max(50).optional(),
+    // Slot booking configuration (PRIVATE template)
+    slotStartTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Must be HH:MM").optional(),
+    slotDurationMinutes: z.coerce.number().min(15).max(240).optional(),
+    slotBreakMinutes: z.coerce.number().min(0).max(60).optional(),
+    slotCount: z.coerce.number().min(1).max(24).optional(),
+    pricePerSlotCents: z.coerce.number().min(0).optional(),
+    maxContinuousSlots: z.coerce.number().min(1).max(12).optional(),
 })
 
 export type CourseTrackFormValues = z.infer<typeof courseTrackSchema>

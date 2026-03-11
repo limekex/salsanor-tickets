@@ -12,6 +12,7 @@ export async function login(prevState: any, formData: FormData) {
         email: formData.get('email') as string,
         password: formData.get('password') as string,
     }
+    const redirectTo = formData.get('redirectTo') as string | null
 
     const { data: authData, error } = await supabase.auth.signInWithPassword(data)
 
@@ -48,7 +49,7 @@ export async function login(prevState: any, formData: FormData) {
     }
 
     revalidatePath('/', 'layout')
-    redirect('/')
+    redirect(redirectTo || '/')
 }
 
 export async function signup(prevState: any, formData: FormData) {
@@ -58,6 +59,7 @@ export async function signup(prevState: any, formData: FormData) {
         email: formData.get('email') as string,
         password: formData.get('password') as string,
     }
+    const redirectTo = formData.get('redirectTo') as string | null
 
     const { data: authData, error } = await supabase.auth.signUp(data)
 
@@ -89,7 +91,8 @@ export async function signup(prevState: any, formData: FormData) {
         }
 
         revalidatePath('/', 'layout')
-        redirect('/onboarding')
+        // Store redirectTo in session/cookie for after onboarding if needed
+        redirect(redirectTo ? `/onboarding?redirectTo=${encodeURIComponent(redirectTo)}` : '/onboarding')
     } else {
         // Email confirmation required
         return { message: 'Check your email to confirm your account.' }

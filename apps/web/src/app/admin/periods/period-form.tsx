@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { CoursePeriod } from '@salsanor/database'
 import { getPublicOrganizers } from '@/app/actions/organizers'
 import { useEffect, useState } from 'react'
+import { COURSE_TEMPLATE_LABELS, DELIVERY_METHOD_LABELS } from '@/types/custom-fields'
 
 interface PeriodFormProps {
     period?: CoursePeriod
@@ -49,12 +50,16 @@ export function PeriodForm({ period }: PeriodFormProps) {
             endDate: period.endDate,
             salesOpenAt: period.salesOpenAt,
             salesCloseAt: period.salesCloseAt,
+            templateType: period.templateType ?? 'INDIVIDUAL',
+            deliveryMethod: period.deliveryMethod ?? 'IN_PERSON',
         } : {
             organizerId: '',
             code: '',
             name: '',
             city: 'Oslo',
             locationName: '',
+            templateType: 'INDIVIDUAL' as const,
+            deliveryMethod: 'IN_PERSON' as const,
         },
     })
 
@@ -66,11 +71,12 @@ export function PeriodForm({ period }: PeriodFormProps) {
         formData.append('city', data.city)
         if (data.locationName) formData.append('locationName', data.locationName)
 
-        // Convert dates to string for serialization in Server Action
         formData.append('startDate', new Date(data.startDate).toISOString())
         formData.append('endDate', new Date(data.endDate).toISOString())
         formData.append('salesOpenAt', new Date(data.salesOpenAt).toISOString())
         formData.append('salesCloseAt', new Date(data.salesCloseAt).toISOString())
+        formData.append('templateType', data.templateType || 'INDIVIDUAL')
+        formData.append('deliveryMethod', data.deliveryMethod || 'IN_PERSON')
 
         startTransition(async () => {
             const result = isEditing
@@ -174,6 +180,58 @@ export function PeriodForm({ period }: PeriodFormProps) {
                                         <FormControl>
                                             <Input placeholder="Sentralen" {...field} />
                                         </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormField
+                                control={form.control}
+                                name="templateType"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Course Template Type</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select template type" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {(Object.entries(COURSE_TEMPLATE_LABELS) as [string, string][]).map(([value, label]) => (
+                                                    <SelectItem key={value} value={value}>
+                                                        {label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="deliveryMethod"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Delivery Method</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select delivery method" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {(Object.entries(DELIVERY_METHOD_LABELS) as [string, string][]).map(([value, label]) => (
+                                                    <SelectItem key={value} value={value}>
+                                                        {label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                         <FormMessage />
                                     </FormItem>
                                 )}

@@ -1,12 +1,83 @@
 import jwt from 'jsonwebtoken';
 
 /**
+ * Format slot times for display in wallet pass
+ * Given slot indices, start time, and duration, produces human-readable times
+ */
+function formatSlotTimes(
+  bookedSlots: number[] | undefined,
+  slotStartTime: string | null | undefined,
+  slotDurationMinutes: number | null | undefined,
+  slotBreakMinutes: number = 0
+): string | null {
+  if (!bookedSlots?.length || !slotStartTime || !slotDurationMinutes) {
+    return null
+  }
+
+  // Parse start time (HH:mm)
+  const [startHour, startMinute] = slotStartTime.split(':').map(Number)
+  if (isNaN(startHour) || isNaN(startMinute)) return null
+
+  const slotInterval = slotDurationMinutes + slotBreakMinutes
+  const times: string[] = []
+
+  for (const slotIndex of bookedSlots) {
+    const offsetMinutes = slotIndex * slotInterval
+    const slotStartMinutes = startHour * 60 + startMinute + offsetMinutes
+    const slotEndMinutes = slotStartMinutes + slotDurationMinutes
+
+    const startH = Math.floor(slotStartMinutes / 60).toString().padStart(2, '0')
+    const startM = (slotStartMinutes % 60).toString().padStart(2, '0')
+    const endH = Math.floor(slotEndMinutes / 60).toString().padStart(2, '0')
+    const endM = (slotEndMinutes % 60).toString().padStart(2, '0')
+
+    times.push(`${startH}:${startM}-${endH}:${endM}`)
+  }
+
+  return times.join(', ')
+}
+
+/**
+ * Build enrollment body text with track names and slot times
+ */
+function buildEnrollmentBody(data: CoursePassData): string {
+  // If we have trackInfo with slot details, use that
+  if (data.trackInfo?.length) {
+    const lines: string[] = []
+    for (const track of data.trackInfo) {
+      const slotTimes = formatSlotTimes(
+        track.bookedSlots, 
+        track.slotStartTime, 
+        track.slotDurationMinutes
+      )
+      if (slotTimes) {
+        lines.push(`${track.name}: ${slotTimes}`)
+      } else {
+        lines.push(track.name)
+      }
+    }
+    return lines.join('\n')
+  }
+  
+  // Fall back to trackNames array
+  return data.trackNames.join(', ')
+}
+
+/**
  * Google Wallet Course Pass Data
  * 
  * Issuer Model (same as Event Wallet):
  * - RegiNor.events is the selling platform and pass issuer (stable brand)
  * - Organizer varies per course (e.g., SalsaNor) and is displayed as "COURSE BY"
  */
+export interface CourseTrackInfo {
+  name: string
+  bookedSlots?: number[]           // For PRIVATE template: slot indices
+  bookedWeeks?: number[]           // For PRIVATE template: week indices
+  slotStartTime?: string | null    // For PRIVATE template: "HH:mm"
+  slotDurationMinutes?: number | null
+}
+
 interface CoursePassData {
   // Core identifiers
   ticketId: string;           // Unique ticket UUID
@@ -22,7 +93,8 @@ interface CoursePassData {
   city: string;               // City
   
   // Tracks registered for (may be multiple)
-  trackNames: string[];       // e.g., ["Salsa Beginners", "Bachata Intermediate"]
+  trackNames: string[];       // e.g., ["Salsa Beginners", "Bachata Intermediate"]  - backward compat
+  trackInfo?: CourseTrackInfo[];  // New: includes slot booking info
   
   // Organizer (course owner)
   organizerName: string;
@@ -194,7 +266,7 @@ export function generateGoogleCoursePassUrl(data: CoursePassData): string {
       {
         id: 'tracks',
         header: 'ENROLLED IN',
-        body: data.trackNames.join(', '),
+        body: buildEnrollmentBody(data),
       },
     ],
     // Links section

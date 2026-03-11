@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import type { CustomFieldValues } from '@/types/custom-fields'
 
 // Course registration cart item
 export interface CourseCartItem {
@@ -10,9 +11,20 @@ export interface CourseCartItem {
     periodId: string
     organizerId: string
     organizerName: string
-    role: 'LEADER' | 'FOLLOWER'
-    hasPartner: boolean
+    role?: 'LEADER' | 'FOLLOWER'   // only relevant for PARTNER template
+    hasPartner?: boolean             // only relevant for PARTNER template
     partnerEmail?: string
+    selectedSlots?: number[]         // DEPRECATED: use selectedSlotWeeks instead
+    selectedWeeks?: number[]         // DEPRECATED: use selectedSlotWeeks instead
+    // PRIVATE template: full session matrix (each entry = 1 session)
+    selectedSlotWeeks?: { slotIndex: number; weekIndex: number }[]
+    // PRIVATE template display info:
+    slotDetails?: { slotIndex: number; startTime: string; endTime: string }[]  // time ranges per slot index
+    weekDetails?: { weekIndex: number; weekStart: string }[]  // week start dates
+    weekday?: number  // 0=Sunday, 1=Monday, etc.
+    // Custom field values
+    trackCustomFieldValues?: CustomFieldValues
+    periodCustomFieldValues?: CustomFieldValues
     priceSnapshot: number
     addedAt: number
 }

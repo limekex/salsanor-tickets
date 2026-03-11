@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -49,6 +50,8 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
         description: formData.get('description') || undefined,
         imageUrl: formData.get('imageUrl') || undefined,
         levelLabel: formData.get('levelLabel') || undefined,
+        templateType: formData.get('templateType') || 'INDIVIDUAL',
+        deliveryMethod: formData.get('deliveryMethod') || 'IN_PERSON',
         weekday: formData.get('weekday'),
         timeStart: formData.get('timeStart'),
         timeEnd: formData.get('timeEnd'),
@@ -69,8 +72,27 @@ export async function createCourseTrackStaff(prevState: any, formData: FormData)
         checkInWindowAfter: formData.get('checkInWindowAfter') || undefined,
         priceSingleCents: formData.get('priceSingleCents'),
         pricePairCents: formData.get('pricePairCents') || undefined,
-        memberPriceSingleCents: formData.get('memberPriceSingleCents') || undefined,
-        memberPricePairCents: formData.get('memberPricePairCents') || undefined,
+        memberPriceSingleCents: formData.get('memberPriceSingleCents') || null,
+        memberPricePairCents: formData.get('memberPricePairCents') || null,
+        // Virtual meeting fields
+        meetingUrl: formData.get('meetingUrl') || undefined,
+        meetingPassword: formData.get('meetingPassword') || undefined,
+        // Age restriction fields
+        minAge: formData.get('minAge') || undefined,
+        maxAge: formData.get('maxAge') || undefined,
+        // Team configuration fields
+        teamMinSize: formData.get('teamMinSize') || undefined,
+        teamMaxSize: formData.get('teamMaxSize') || undefined,
+        // Custom role labels
+        roleALabel: formData.get('roleALabel') || undefined,
+        roleBLabel: formData.get('roleBLabel') || undefined,
+        // Slot booking fields (PRIVATE template)
+        slotStartTime: formData.get('slotStartTime') || undefined,
+        slotDurationMinutes: formData.get('slotDurationMinutes') || undefined,
+        slotBreakMinutes: formData.get('slotBreakMinutes') || undefined,
+        slotCount: formData.get('slotCount') || undefined,
+        pricePerSlotCents: formData.get('pricePerSlotCents') || undefined,
+        maxContinuousSlots: formData.get('maxContinuousSlots') || undefined,
     }
 
     const result = courseTrackSchema.safeParse(raw)
@@ -154,6 +176,8 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
         description: formData.get('description') || undefined,
         imageUrl: formData.get('imageUrl') || undefined,
         levelLabel: formData.get('levelLabel') || undefined,
+        templateType: formData.get('templateType') || 'INDIVIDUAL',
+        deliveryMethod: formData.get('deliveryMethod') || 'IN_PERSON',
         weekday: formData.get('weekday'),
         timeStart: formData.get('timeStart'),
         timeEnd: formData.get('timeEnd'),
@@ -174,8 +198,27 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
         checkInWindowAfter: formData.get('checkInWindowAfter') || undefined,
         priceSingleCents: formData.get('priceSingleCents'),
         pricePairCents: formData.get('pricePairCents') || undefined,
-        memberPriceSingleCents: formData.get('memberPriceSingleCents') || undefined,
-        memberPricePairCents: formData.get('memberPricePairCents') || undefined,
+        memberPriceSingleCents: formData.get('memberPriceSingleCents') || null,
+        memberPricePairCents: formData.get('memberPricePairCents') || null,
+        // Virtual meeting fields
+        meetingUrl: formData.get('meetingUrl') || undefined,
+        meetingPassword: formData.get('meetingPassword') || undefined,
+        // Age restriction fields
+        minAge: formData.get('minAge') || undefined,
+        maxAge: formData.get('maxAge') || undefined,
+        // Team configuration fields
+        teamMinSize: formData.get('teamMinSize') || undefined,
+        teamMaxSize: formData.get('teamMaxSize') || undefined,
+        // Custom role labels
+        roleALabel: formData.get('roleALabel') || undefined,
+        roleBLabel: formData.get('roleBLabel') || undefined,
+        // Slot booking fields (PRIVATE template)
+        slotStartTime: formData.get('slotStartTime') || undefined,
+        slotDurationMinutes: formData.get('slotDurationMinutes') || undefined,
+        slotBreakMinutes: formData.get('slotBreakMinutes') || undefined,
+        slotCount: formData.get('slotCount') || undefined,
+        pricePerSlotCents: formData.get('pricePerSlotCents') || undefined,
+        maxContinuousSlots: formData.get('maxContinuousSlots') || undefined,
     }
 
     const result = courseTrackSchema.safeParse(raw)
@@ -215,4 +258,59 @@ export async function updateCourseTrackStaff(trackId: string, prevState: any, fo
 
     revalidatePath(`/staffadmin/periods/${track.periodId}/tracks`)
     redirect(`/staffadmin/periods/${track.periodId}/tracks`)
+}
+
+/**
+ * Save custom fields for a track (track-level override of period custom fields)
+ */
+export async function saveTrackCustomFields(trackId: string, customFields: unknown): Promise<{ error?: string; success?: boolean }> {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return { error: 'Unauthorized' }
+    }
+
+    // Verify user has ORG_ADMIN access to this track's organizer
+    const track = await prisma.courseTrack.findUnique({
+        where: { id: trackId },
+        include: {
+            CoursePeriod: {
+                select: { id: true, organizerId: true }
+            }
+        }
+    })
+
+    if (!track) {
+        return { error: 'Track not found' }
+    }
+
+    const userAccount = await prisma.userAccount.findUnique({
+        where: { supabaseUid: user.id },
+        include: {
+            UserAccountRole: {
+                where: {
+                    role: 'ORG_ADMIN',
+                    organizerId: track.CoursePeriod.organizerId
+                }
+            }
+        }
+    })
+
+    if (!userAccount?.UserAccountRole.length) {
+        return { error: 'Unauthorized: You do not have access to this track' }
+    }
+
+    try {
+        await prisma.courseTrack.update({
+            where: { id: trackId },
+            data: { customFields: customFields as Prisma.InputJsonValue }
+        })
+
+        revalidatePath(`/staffadmin/periods/${track.CoursePeriod.id}/tracks`)
+        revalidatePath(`/staffadmin/tracks/${trackId}`)
+        return { success: true }
+    } catch (e: any) {
+        return { error: e.message || 'Failed to save custom fields' }
+    }
 }

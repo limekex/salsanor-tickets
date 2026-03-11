@@ -33,3 +33,8 @@ export { AttendanceStatsCard } from './attendance-stats-card'
 export { PlannedAbsenceDialog } from './planned-absence-dialog'
 export { QRCodeDisplay } from './qr-code-display'
 export { TicketQR } from './ticket-qr'
+
+// Custom fields components (added Phase 2)
+export { CustomFieldBuilder } from './custom-field-builder'
+export { CustomFieldsForm } from './custom-fields-form'
+export { CustomFieldsDisplay } from './custom-fields-display'

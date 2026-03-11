@@ -79,8 +79,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
         select: {
           id: true,
           name: true,
-          slug: true,
-          discountPercent: true
+          slug: true
         }
       }
     },
@@ -140,8 +139,7 @@ export default async function StaffAdminMembershipsPage({ searchParams }: { sear
           select: {
             id: true,
             name: true,
-            slug: true,
-            discountPercent: true
+            slug: true
           }
         }
       },

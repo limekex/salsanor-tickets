@@ -21,7 +21,7 @@ export default async function EditStaffTrackPage({
         where: { id: trackId },
         include: {
             CoursePeriod: {
-                select: { organizerId: true }
+                select: { organizerId: true, templateType: true, deliveryMethod: true }
             }
         }
     })
@@ -59,7 +59,13 @@ export default async function EditStaffTrackPage({
             <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold tracking-tight">Edit Course Track</h2>
             </div>
-            <StaffTrackForm periodId={track.periodId} track={track} hasMembershipProduct={hasMembershipProduct} />
+            <StaffTrackForm
+                periodId={track.periodId}
+                track={track}
+                hasMembershipProduct={hasMembershipProduct}
+                defaultTemplateType={track.CoursePeriod.templateType}
+                defaultDeliveryMethod={track.CoursePeriod.deliveryMethod}
+            />
         </div>
     )
 }

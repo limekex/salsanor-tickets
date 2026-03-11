@@ -14,6 +14,8 @@ export async function createCourseTrack(prevState: any, formData: FormData) {
         periodId: formData.get('periodId'),
         title: formData.get('title'),
         levelLabel: formData.get('levelLabel'),
+        templateType: formData.get('templateType') || 'INDIVIDUAL',
+        deliveryMethod: formData.get('deliveryMethod') || 'IN_PERSON',
         weekday: formData.get('weekday'),
         timeStart: formData.get('timeStart'),
         timeEnd: formData.get('timeEnd'),
@@ -22,6 +24,9 @@ export async function createCourseTrack(prevState: any, formData: FormData) {
         capacityFollowers: formData.get('capacityFollowers') || undefined,
         rolePolicy: formData.get('rolePolicy'),
         waitlistEnabled: formData.get('waitlistEnabled') === 'on',
+        allowSelfCheckIn: formData.get('allowSelfCheckIn') === 'on',
+        allowDashboardCheckIn: formData.get('allowDashboardCheckIn') === 'on',
+        geofenceEnabled: formData.get('geofenceEnabled') === 'on',
         priceSingleCents: formData.get('priceSingleCents'),
         pricePairCents: formData.get('pricePairCents') || undefined,
     }

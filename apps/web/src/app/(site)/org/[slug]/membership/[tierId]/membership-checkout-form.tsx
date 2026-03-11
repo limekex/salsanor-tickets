@@ -27,7 +27,6 @@ interface MembershipCheckoutFormProps {
     description: string | null
     priceCents: number
     benefits: string[]
-    discountPercent: number
     validationRequired: boolean
     mvaEnabled: boolean
   }
@@ -152,13 +151,7 @@ export function MembershipCheckoutForm({ organizerSlug, organizerName, organizer
               </div>
             )}
 
-            {tier.discountPercent > 0 && (
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">
-                  {tier.discountPercent}% discount on courses
-                </Badge>
-              </div>
-            )}
+
           </div>
 
           <Separator />

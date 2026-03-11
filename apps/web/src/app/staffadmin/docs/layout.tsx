@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BookOpen, BarChart2, ChevronRight, Clock } from 'lucide-react'
+import { BookOpen, BarChart2, ChevronRight, Clock, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // All available documentation articles, used to build the sidebar.
@@ -25,6 +25,18 @@ export const docCategories = [
                 slug: 'scheduled-tasks',
                 title: 'Scheduled tasks & notifications',
                 summary: 'Configure automated reminders, alerts, and maintenance tasks for your organization.',
+            },
+        ],
+    },
+    {
+        id: 'pricing',
+        label: 'Pricing & Discounts',
+        icon: Tag,
+        articles: [
+            {
+                slug: 'discount-engine',
+                title: 'The Discount Engine',
+                summary: 'Understand how member pricing, percentage rules, and multi-course discounts are calculated and prioritised.',
             },
         ],
     },

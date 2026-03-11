@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -8,22 +8,174 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Clock, Loader2, Lock, CloudOff, Check } from 'lucide-react'
+import { toast } from 'sonner'
+import { formatWeekday, formatDateShort } from '@/lib/formatters'
 import { useCart } from '@/hooks/use-cart'
 import { useRouter } from 'next/navigation'
+import { CustomFieldsForm } from '@/components/custom-fields-form'
+import type { CustomFieldDefinition, CustomFieldValues } from '@/types/custom-fields'
+import { validateCustomFields } from '@/types/custom-fields'
+import { 
+    getAvailableSlots,
+    getAvailableSlotsPerWeek,
+    holdSlot,
+    holdSlotWeek,
+    releaseSlot,
+    releaseSlotWeek,
+    releaseAllHolds,
+    syncSlotWeekHolds,
+    type SlotAvailability,
+    type SlotWeekAvailability,
+    type WeekInfo
+} from '@/app/actions/slot-holds'
 
-interface WizardProps {
-    track: any // Type this properly if shared types available
-    periodId: string
+interface WizardTrack {
+    id: string
+    title: string
+    weekday?: number
+    priceSingleCents: number
+    pricePairCents?: number | null
+    // Slot booking fields for PRIVATE
+    slotStartTime?: string | null
+    slotDurationMinutes?: number | null
+    slotBreakMinutes?: number | null
+    slotCount?: number | null
+    pricePerSlotCents?: number | null
+    maxContinuousSlots?: number | null
+    // Period dates for display
+    periodStartDate?: string | null
+    periodEndDate?: string | null
+    CoursePeriod?: {
+        Organizer?: { id?: string; name?: string }
+    } | null
 }
 
-export function RegistrationWizard({ track, periodId }: WizardProps) {
+interface WizardProps {
+    track: WizardTrack
+    periodId: string
+    trackCustomFields?: CustomFieldDefinition[] // Track-specific custom fields
+    periodCustomFields?: CustomFieldDefinition[] // Period-specific custom fields
+    templateType?: string
+}
+
+export function RegistrationWizard({ 
+    track, 
+    periodId, 
+    trackCustomFields = [], 
+    periodCustomFields = [], 
+    templateType = 'INDIVIDUAL' 
+}: WizardProps) {
+    const isPartner = templateType === 'PARTNER'
+    const isPrivate = templateType === 'PRIVATE'
+
     const [step, setStep] = useState(1)
     const [role, setRole] = useState<'LEADER' | 'FOLLOWER' | null>(null)
     const [hasPartner, setHasPartner] = useState(false)
     const [partnerEmail, setPartnerEmail] = useState('')
+    const [selectedSlots, setSelectedSlots] = useState<number[]>([])
+    // Separate state for track and period custom fields
+    const [trackFieldValues, setTrackFieldValues] = useState<CustomFieldValues>({})
+    const [trackFieldErrors, setTrackFieldErrors] = useState<Record<string, string>>({})
+    const [periodFieldValues, setPeriodFieldValues] = useState<CustomFieldValues>({})
+    const [periodFieldErrors, setPeriodFieldErrors] = useState<Record<string, string>>({})
     const { addCourseItem, getCartOrganizerId, getCartOrganizerName, clearCart } = useCart()
     const router = useRouter()
+
+    const hasTrackCustomFields = trackCustomFields.length > 0
+    const hasPeriodCustomFields = periodCustomFields.length > 0
+
+    // Slot availability state for PRIVATE template (legacy all-weeks mode)
+    const [availableSlots, setAvailableSlots] = useState<SlotAvailability[]>([])
+    const [slotsLoading, setSlotsLoading] = useState(false)
+    const [slotError, setSlotError] = useState<string | null>(null)
+    const [holdingSlot, setHoldingSlot] = useState<number | null>(null) // Slot currently being held/released
+    
+    // Per-week slot booking state (Option B) - Optimistic UI
+    const [weeks, setWeeks] = useState<WeekInfo[]>([])
+    const [slotsPerWeek, setSlotsPerWeek] = useState<SlotWeekAvailability[]>([])
+    const [slotTimes, setSlotTimes] = useState<{ index: number; startTime: string; endTime: string }[]>([])
+    const [selectedSlotWeeks, setSelectedSlotWeeks] = useState<{ slotIndex: number; weekIndex: number }[]>([])
+    const [slotPricePerWeek, setSlotPricePerWeek] = useState(0)
+    
+    // Optimistic UI state for debounced batch saves
+    const [isSyncing, setIsSyncing] = useState(false)
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+    const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const pendingSelectionsRef = useRef<{ slotIndex: number; weekIndex: number }[]>([])
+
+    // Fetch available slots for PRIVATE template (per-week mode)
+    const fetchSlots = useCallback(async () => {
+        if (!isPrivate) return
+        setSlotsLoading(true)
+        setSlotError(null)
+        try {
+            // Use per-week availability
+            const result = await getAvailableSlotsPerWeek(track.id)
+            if (result.error) {
+                setSlotError(result.error)
+            } else {
+                setWeeks(result.weeks)
+                setSlotsPerWeek(result.slotsPerWeek)
+                setSlotTimes(result.slotTimes)
+                setSlotPricePerWeek(result.pricePerSlotCents)
+                
+                // Restore any slot+week combinations we already have holds on
+                const heldSlotWeeks = result.slotsPerWeek
+                    .filter(sw => sw.heldByCurrentUser)
+                    .map(sw => ({ slotIndex: sw.slotIndex, weekIndex: sw.weekIndex }))
+                if (heldSlotWeeks.length > 0) {
+                    setSelectedSlotWeeks(heldSlotWeeks)
+                }
+            }
+        } catch (e) {
+            setSlotError('Failed to load available slots')
+        } finally {
+            setSlotsLoading(false)
+        }
+    }, [isPrivate, track.id])
+
+    // Fetch slots on mount
+    useEffect(() => {
+        fetchSlots()
+    }, [fetchSlots])
+
+    // Release holds when leaving the page without completing
+    useEffect(() => {
+        if (!isPrivate) return
+        
+        // Only release holds if user navigates away without completing
+        return () => {
+            // Note: This cleanup runs on unmount, but selectedSlots may be stale
+            // The actual release will happen, but we rely on server-side expiry as backup
+        }
+    }, [isPrivate])
+
+    const maxContinuous = track.maxContinuousSlots ?? 2
+
+    /*
+     * Step layout by template type:
+     *
+     * Step order:
+     * 1. Template-specific (PRIVATE: slot selection, PARTNER: role + partner)
+     * 2. Track-specific custom fields (if any)
+     * 3. Period-specific custom fields (if any)
+     * 4. Summary
+     *
+     * PARTNER  : 1=Role  2=Partner  [3=TrackFields]  [4=PeriodFields]  last=Summary
+     * PRIVATE  : 1=SlotSelection  [2=TrackFields]  [3=PeriodFields]  last=Summary
+     * others   : [1=TrackFields]  [2=PeriodFields]  last=Summary
+     */
+    const partnerSteps = isPartner ? 2 : 0
+    const privateSteps = isPrivate ? 1 : 0
+    const templateSteps = partnerSteps + privateSteps
+    
+    // Calculate step numbers
+    let currentStepOffset = templateSteps
+    const trackFieldsStep = hasTrackCustomFields ? ++currentStepOffset : null
+    const periodFieldsStep = hasPeriodCustomFields ? ++currentStepOffset : null
+    const summaryStep = ++currentStepOffset
+    const totalSteps = summaryStep
 
     const currentOrganizerId = track.CoursePeriod?.Organizer?.id
     const currentOrganizerName = track.CoursePeriod?.Organizer?.name
@@ -31,16 +183,200 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
     const cartOrganizerName = getCartOrganizerName()
     const isDifferentOrganizer = !!(cartOrganizerId && cartOrganizerId !== currentOrganizerId)
 
-    const price = hasPartner && track.pricePairCents
-        ? track.pricePairCents / 100
-        : track.priceSingleCents / 100
+    // Calculate price based on template type
+    const price = useMemo(() => {
+        if (isPrivate && slotPricePerWeek > 0 && selectedSlotWeeks.length > 0) {
+            // PRIVATE: price per slot per week × number of slot+week selections
+            return (slotPricePerWeek * selectedSlotWeeks.length) / 100
+        }
+        if (isPartner && hasPartner && track.pricePairCents) {
+            return track.pricePairCents / 100
+        }
+        return track.priceSingleCents / 100
+    }, [isPrivate, isPartner, hasPartner, track, selectedSlotWeeks.length, slotPricePerWeek])
 
-    const priceLabel = hasPartner && track.pricePairCents
-        ? 'Total Couple Price'
-        : 'Total Price'
+    // Count unique slots and weeks in selection
+    const selectedSlotsCount = useMemo(() => {
+        return new Set(selectedSlotWeeks.map(sw => sw.slotIndex)).size
+    }, [selectedSlotWeeks])
+    
+    const selectedWeeksCount = useMemo(() => {
+        return new Set(selectedSlotWeeks.map(sw => sw.weekIndex)).size
+    }, [selectedSlotWeeks])
+
+    const priceLabel = useMemo(() => {
+        if (isPrivate && selectedSlotWeeks.length > 0) {
+            return `Total (${selectedSlotWeeks.length} session${selectedSlotWeeks.length > 1 ? 's' : ''})`
+        }
+        if (isPartner && hasPartner && track.pricePairCents) {
+            return 'Total Couple Price'
+        }
+        return 'Total Price'
+    }, [isPrivate, isPartner, hasPartner, track.pricePairCents, selectedSlotWeeks.length])
+
+    // Debounced batch sync to server
+    const syncSelectionsToServer = useCallback(async (selections: { slotIndex: number; weekIndex: number }[]) => {
+        setIsSyncing(true)
+        setSlotError(null)
+        
+        try {
+            const result = await syncSlotWeekHolds(track.id, selections)
+            
+            if (result.success) {
+                // Handle conflicts - remove them from selection
+                if (result.conflicts.length > 0) {
+                    setSelectedSlotWeeks(result.syncedSelections)
+                    setSlotError(`${result.conflicts.length} slot(s) were taken by someone else`)
+                    // Refresh availability
+                    await fetchSlots()
+                }
+                setHasUnsavedChanges(false)
+            } else {
+                setSlotError(result.error ?? 'Failed to sync selections')
+            }
+        } catch (e) {
+            setSlotError('Failed to sync selections')
+        } finally {
+            setIsSyncing(false)
+        }
+    }, [track.id, fetchSlots])
+
+    // Schedule debounced sync when selections change
+    const scheduleSyncToServer = useCallback((newSelections: { slotIndex: number; weekIndex: number }[]) => {
+        // Cancel any pending sync
+        if (syncTimeoutRef.current) {
+            clearTimeout(syncTimeoutRef.current)
+        }
+        
+        pendingSelectionsRef.current = newSelections
+        setHasUnsavedChanges(true)
+        
+        // Schedule sync after 500ms of inactivity
+        syncTimeoutRef.current = setTimeout(() => {
+            syncSelectionsToServer(pendingSelectionsRef.current)
+        }, 500)
+    }, [syncSelectionsToServer])
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (syncTimeoutRef.current) {
+                clearTimeout(syncTimeoutRef.current)
+            }
+        }
+    }, [])
+
+    // Helper to find the longest consecutive slot sequence for a week
+    function getMaxConsecutiveInWeek(selections: { slotIndex: number; weekIndex: number }[], weekIdx: number): number {
+        const slotsInWeek = selections
+            .filter(s => s.weekIndex === weekIdx)
+            .map(s => s.slotIndex)
+            .sort((a, b) => a - b)
+        
+        if (slotsInWeek.length === 0) return 0
+        if (slotsInWeek.length === 1) return 1
+        
+        let maxConsecutive = 1
+        let currentConsecutive = 1
+        
+        for (let i = 1; i < slotsInWeek.length; i++) {
+            if (slotsInWeek[i] === slotsInWeek[i - 1] + 1) {
+                currentConsecutive++
+                maxConsecutive = Math.max(maxConsecutive, currentConsecutive)
+            } else {
+                currentConsecutive = 1
+            }
+        }
+        
+        return maxConsecutive
+    }
+
+    // Per-week slot selection handler - OPTIMISTIC UI
+    function handleSlotWeekToggle(slotIndex: number, weekIndex: number) {
+        const isCurrentlySelected = selectedSlotWeeks.some(
+            sw => sw.slotIndex === slotIndex && sw.weekIndex === weekIndex
+        )
+        const slotWeek = slotsPerWeek.find(
+            sw => sw.slotIndex === slotIndex && sw.weekIndex === weekIndex
+        )
+        
+        if (!slotWeek) return
+        
+        // If not available and not currently held by us, can't select
+        if (!slotWeek.available && !slotWeek.heldByCurrentUser && !isCurrentlySelected) {
+            return
+        }
+        
+        // Immediately update local state (optimistic)
+        let newSelections: { slotIndex: number; weekIndex: number }[]
+        
+        if (isCurrentlySelected) {
+            // Remove from selection
+            newSelections = selectedSlotWeeks.filter(
+                sw => !(sw.slotIndex === slotIndex && sw.weekIndex === weekIndex)
+            )
+        } else {
+            // Check maxContinuousSlots limit before adding
+            const maxSlots = track.maxContinuousSlots
+            if (maxSlots && maxSlots > 0) {
+                // Simulate adding this slot
+                const testSelections = [...selectedSlotWeeks, { slotIndex, weekIndex }]
+                const consecutiveCount = getMaxConsecutiveInWeek(testSelections, weekIndex)
+                
+                if (consecutiveCount > maxSlots) {
+                    toast.warning(`Maximum ${maxSlots} consecutive slot${maxSlots > 1 ? 's' : ''} allowed`, {
+                        description: 'You cannot book more consecutive time slots in a row.'
+                    })
+                    return
+                }
+            }
+            
+            // Add to selection
+            newSelections = [...selectedSlotWeeks, { slotIndex, weekIndex }]
+        }
+        
+        setSelectedSlotWeeks(newSelections)
+        
+        // Schedule debounced sync to server
+        scheduleSyncToServer(newSelections)
+    }
+
+    function handleNext() {
+        // Validate PRIVATE slot selection before advancing
+        if (isPrivate && step === 1 && selectedSlotWeeks.length === 0) {
+            return // Must select at least one slot+week
+        }
+        // Validate track custom fields before advancing
+        if (trackFieldsStep !== null && step === trackFieldsStep) {
+            const errors = validateCustomFields(trackCustomFields, trackFieldValues)
+            if (Object.keys(errors).length > 0) {
+                setTrackFieldErrors(errors)
+                return
+            }
+            setTrackFieldErrors({})
+        }
+        // Validate period custom fields before advancing
+        if (periodFieldsStep !== null && step === periodFieldsStep) {
+            const errors = validateCustomFields(periodCustomFields, periodFieldValues)
+            if (Object.keys(errors).length > 0) {
+                setPeriodFieldErrors(errors)
+                return
+            }
+            setPeriodFieldErrors({})
+        }
+        setStep(s => s + 1)
+    }
 
     function handleAddToCart() {
-        if (!role || !currentOrganizerId || !currentOrganizerName) return
+        if (!currentOrganizerId || !currentOrganizerName) return
+        // For PARTNER, role is required; for others it is not
+        if (isPartner && !role) return
+        // For PRIVATE, at least one slot+week must be selected
+        if (isPrivate && selectedSlotWeeks.length === 0) return
+
+        // Extract unique slots and weeks for backward compatibility
+        const uniqueSlots = [...new Set(selectedSlotWeeks.map(sw => sw.slotIndex))].sort((a, b) => a - b)
+        const uniqueWeeks = [...new Set(selectedSlotWeeks.map(sw => sw.weekIndex))].sort((a, b) => a - b)
 
         addCourseItem({
             trackId: track.id,
@@ -48,9 +384,33 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
             periodId,
             organizerId: currentOrganizerId,
             organizerName: currentOrganizerName,
-            role,
-            hasPartner,
-            partnerEmail: (hasPartner && partnerEmail) ? partnerEmail : undefined,
+            role: isPartner ? role! : undefined,
+            hasPartner: isPartner ? hasPartner : undefined,
+            partnerEmail: isPartner && hasPartner && partnerEmail ? partnerEmail : undefined,
+            // Keep these for backward compatibility
+            selectedSlots: isPrivate ? uniqueSlots : undefined,
+            selectedWeeks: isPrivate ? uniqueWeeks : undefined,
+            // NEW: Full session matrix - each entry is one session
+            selectedSlotWeeks: isPrivate ? selectedSlotWeeks : undefined,
+            // Slot time details for all unique slots
+            slotDetails: isPrivate && slotTimes.length > 0 
+                ? slotTimes.filter(st => uniqueSlots.includes(st.index)).map(st => ({
+                    slotIndex: st.index,
+                    startTime: st.startTime,
+                    endTime: st.endTime
+                }))
+                : undefined,
+            // Week details for all unique weeks
+            weekDetails: isPrivate && weeks.length > 0
+                ? weeks.filter(w => uniqueWeeks.includes(w.weekIndex)).map(w => ({
+                    weekIndex: w.weekIndex,
+                    weekStart: w.date.toISOString()
+                }))
+                : undefined,
+            weekday: isPrivate ? track.weekday : undefined,
+            // Custom field values
+            trackCustomFieldValues: hasTrackCustomFields ? trackFieldValues : undefined,
+            periodCustomFieldValues: hasPeriodCustomFields ? periodFieldValues : undefined,
             priceSnapshot: price
         })
 
@@ -62,11 +422,16 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
         handleAddToCart()
     }
 
+    // ── Is the Next/Add button disabled? ──────────────────────────────────────
+    const isNextDisabled = 
+        (isPartner && step === 1 && !role) ||
+        (isPrivate && step === 1 && (selectedSlotWeeks.length === 0 || isSyncing || hasUnsavedChanges))
+
     return (
-        <Card className="max-w-md mx-auto">
+        <Card className="max-w-2xl mx-auto">
             <CardHeader>
                 <CardTitle>Register for {track.title}</CardTitle>
-                <CardDescription>Step {step} of 3</CardDescription>
+                <CardDescription>Step {step} of {totalSteps}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
 
@@ -77,12 +442,12 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
                         <AlertDescription>
                             <strong>Different Organizer</strong>
                             <p className="mt-1 text-sm">
-                                Your cart contains courses from <strong>{cartOrganizerName}</strong>. 
+                                Your cart contains courses from <strong>{cartOrganizerName}</strong>.
                                 You can only checkout courses from one organizer at a time.
                             </p>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="mt-2"
                                 onClick={handleClearCartAndAdd}
                             >
@@ -92,8 +457,137 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
                     </Alert>
                 )}
 
-                {/* Step 1: Role */}
-                {step === 1 && (
+                {/* ── PRIVATE: Step 1 — Per-week slot selection ──────────────────── */}
+                {isPrivate && step === 1 && (
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Clock className="h-5 w-5 text-muted-foreground" />
+                            <Label className="text-base">Select your sessions:</Label>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            {slotPricePerWeek > 0 && (
+                                <>{(slotPricePerWeek / 100).toLocaleString('nb-NO')},- per session · </>
+                            )}
+                            Click cells to select time slots for specific weeks
+                            {track.maxContinuousSlots && track.maxContinuousSlots > 0 && (
+                                <> · Max {track.maxContinuousSlots} consecutive slot{track.maxContinuousSlots > 1 ? 's' : ''}</>
+                            )}
+                        </p>
+                        
+                        {slotError && (
+                            <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>{slotError}</AlertDescription>
+                            </Alert>
+                        )}
+                        
+                        {slotsLoading && slotTimes.length === 0 ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                <span className="ml-2 text-muted-foreground">Loading available slots...</span>
+                            </div>
+                        ) : weeks.length > 0 && slotTimes.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                {/* Table header showing weekday and period range */}
+                                <div className="mb-2 px-1">
+                                    <h3 className="font-medium text-base capitalize">
+                                        {track.weekday !== undefined ? `${formatWeekday(track.weekday)}s` : 'Sessions'}
+                                    </h3>
+                                    {track.periodStartDate && track.periodEndDate && (
+                                        <p className="text-sm text-muted-foreground">
+                                            {formatDateShort(new Date(track.periodStartDate))} – {formatDateShort(new Date(track.periodEndDate))}
+                                        </p>
+                                    )}
+                                </div>
+                                <table className="w-full border-collapse text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th className="border p-2 bg-muted/50 font-medium text-left min-w-[80px]">Time</th>
+                                            {weeks.map(week => (
+                                                <th key={week.weekIndex} className="border p-2 bg-muted/50 font-medium text-center min-w-[70px]">
+                                                    {week.formattedDate}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {slotTimes.map(slot => (
+                                            <tr key={slot.index}>
+                                                <td className="border p-2 font-medium bg-muted/30">
+                                                    {slot.startTime}–{slot.endTime}
+                                                </td>
+                                                {weeks.map(week => {
+                                                    const slotWeek = slotsPerWeek.find(
+                                                        sw => sw.slotIndex === slot.index && sw.weekIndex === week.weekIndex
+                                                    )
+                                                    const isSelected = selectedSlotWeeks.some(
+                                                        sw => sw.slotIndex === slot.index && sw.weekIndex === week.weekIndex
+                                                    )
+                                                    const isUnavailable = slotWeek && !slotWeek.available && !slotWeek.heldByCurrentUser && !isSelected
+                                                    
+                                                    return (
+                                                        <td 
+                                                            key={`${slot.index}-${week.weekIndex}`}
+                                                            className={`border p-2 text-center cursor-pointer transition-colors ${
+                                                                isSelected ? 'bg-primary/10 border-primary' : ''
+                                                            } ${isUnavailable ? 'bg-muted/50 cursor-not-allowed' : 'hover:bg-muted/30'
+                                                            }`}
+                                                            onClick={() => !isUnavailable && handleSlotWeekToggle(slot.index, week.weekIndex)}
+                                                        >
+                                                            {isUnavailable ? (
+                                                                <Lock className="h-4 w-4 text-muted-foreground mx-auto" />
+                                                            ) : isSelected ? (
+                                                                <div className="w-5 h-5 bg-primary rounded-full mx-auto flex items-center justify-center">
+                                                                    <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-5 h-5 border-2 border-muted-foreground/30 rounded-full mx-auto" />
+                                                            )}
+                                                        </td>
+                                                    )
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <p className="text-muted-foreground text-center py-4">No slots available</p>
+                        )}
+                        
+                        {selectedSlotWeeks.length > 0 && slotPricePerWeek > 0 && (
+                            <div className="mt-4 p-3 bg-muted rounded-md">
+                                <div className="flex justify-between text-sm">
+                                    <span>Selected: {selectedSlotWeeks.length} session{selectedSlotWeeks.length > 1 ? 's' : ''}</span>
+                                    <span className="font-medium">
+                                        {((slotPricePerWeek * selectedSlotWeeks.length) / 100).toLocaleString('nb-NO')},-
+                                    </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {selectedSlotsCount} time slot{selectedSlotsCount > 1 ? 's' : ''} × {selectedWeeksCount} week{selectedWeeksCount > 1 ? 's' : ''}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                    {isSyncing ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            <span>Reserving...</span>
+                                        </>
+                                    ) : hasUnsavedChanges ? (
+                                        <>
+                                            <CloudOff className="h-3 w-3" />
+                                            <span>Syncing...</span>
+                                        </>
+                                    ) : (
+                                        <span>Sessions reserved for 10 minutes</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ── PARTNER: Step 1 — Role selection ──────────────────── */}
+                {isPartner && step === 1 && (
                     <div className="space-y-4">
                         <Label className="text-base">I want to participate as a:</Label>
                         <RadioGroup value={role || ''} onValueChange={(v: any) => setRole(v)}>
@@ -109,8 +603,8 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
                     </div>
                 )}
 
-                {/* Step 2: Partner */}
-                {step === 2 && (
+                {/* ── PARTNER: Step 2 — Partner ──────────────────────────── */}
+                {isPartner && step === 2 && (
                     <div className="space-y-6">
                         <div className="flex items-center justify-between space-x-2">
                             <Label htmlFor="partner-mode" className="flex flex-col space-y-1">
@@ -126,7 +620,7 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
 
                         {hasPartner && (
                             <div className="space-y-2 pt-2 animate-in fade-in slide-in-from-top-2">
-                                <Label htmlFor="p-email">Partner's Email</Label>
+                                <Label htmlFor="p-email">Partner&apos;s Email</Label>
                                 <Input
                                     id="p-email"
                                     type="email"
@@ -139,22 +633,104 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
                     </div>
                 )}
 
-                {/* Step 3: Summary */}
-                {step === 3 && (
+                {/* ── Track Custom Fields step ──────────────────────────── */}
+                {trackFieldsStep !== null && step === trackFieldsStep && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Please fill in the track-specific details:</p>
+                        <CustomFieldsForm
+                            definitions={trackCustomFields}
+                            values={trackFieldValues}
+                            onChange={setTrackFieldValues}
+                            errors={trackFieldErrors}
+                        />
+                    </div>
+                )}
+
+                {/* ── Period Custom Fields step ─────────────────────────── */}
+                {periodFieldsStep !== null && step === periodFieldsStep && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Please fill in additional registration details:</p>
+                        <CustomFieldsForm
+                            definitions={periodCustomFields}
+                            values={periodFieldValues}
+                            onChange={setPeriodFieldValues}
+                            errors={periodFieldErrors}
+                        />
+                    </div>
+                )}
+
+                {/* ── Summary ──────────────────────────────────────────────── */}
+                {step === summaryStep && (
                     <div className="space-y-4">
                         <div className="bg-muted p-4 rounded-md space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Course:</span>
                                 <span className="font-medium">{track.title}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Role:</span>
-                                <span className="font-medium">{role}</span>
-                            </div>
-                            {hasPartner && (
+                            {isPartner && role && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Role:</span>
+                                    <span className="font-medium">{role}</span>
+                                </div>
+                            )}
+                            {isPartner && hasPartner && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Partner:</span>
                                     <span className="font-medium">{partnerEmail}</span>
+                                </div>
+                            )}
+                            {isPrivate && selectedSlots.length > 0 && (
+                                <>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Time slots:</span>
+                                        <span className="font-medium text-right">
+                                            {selectedSlots.map(i => availableSlots[i]?.startTime).join(', ')}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Duration:</span>
+                                        <span className="font-medium">
+                                            {(track.slotDurationMinutes ?? 0) * selectedSlots.length} min
+                                        </span>
+                                    </div>
+                                </>
+                            )}
+                            {hasTrackCustomFields && Object.keys(trackFieldValues).length > 0 && (
+                                <div className="border-t pt-2 mt-2 space-y-1">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Track Details</span>
+                                    {trackCustomFields
+                                        .filter(f => f.type !== 'HEADING' && f.type !== 'PARAGRAPH')
+                                        .map(f => {
+                                            const val = trackFieldValues[f.id]
+                                            if (val === undefined || val === null || val === '') return null
+                                            return (
+                                                <div key={f.id} className="flex justify-between">
+                                                    <span className="text-muted-foreground">{f.label}:</span>
+                                                    <span className="font-medium text-right ml-2">
+                                                        {Array.isArray(val) ? val.join(', ') : String(val)}
+                                                    </span>
+                                                </div>
+                                            )
+                                        })}
+                                </div>
+                            )}
+                            {hasPeriodCustomFields && Object.keys(periodFieldValues).length > 0 && (
+                                <div className="border-t pt-2 mt-2 space-y-1">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Registration Details</span>
+                                    {periodCustomFields
+                                        .filter(f => f.type !== 'HEADING' && f.type !== 'PARAGRAPH')
+                                        .map(f => {
+                                            const val = periodFieldValues[f.id]
+                                            if (val === undefined || val === null || val === '') return null
+                                            return (
+                                                <div key={f.id} className="flex justify-between">
+                                                    <span className="text-muted-foreground">{f.label}:</span>
+                                                    <span className="font-medium text-right ml-2">
+                                                        {Array.isArray(val) ? val.join(', ') : String(val)}
+                                                    </span>
+                                                </div>
+                                            )
+                                        })}
                                 </div>
                             )}
                             <div className="border-t pt-2 mt-2 flex justify-between text-base font-bold">
@@ -171,20 +747,22 @@ export function RegistrationWizard({ track, periodId }: WizardProps) {
                     <Button variant="outline" onClick={() => setStep(s => s - 1)}>Back</Button>
                 ) : (
                     <Button variant="ghost" disabled>Back</Button>
-                    // Keeping layout stable
                 )}
 
-                {step < 3 ? (
-                    <Button onClick={() => setStep(s => s + 1)} disabled={!role}>Next</Button>
+                {step < summaryStep ? (
+                    <Button onClick={handleNext} disabled={isNextDisabled}>
+                        Next
+                    </Button>
                 ) : (
-                    <Button 
-                        onClick={handleAddToCart} 
-                        disabled={!role || isDifferentOrganizer}
+                    <Button
+                        onClick={handleAddToCart}
+                        disabled={(isPartner && !role) || isDifferentOrganizer}
                     >
                         {isDifferentOrganizer ? 'Cannot Add - Different Organizer' : 'Add to Cart'}
                     </Button>
                 )}
             </CardFooter>
-        </Card >
+        </Card>
     )
 }
+

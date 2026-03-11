@@ -123,6 +123,28 @@ export async function fulfillOrder(
                 where: { orderId: orderId },
                 data: { status: 'ACTIVE' }
             })
+            
+            // Clean up slot holds for PRIVATE template bookings
+            // Get all registrations with booked slots
+            const registrationsWithSlots = await tx.registration.findMany({
+                where: { 
+                    orderId: orderId,
+                    bookedSlots: { isEmpty: false }
+                },
+                select: { trackId: true, bookedSlots: true }
+            })
+            
+            // Delete any holds on these slots (the booking is now confirmed)
+            for (const reg of registrationsWithSlots) {
+                if (reg.bookedSlots.length > 0) {
+                    await tx.slotHold.deleteMany({
+                        where: {
+                            trackId: reg.trackId,
+                            slotIndex: { in: reg.bookedSlots }
+                        }
+                    })
+                }
+            }
 
             // Generate Ticket for period access
             // For MVP, one ticket per person per period.

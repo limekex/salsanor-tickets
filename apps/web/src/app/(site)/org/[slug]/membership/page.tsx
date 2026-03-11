@@ -97,11 +97,6 @@ export default async function MembershipPage({ params }: { params: Params }) {
                     )}
                   </div>
                   <div className="flex flex-col gap-2">
-                    {tier.discountPercent > 0 && (
-                      <Badge variant="secondary">
-                        {tier.discountPercent}% off
-                      </Badge>
-                    )}
                     {tier.validationRequired && (
                       <Badge variant="outline" className="text-xs">
                         Approval Required

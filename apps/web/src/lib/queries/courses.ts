@@ -155,6 +155,7 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
           slug: true,
           name: true,
           logoUrl: true,
+          membershipEnabled: true,
           OrgDiscountRule: {
             where: {
               enabled: true,
@@ -165,6 +166,11 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
               ruleType: true,
               config: true
             }
+          },
+          MembershipTier: {
+            where: { enabled: true, isDefault: true },
+            take: 1,
+            select: { isDefault: true }
           }
         }
       },
@@ -185,6 +191,7 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
           pricePairCents: true,
           memberPriceSingleCents: true,
           memberPricePairCents: true,
+          memberDiscountMode: true,
           capacityTotal: true
         }
       },
@@ -204,7 +211,38 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
   })
 
   // Filter out periods with no tracks after filtering
-  return periods.filter(p => p.CourseTrack.length > 0)
+  // Resolve effective member discount percent with correct priority:
+  // 1. Org discount rules (MEMBERSHIP_TIER_PERCENT)
+  // 2. Period discount rules (MEMBERSHIP_TIER_PERCENT)
+  // (Track fixed price is handled per-card, not here)
+  return periods
+    .filter(p => p.CourseTrack.length > 0)
+    .map(period => {
+      const hasDefaultTier = (period.Organizer.MembershipTier?.length ?? 0) > 0
+
+      const orgRulePercent = (period.Organizer.OrgDiscountRule ?? [])
+        .filter(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+        .map(r => (r.config as { discountPercent?: number }).discountPercent ?? 0)
+        .reduce((max, p) => Math.max(max, p), 0)
+
+      const periodRulePercent = (period.DiscountRule ?? [])
+        .filter(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+        .map(r => (r.config as { discountPercent?: number }).discountPercent ?? 0)
+        .reduce((max, p) => Math.max(max, p), 0)
+
+      const resolvedMemberDiscountPercent = hasDefaultTier
+        ? (orgRulePercent || periodRulePercent || null)
+        : null
+
+      return {
+        ...period,
+        Organizer: {
+          ...period.Organizer,
+          resolvedMemberDiscountPercent,
+          MembershipTier: period.Organizer.MembershipTier
+        }
+      }
+    })
 }
 
 /**
@@ -476,6 +514,96 @@ export async function getCourseTrackCapacity(trackId: string) {
     available: track.capacityTotal - track._count.Registration,
     isFull: track._count.Registration >= track.capacityTotal
   }
+}
+
+/**
+ * Get capacity info for PRIVATE template tracks (slot-based).
+ * For PRIVATE template, capacity = number of slots × number of weeks.
+ */
+export async function getPrivateTemplateCapacity(trackId: string) {
+  const track = await prisma.courseTrack.findUnique({
+    where: { id: trackId },
+    select: {
+      templateType: true,
+      weekday: true,
+      slotCount: true,
+      CoursePeriod: {
+        select: {
+          startDate: true,
+          endDate: true
+        }
+      }
+    }
+  })
+
+  if (!track || track.templateType !== 'PRIVATE' || !track.slotCount) {
+    return null
+  }
+
+  // Calculate number of weeks in period
+  const weeks = calculateWeeksInPeriod(
+    track.CoursePeriod.startDate,
+    track.CoursePeriod.endDate,
+    track.weekday
+  )
+
+  // Total possible slot-sessions (each slot × each week)
+  const totalSlotSessions = track.slotCount * weeks
+
+  // Get all confirmed registrations with booked slots
+  const registrations = await prisma.registration.findMany({
+    where: {
+      trackId,
+      status: { in: ['ACTIVE', 'PENDING_PAYMENT'] },
+      bookedSlots: { isEmpty: false }
+    },
+    select: {
+      bookedSlots: true,
+      bookedWeeks: true
+    }
+  })
+
+  // Count total booked slot-sessions
+  let bookedSlotSessions = 0
+  for (const reg of registrations) {
+    const slots = reg.bookedSlots.length
+    // If bookedWeeks is empty, assume all weeks (legacy or full booking)
+    const weeksBooked = reg.bookedWeeks.length > 0 ? reg.bookedWeeks.length : weeks
+    bookedSlotSessions += slots * weeksBooked
+  }
+
+  return {
+    total: totalSlotSessions,
+    booked: bookedSlotSessions,
+    available: totalSlotSessions - bookedSlotSessions,
+    isFull: bookedSlotSessions >= totalSlotSessions,
+    weeks,
+    slotsPerWeek: track.slotCount
+  }
+}
+
+/**
+ * Helper: Calculate number of weeks in a period for a given weekday
+ */
+function calculateWeeksInPeriod(
+  periodStart: Date,
+  periodEnd: Date,
+  trackWeekday: number
+): number {
+  let count = 0
+  const currentDate = new Date(periodStart)
+  
+  // Find first occurrence of track's weekday
+  const dayOfWeek = currentDate.getDay()
+  const daysUntilTarget = (trackWeekday - dayOfWeek + 7) % 7
+  currentDate.setDate(currentDate.getDate() + daysUntilTarget)
+  
+  while (currentDate <= periodEnd) {
+    count++
+    currentDate.setDate(currentDate.getDate() + 7)
+  }
+  
+  return count
 }
 
 /**

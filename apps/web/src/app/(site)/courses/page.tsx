@@ -135,18 +135,16 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                             const isRegistered = userRegistrations.some(r => r.trackId === track.id)
                             const weekDayLabel = formatWeekday(track.weekday)
                             
-                            // Parse discount info from period and org rules
-                            const allRules = [
-                                ...(period.DiscountRule || []),
-                                ...(period.Organizer.OrgDiscountRule || [])
-                            ]
-                            const memberRule = allRules.find(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
-                            const multiCourseRule = allRules.find(r => r.ruleType === 'MULTI_COURSE_TIERED')
+                            // Parse discount info - use default membership tier if available
+                            const defaultTier = (period.Organizer as any).MembershipTier?.[0]
+                            const hasActiveMembershipTiers = !!defaultTier
+                            const multiCourseRule = period.DiscountRule?.find(r => r.ruleType === 'MULTI_COURSE_TIERED')
                             const discountInfo = {
-                                memberDiscountPercent: memberRule?.config && typeof memberRule.config === 'object' 
-                                    ? (memberRule.config as any).discountPercent 
+                                memberDiscountPercent: hasActiveMembershipTiers
+                                    ? ((period.Organizer as any).resolvedMemberDiscountPercent ?? null)
                                     : null,
-                                hasMultiCourseDiscount: !!multiCourseRule
+                                hasMultiCourseDiscount: !!multiCourseRule,
+                                hasActiveMembershipTiers
                             }
 
                             return (

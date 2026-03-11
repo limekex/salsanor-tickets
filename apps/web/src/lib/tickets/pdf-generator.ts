@@ -17,6 +17,44 @@ import {
 } from './legal-requirements'
 
 // =============================================================================
+// SLOT TIME FORMATTING HELPER
+// =============================================================================
+
+/**
+ * Format booked slots into readable time ranges
+ * e.g., slots [0, 1] with startTime "10:00" and duration 30 mins = "10:00 - 11:00"
+ */
+export function formatBookedSlotTimes(
+    bookedSlots: number[],
+    slotStartTime: string,
+    slotDurationMinutes: number,
+    slotBreakMinutes: number = 0
+): string {
+    if (!bookedSlots.length || !slotStartTime || !slotDurationMinutes) {
+        return ''
+    }
+    
+    const sorted = [...bookedSlots].sort((a, b) => a - b)
+    const [startHours, startMins] = slotStartTime.split(':').map(Number)
+    
+    // Calculate start time of first booked slot
+    const firstSlotMinutes = startHours * 60 + startMins + 
+        sorted[0] * (slotDurationMinutes + slotBreakMinutes)
+    
+    // Calculate end time of last booked slot
+    const lastSlotEndMinutes = startHours * 60 + startMins + 
+        sorted[sorted.length - 1] * (slotDurationMinutes + slotBreakMinutes) + slotDurationMinutes
+    
+    const formatTime = (minutes: number) => {
+        const h = Math.floor(minutes / 60) % 24
+        const m = minutes % 60
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+    }
+    
+    return `${formatTime(firstSlotMinutes)} - ${formatTime(lastSlotEndMinutes)}`
+}
+
+// =============================================================================
 // IMAGE LOADING HELPER
 // =============================================================================
 
@@ -80,9 +118,20 @@ export interface EventTicketData {
     includeQrCode?: boolean  // Whether to include QR code (default: true)
 }
 
+export interface CourseTrackInfo {
+    name: string
+    bookedSlots?: number[]           // For PRIVATE template: slot indices
+    bookedWeeks?: number[]           // For PRIVATE template: week indices (per-week booking)
+    slotStartTime?: string | null    // For PRIVATE template: "HH:mm"
+    slotDurationMinutes?: number | null
+    periodStartDate?: Date           // To calculate actual session dates
+    weekday?: number                 // Day of week (0=Sun, 1=Mon, etc.)
+}
+
 export interface CourseTicketData {
     periodName: string
-    trackNames: string[]
+    trackNames: string[]              // Kept for backward compatibility
+    trackInfo?: CourseTrackInfo[]     // New: includes slot info
     startDate: Date
     endDate: Date
     qrToken: string
@@ -876,10 +925,21 @@ export async function generateCourseTicketPDF(data: CourseTicketData): Promise<B
         y -= 75  // Increased spacing for more line height
     }
 
+    // Determine track list for display
+    // Use trackInfo if provided, otherwise fall back to trackNames
+    const tracksToDisplay: CourseTrackInfo[] = data.trackInfo ?? data.trackNames.map(name => ({ name }))
+    
+    // Calculate extra height needed for slot info
+    const trackLinesCount = tracksToDisplay.reduce((count, track) => {
+        // Each track is 1 line, plus 1 extra line if it has booked slots
+        const hasSlots = track.bookedSlots && track.bookedSlots.length > 0
+        return count + 1 + (hasSlots ? 1 : 0)
+    }, 0)
+
     // Course Details Box
     const boxX = 50
     const boxWidth = width - 100
-    const boxHeight = 140 + (data.trackNames.length * 14)
+    const boxHeight = 140 + (trackLinesCount * 14)
     const boxY = y - boxHeight
     
     page.drawRectangle({
@@ -915,10 +975,10 @@ export async function generateCourseTicketPDF(data: CourseTicketData): Promise<B
     })
     textY -= 14
     
-    for (const track of data.trackNames) {
+    for (const track of tracksToDisplay) {
         drawText({ 
             page, 
-            text: `  • ${track}`, 
+            text: `  • ${track.name}`, 
             x: boxX + 15, 
             y: textY, 
             font: helvetica, 
@@ -926,6 +986,27 @@ export async function generateCourseTicketPDF(data: CourseTicketData): Promise<B
             color: { r: 0.2, g: 0.2, b: 0.2 }
         })
         textY -= 14
+        
+        // Display booked slot times if present
+        if (track.bookedSlots && track.bookedSlots.length > 0 && track.slotStartTime && track.slotDurationMinutes) {
+            const slotTimeStr = formatBookedSlotTimes(track.bookedSlots, track.slotStartTime, track.slotDurationMinutes)
+            if (slotTimeStr) {
+                // Show week info if per-week booking
+                const weekInfo = track.bookedWeeks && track.bookedWeeks.length > 0
+                    ? ` × ${track.bookedWeeks.length} uke${track.bookedWeeks.length > 1 ? 'r' : ''}`
+                    : ''
+                drawText({
+                    page,
+                    text: `    Tid: ${slotTimeStr} (${track.bookedSlots.length} slot${track.bookedSlots.length > 1 ? 's' : ''}${weekInfo})`,
+                    x: boxX + 15,
+                    y: textY,
+                    font: helvetica,
+                    size: 9,
+                    color: { r: 0.4, g: 0.4, b: 0.4 }
+                })
+                textY -= 14
+            }
+        }
     }
     
     textY -= 5

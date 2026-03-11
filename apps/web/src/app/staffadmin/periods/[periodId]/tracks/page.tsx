@@ -15,6 +15,8 @@ import {
 import Link from 'next/link'
 import { ArrowLeft, Plus, QrCode } from 'lucide-react'
 import { formatDateRange, formatPrice, formatWeekday } from '@/lib/formatters'
+import { COURSE_TEMPLATE_LABELS } from '@/types/custom-fields'
+import type { CourseTemplateType } from '@salsanor/database'
 
 export default async function StaffAdminTracksPage({ 
     params 
@@ -139,6 +141,7 @@ export default async function StaffAdminTracksPage({
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Name</TableHead>
+                                <TableHead>Template</TableHead>
                                 <TableHead>Level</TableHead>
                                 <TableHead>Schedule</TableHead>
                                 <TableHead>Price</TableHead>
@@ -154,6 +157,11 @@ export default async function StaffAdminTracksPage({
                                     <TableRow key={track.id}>
                                         <TableCell className="font-medium">{track.title}</TableCell>
                                         <TableCell>
+                                            <Badge variant="outline" className="text-xs">
+                                                {COURSE_TEMPLATE_LABELS[track.templateType as CourseTemplateType] || track.templateType}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
                                             <Badge variant="outline">
                                                 {track.levelLabel || 'Standard'}
                                             </Badge>
@@ -168,9 +176,14 @@ export default async function StaffAdminTracksPage({
                                                 : track.capacityTotal}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={track._count.Registration >= track.capacityTotal ? 'destructive' : 'secondary'}>
-                                                {track._count.Registration}
-                                            </Badge>
+                                            <Link 
+                                                href={`/staffadmin/tracks/${track.id}/participants`}
+                                                className="hover:underline"
+                                            >
+                                                <Badge variant={track._count.Registration >= track.capacityTotal ? 'destructive' : 'secondary'}>
+                                                    {track._count.Registration}
+                                                </Badge>
+                                            </Link>
                                         </TableCell>
                                         <TableCell>
                                             {track.allowSelfCheckIn ? (
@@ -194,7 +207,7 @@ export default async function StaffAdminTracksPage({
                             })}
                             {period.CourseTrack.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                         No tracks found. Create one to get started.
                                     </TableCell>
                                 </TableRow>

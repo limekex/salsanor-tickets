@@ -253,10 +253,6 @@ export function LocationPicker({ value, onChange, className }: LocationPickerPro
                     </div>
                 </div>
             )}
-
-            <p className="text-xs text-rn-text-muted">
-                Powered by OpenStreetMap. Location data will be used for Wallet Tickets.
-            </p>
         </div>
     )
 }
