@@ -20,8 +20,14 @@ export default async function RegisterPage({ params }: PageProps) {
     }
 
     const period = track.CoursePeriod as { customFields?: unknown } | null
-    const customFields: CustomFieldDefinition[] = Array.isArray(period?.customFields)
+    const periodCustomFields: CustomFieldDefinition[] = Array.isArray(period?.customFields)
         ? (period.customFields as CustomFieldDefinition[])
+        : []
+
+    // Read track-specific custom fields
+    const trackWithFields = track as typeof track & { customFields?: unknown }
+    const trackCustomFields: CustomFieldDefinition[] = Array.isArray(trackWithFields?.customFields)
+        ? (trackWithFields.customFields as CustomFieldDefinition[])
         : []
 
     // Read templateType from track (track-level setting)
@@ -68,7 +74,8 @@ export default async function RegisterPage({ params }: PageProps) {
             <RegistrationWizard
                 track={wizardTrack}
                 periodId={periodId}
-                customFields={customFields}
+                trackCustomFields={trackCustomFields}
+                periodCustomFields={periodCustomFields}
                 templateType={templateType}
             />
         </main>

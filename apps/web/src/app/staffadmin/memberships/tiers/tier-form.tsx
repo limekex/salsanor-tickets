@@ -51,9 +51,9 @@ interface TierFormProps {
     description: string | null
     priceCents: number
     benefits: string[]
-    discountPercent: number
     priority: number
     enabled: boolean
+    isDefault: boolean
     validationRequired: boolean
     mvaEnabled: boolean
     accentColor: string | null
@@ -74,6 +74,7 @@ export function TierForm({ tier, organizerVatRegistered = true }: TierFormProps)
   const [price, setPrice] = useState(tier ? (tier.priceCents / 100).toString() : '0')
   const [priority, setPriority] = useState(tier?.priority?.toString() || '0')
   const [enabled, setEnabled] = useState(tier?.enabled ?? true)
+  const [isDefault, setIsDefault] = useState(tier?.isDefault ?? false)
   const [validationRequired, setValidationRequired] = useState(tier?.validationRequired ?? false)
   const [mvaEnabled, setMvaEnabled] = useState(tier?.mvaEnabled ?? true)
   const [accentColor, setAccentColor] = useState(tier?.accentColor || '#475569')
@@ -120,9 +121,9 @@ export function TierForm({ tier, organizerVatRegistered = true }: TierFormProps)
         description: description || undefined,
         priceCents: Math.round(parseFloat(price) * 100),
         benefits,
-        discountPercent: 0, // Discounts are now configured via Discount Rules
         priority: parseInt(priority),
         enabled,
+        isDefault,
         validationRequired,
         mvaEnabled,
         accentColor: accentColor || undefined,
@@ -348,6 +349,20 @@ export function TierForm({ tier, organizerVatRegistered = true }: TierFormProps)
               checked={mvaEnabled}
               onCheckedChange={setMvaEnabled}
               disabled={!isVatRegistered}
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="isDefault">Default Tier</Label>
+              <p className="text-sm text-muted-foreground">
+                Show this tier&apos;s member discount on course cards and track details
+              </p>
+            </div>
+            <Switch
+              id="isDefault"
+              checked={isDefault}
+              onCheckedChange={setIsDefault}
             />
           </div>
 

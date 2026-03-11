@@ -12,9 +12,9 @@ const membershipTierSchema = z.object({
   description: z.string().optional(),
   priceCents: z.number().int().min(0),
   benefits: z.array(z.string()).optional(),
-  discountPercent: z.number().min(0).max(100),
   priority: z.number().int().default(0),
   enabled: z.boolean().default(true),
+  isDefault: z.boolean().default(false),
   validationRequired: z.boolean().default(false),
   mvaEnabled: z.boolean().default(true),
   accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color').optional(),
@@ -29,6 +29,14 @@ export async function createMembershipTier(data: z.infer<typeof membershipTierSc
   }
   
   const validated = membershipTierSchema.parse(data)
+
+  // If this tier is being set as default, unset any other defaults for this org
+  if (validated.isDefault) {
+    await prisma.membershipTier.updateMany({
+      where: { organizerId, isDefault: true },
+      data: { isDefault: false },
+    })
+  }
 
   const tier = await prisma.membershipTier.create({
     data: {
@@ -48,9 +56,9 @@ export async function createMembershipTier(data: z.infer<typeof membershipTierSc
     description: tier.description,
     priceCents: Number(tier.priceCents),
     benefits: tier.benefits as string[] || [],
-    discountPercent: Number(tier.discountPercent),
     priority: tier.priority,
     enabled: tier.enabled,
+    isDefault: tier.isDefault,
     validationRequired: tier.validationRequired,
     mvaEnabled: tier.mvaEnabled,
     accentColor: tier.accentColor,
@@ -71,10 +79,19 @@ export async function updateMembershipTier(tierId: string, data: z.infer<typeof 
     tierId,
     validationRequired: data.validationRequired,
     enabled: data.enabled,
-    mvaEnabled: data.mvaEnabled
+    mvaEnabled: data.mvaEnabled,
+    isDefault: data.isDefault
   })
   
   const validated = membershipTierSchema.parse(data)
+  
+  // If this tier is being set as default, unset any other defaults for this org
+  if (validated.isDefault) {
+    await prisma.membershipTier.updateMany({
+      where: { organizerId, isDefault: true, id: { not: tierId } },
+      data: { isDefault: false },
+    })
+  }
   
   console.log('[Update Tier] After validation:', {
     tierId,
@@ -117,9 +134,9 @@ export async function updateMembershipTier(tierId: string, data: z.infer<typeof 
     description: tier.description,
     priceCents: Number(tier.priceCents),
     benefits: tier.benefits as string[] || [],
-    discountPercent: Number(tier.discountPercent),
     priority: tier.priority,
     enabled: tier.enabled,
+    isDefault: tier.isDefault,
     validationRequired: tier.validationRequired,
     mvaEnabled: tier.mvaEnabled,
     createdAt: tier.createdAt,
@@ -181,9 +198,9 @@ export async function listMembershipTiers() {
     description: tier.description,
     priceCents: Number(tier.priceCents),
     benefits: tier.benefits as string[] || [],
-    discountPercent: Number(tier.discountPercent),
     priority: tier.priority,
     enabled: tier.enabled,
+    isDefault: tier.isDefault,
     validationRequired: tier.validationRequired,
     mvaEnabled: tier.mvaEnabled,
     accentColor: tier.accentColor,
@@ -253,7 +270,6 @@ export async function getPublicMembershipTiers(organizerSlug: string) {
       description: t.description,
       priceCents: Number(t.priceCents),
       benefits: t.benefits as string[] || [],
-      discountPercent: Number(t.discountPercent),
       priority: t.priority,
       validationRequired: t.validationRequired,
       mvaEnabled: t.mvaEnabled,

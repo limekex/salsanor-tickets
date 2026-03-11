@@ -1,11 +1,13 @@
+import React from 'react'
 import { getCourseTrackDetails } from '@/app/actions/courses'
 import { getPrivateTemplateCapacity } from '@/lib/queries/courses'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDateRange, formatWeekday, formatDateShort, formatPrice } from '@/lib/formatters'
-import { ArrowLeft, CalendarDays, CreditCard, MapPin, Users, CalendarOff, GraduationCap, Pencil, Tag, ExternalLink } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CreditCard, MapPin, Users, CalendarOff, GraduationCap, Pencil, Tag, ExternalLink, Users2, Baby, Laptop, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/db'
@@ -44,6 +46,29 @@ function parseDiscounts(discountRules: Array<{ ruleType: string; name: string; c
     return discounts
 }
 
+// Get user-friendly template type label
+function getTemplateLabel(templateType: string): { label: string; description: string; icon: React.ReactNode } {
+    const labels: Record<string, { label: string; description: string; icon: React.ReactNode }> = {
+        'INDIVIDUAL': { label: 'Individual', description: 'Register on your own', icon: null },
+        'PARTNER': { label: 'Partner Dance', description: 'Register as leader or follower', icon: <Users2 className="h-3.5 w-3.5" /> },
+        'PRIVATE': { label: 'Private Lessons', description: 'Book individual time slots', icon: null },
+        'TEAM': { label: 'Team', description: 'Register as a team', icon: null },
+        'KIDS_YOUTH': { label: 'Kids & Youth', description: 'For younger participants', icon: <Baby className="h-3.5 w-3.5" /> },
+        'VIRTUAL': { label: 'Virtual', description: 'Online class', icon: <Laptop className="h-3.5 w-3.5" /> }
+    }
+    return labels[templateType] || { label: templateType, description: '', icon: null }
+}
+
+// Get delivery method label
+function getDeliveryLabel(deliveryMethod: string): string {
+    const labels: Record<string, string> = {
+        'IN_PERSON': 'In-person',
+        'VIRTUAL': 'Online',
+        'HYBRID': 'Hybrid (In-person + Online)'
+    }
+    return labels[deliveryMethod] || deliveryMethod
+}
+
 export default async function TrackDetailPage({ params }: PageProps) {
     const { trackId, periodId } = await params
     const track = await getCourseTrackDetails(trackId, periodId)
@@ -65,17 +90,40 @@ export default async function TrackDetailPage({ params }: PageProps) {
         locationAddress?: string | null
         latitude?: number | null
         longitude?: number | null
-        // Template and slot booking fields
+        // Template type
         templateType?: string | null
+        // Membership discount mode
+        memberDiscountMode?: 'ENABLED' | 'FIXED' | 'DISABLED' | null
+        // PARTNER template: role labels
+        roleALabel?: string | null
+        roleBLabel?: string | null
+        // KIDS_YOUTH template: age restrictions
+        minAge?: number | null
+        maxAge?: number | null
+        // TEAM template: team size and pricing
+        teamMinSize?: number | null
+        teamMaxSize?: number | null
+        pricePerPersonCents?: number | null
+        // PRIVATE template: slot booking
         pricePerSlotCents?: number | null
         slotStartTime?: string | null
         slotDurationMinutes?: number | null
         slotBreakMinutes?: number | null
         slotCount?: number | null
         maxContinuousSlots?: number | null
+        // VIRTUAL template / HYBRID delivery: meeting info
+        deliveryMethod?: string | null
+        meetingUrl?: string | null
     }
 
-    const isPrivateTemplate = trackWithExtras.templateType === 'PRIVATE'
+    // Determine template type and delivery method for display
+    const templateType = trackWithExtras.templateType ?? 'INDIVIDUAL'
+    const deliveryMethod = trackWithExtras.deliveryMethod ?? 'IN_PERSON'
+    const isPrivateTemplate = templateType === 'PRIVATE'
+    const isPartnerTemplate = templateType === 'PARTNER'
+    const isKidsYouthTemplate = templateType === 'KIDS_YOUTH'
+    const isTeamTemplate = templateType === 'TEAM'
+    const isVirtualOrHybrid = deliveryMethod === 'VIRTUAL' || deliveryMethod === 'HYBRID'
 
     // Calculate capacity - PRIVATE templates use slot-based capacity
     let availableSpots: number
@@ -120,27 +168,60 @@ export default async function TrackDetailPage({ params }: PageProps) {
         isOrgAdmin = (userAccount?.UserAccountRole?.length ?? 0) > 0
     }
 
-    // Check if org has membership product enabled
+    // Check if org has membership product enabled and get default tier
     const organizerDetails = await prisma.organizer.findUnique({
         where: { id: organizer.id },
-        select: { membershipEnabled: true }
+        select: { 
+            membershipEnabled: true,
+            MembershipTier: {
+                where: { enabled: true, isDefault: true },
+                take: 1,
+                select: { isDefault: true, name: true }
+            }
+        }
     })
     const hasMembershipProduct = organizerDetails?.membershipEnabled ?? false
+    const defaultTier = organizerDetails?.MembershipTier?.[0]
+    const hasDefaultTier = !!defaultTier
 
-    // Parse discount rules for display - merge org-level and period-level rules
+    // Check if membership discount is disabled for this track
+    const memberDiscountMode = trackWithExtras.memberDiscountMode ?? 'ENABLED'
+    const memberDiscountEnabled = memberDiscountMode !== 'DISABLED'
+
+    // Parse discount rules for display
+    // Priority: org rules first, then period rules
     type OrganizerWithRules = typeof organizer & { 
         OrgDiscountRule?: Array<{ ruleType: string; name: string; config: unknown }> 
     }
     const orgDiscountRules = (organizer as OrganizerWithRules).OrgDiscountRule || []
     const periodDiscountRules = period.DiscountRule || []
-    const allDiscountRules = [...orgDiscountRules, ...periodDiscountRules]
-    const discounts = parseDiscounts(allDiscountRules)
+    const orgDiscounts = parseDiscounts(orgDiscountRules)
+    const periodDiscounts = parseDiscounts(periodDiscountRules)
 
-    // Calculate member price if no fixed member price but discount rule exists
-    const effectiveMemberPrice = track.memberPriceSingleCents 
-        ?? (discounts.memberPercent 
-            ? Math.round(track.priceSingleCents * (1 - discounts.memberPercent / 100))
-            : null)
+    // Calculate member price based on correct priority:
+    // 1. Track fixed member price (memberPriceSingleCents / pricePerSlotCents)
+    // 2. Org discount rules (MEMBERSHIP_TIER_PERCENT)
+    // 3. Period discount rules (MEMBERSHIP_TIER_PERCENT)
+    let effectiveMemberPrice: number | null = null
+    let effectiveMemberDiscountPercent: number | null = null
+
+    // For PRIVATE templates, use pricePerSlotCents as base price
+    const basePrice = isPrivateTemplate && trackWithExtras.pricePerSlotCents
+      ? trackWithExtras.pricePerSlotCents
+      : track.priceSingleCents
+
+    const resolvedMemberPercent = orgDiscounts.memberPercent ?? periodDiscounts.memberPercent ?? null
+
+    if (memberDiscountEnabled && hasDefaultTier) {
+        if (track.memberPriceSingleCents && track.memberPriceSingleCents > 0) {
+            // 1. Fixed member price per track (standard) or per slot (PRIVATE)
+            effectiveMemberPrice = track.memberPriceSingleCents
+        } else if (resolvedMemberPercent) {
+            // 2. Org discount rules → 3. Period discount rules
+            effectiveMemberPrice = Math.round(basePrice * (1 - resolvedMemberPercent / 100))
+            effectiveMemberDiscountPercent = resolvedMemberPercent
+        }
+    }
 
     // Pretty URL for sharing (use period code + track slug when available)
     const trackSlug = 'slug' in track ? track.slug as string | null : null
@@ -169,6 +250,21 @@ export default async function TrackDetailPage({ params }: PageProps) {
                             </Link>
                         </p>
                         <h1 className="text-3xl sm:text-4xl font-bold">{track.title}</h1>
+                        {/* Template and format badges */}
+                        <div className="flex flex-wrap gap-rn-2 mt-rn-2">
+                            {templateType !== 'INDIVIDUAL' && (
+                                <Badge variant="secondary" className="gap-rn-1">
+                                    {getTemplateLabel(templateType).icon}
+                                    {getTemplateLabel(templateType).label}
+                                </Badge>
+                            )}
+                            {isVirtualOrHybrid && (
+                                <Badge variant="outline" className="gap-rn-1">
+                                    <Video className="h-3.5 w-3.5" />
+                                    {getDeliveryLabel(deliveryMethod)}
+                                </Badge>
+                            )}
+                        </div>
                         {track.levelLabel && (
                             <p className="rn-meta text-rn-text-muted mt-rn-1">
                                 <GraduationCap className="inline h-4 w-4 mr-rn-1" />
@@ -240,6 +336,14 @@ export default async function TrackDetailPage({ params }: PageProps) {
                                     <p className="rn-body font-medium text-lg mb-rn-1">
                                         {formatPrice(trackWithExtras.pricePerSlotCents)} per slot
                                     </p>
+                                    {effectiveMemberPrice && effectiveMemberPrice < trackWithExtras.pricePerSlotCents && (
+                                        <p className="rn-meta text-rn-primary">
+                                            {organizer.name} member: {formatPrice(effectiveMemberPrice)}
+                                            {effectiveMemberDiscountPercent && (
+                                                <span className="text-rn-text-muted"> ({effectiveMemberDiscountPercent}% off)</span>
+                                            )}
+                                        </p>
+                                    )}
                                     <p className="rn-meta text-rn-text-muted">
                                         {trackWithExtras.slotDurationMinutes} min slots · Book up to {trackWithExtras.maxContinuousSlots ?? 2}
                                     </p>
@@ -252,6 +356,9 @@ export default async function TrackDetailPage({ params }: PageProps) {
                                     {effectiveMemberPrice && effectiveMemberPrice < track.priceSingleCents && (
                                         <p className="rn-meta text-rn-primary">
                                             {organizer.name} member: {formatPrice(effectiveMemberPrice)}
+                                            {effectiveMemberDiscountPercent && (
+                                                <span className="text-rn-text-muted"> ({effectiveMemberDiscountPercent}% off)</span>
+                                            )}
                                         </p>
                                     )}
                                 </>
@@ -292,6 +399,121 @@ export default async function TrackDetailPage({ params }: PageProps) {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Template-Specific Requirements Section */}
+            {(isPartnerTemplate || isKidsYouthTemplate || isTeamTemplate || isPrivateTemplate) && (
+                <div className="mb-rn-6">
+                    <h2 className="rn-h3 mb-rn-4 flex items-center gap-rn-2">
+                        {getTemplateLabel(templateType).icon || <Users className="h-5 w-5" />}
+                        {isPartnerTemplate && 'Partner Dance Info'}
+                        {isKidsYouthTemplate && 'Age Requirements'}
+                        {isTeamTemplate && 'Team Requirements'}
+                        {isPrivateTemplate && 'Booking Info'}
+                    </h2>
+                    <Card>
+                        <CardContent className="py-rn-4 space-y-rn-3">
+                            {/* PARTNER template info */}
+                            {isPartnerTemplate && (
+                                <>
+                                    <p className="rn-body">
+                                        {getTemplateLabel(templateType).description}. You&apos;ll choose your dance role during registration.
+                                    </p>
+                                    <div className="flex flex-wrap gap-rn-4">
+                                        <div>
+                                            <p className="rn-caption text-rn-text-muted">Role A</p>
+                                            <p className="rn-body font-medium">{trackWithExtras.roleALabel || 'Leader'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="rn-caption text-rn-text-muted">Role B</p>
+                                            <p className="rn-body font-medium">{trackWithExtras.roleBLabel || 'Follower'}</p>
+                                        </div>
+                                    </div>
+                                    {track.pricePairCents && track.pricePairCents > 0 && (
+                                        <p className="rn-meta text-rn-success">
+                                            Couple registration available: {formatPrice(track.pricePairCents)} for two
+                                        </p>
+                                    )}
+                                </>
+                            )}
+
+                            {/* KIDS_YOUTH template info */}
+                            {isKidsYouthTemplate && (
+                                <div className="flex flex-wrap gap-rn-4">
+                                    {trackWithExtras.minAge !== null && trackWithExtras.minAge !== undefined && (
+                                        <div>
+                                            <p className="rn-caption text-rn-text-muted">Minimum Age</p>
+                                            <p className="rn-body font-medium">{trackWithExtras.minAge} years</p>
+                                        </div>
+                                    )}
+                                    {trackWithExtras.maxAge !== null && trackWithExtras.maxAge !== undefined && (
+                                        <div>
+                                            <p className="rn-caption text-rn-text-muted">Maximum Age</p>
+                                            <p className="rn-body font-medium">{trackWithExtras.maxAge} years</p>
+                                        </div>
+                                    )}
+                                    {!trackWithExtras.minAge && !trackWithExtras.maxAge && (
+                                        <p className="rn-body text-rn-text-muted">For children and youth. Contact organizer for age details.</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* TEAM template info */}
+                            {isTeamTemplate && (
+                                <div className="space-y-rn-3">
+                                    <p className="rn-body">Register as a team with {trackWithExtras.teamMinSize || 2}–{trackWithExtras.teamMaxSize || 10} members.</p>
+                                    <div className="flex flex-wrap gap-rn-4">
+                                        {trackWithExtras.teamMinSize && (
+                                            <div>
+                                                <p className="rn-caption text-rn-text-muted">Minimum Team Size</p>
+                                                <p className="rn-body font-medium">{trackWithExtras.teamMinSize} people</p>
+                                            </div>
+                                        )}
+                                        {trackWithExtras.teamMaxSize && (
+                                            <div>
+                                                <p className="rn-caption text-rn-text-muted">Maximum Team Size</p>
+                                                <p className="rn-body font-medium">{trackWithExtras.teamMaxSize} people</p>
+                                            </div>
+                                        )}
+                                        {trackWithExtras.pricePerPersonCents && (
+                                            <div>
+                                                <p className="rn-caption text-rn-text-muted">Price per Person</p>
+                                                <p className="rn-body font-medium">{formatPrice(trackWithExtras.pricePerPersonCents)}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* PRIVATE template info */}
+                            {isPrivateTemplate && (
+                                <div className="space-y-rn-3">
+                                    <p className="rn-body">Book individual time slots that work for your schedule.</p>
+                                    <div className="flex flex-wrap gap-rn-4">
+                                        {trackWithExtras.slotDurationMinutes && (
+                                            <div>
+                                                <p className="rn-caption text-rn-text-muted">Slot Duration</p>
+                                                <p className="rn-body font-medium">{trackWithExtras.slotDurationMinutes} minutes</p>
+                                            </div>
+                                        )}
+                                        {trackWithExtras.maxContinuousSlots && (
+                                            <div>
+                                                <p className="rn-caption text-rn-text-muted">Max Consecutive</p>
+                                                <p className="rn-body font-medium">{trackWithExtras.maxContinuousSlots} slots</p>
+                                            </div>
+                                        )}
+                                        {trackWithExtras.pricePerSlotCents && (
+                                            <div>
+                                                <p className="rn-caption text-rn-text-muted">Price per Slot</p>
+                                                <p className="rn-body font-medium">{formatPrice(trackWithExtras.pricePerSlotCents)}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
             {/* Schedule & Location Section */}
             <div className="mb-rn-6">
@@ -401,19 +623,30 @@ export default async function TrackDetailPage({ params }: PageProps) {
                         </CardHeader>
                         <CardContent className="space-y-rn-2">
                             <p className="rn-body font-medium text-lg">
-                                {formatPrice(track.priceSingleCents)}
+                                {isPrivateTemplate && trackWithExtras.pricePerSlotCents
+                                    ? formatPrice(trackWithExtras.pricePerSlotCents)
+                                    : formatPrice(track.priceSingleCents)}
                             </p>
-                            {track.pricePairCents && (
+                            {track.pricePairCents && !isPrivateTemplate && (
                                 <p className="rn-meta text-rn-success">
                                     Couple: {formatPrice(track.pricePairCents)}
                                 </p>
                             )}
-                            {effectiveMemberPrice && effectiveMemberPrice < track.priceSingleCents && (
+                            {isPrivateTemplate && effectiveMemberPrice && trackWithExtras.pricePerSlotCents && effectiveMemberPrice < trackWithExtras.pricePerSlotCents && (
                                 <p className="rn-meta text-rn-primary">
                                     <Tag className="inline h-3 w-3 mr-rn-1" />
                                     {organizer.name} member: {formatPrice(effectiveMemberPrice)}
-                                    {discounts.memberPercent && !track.memberPriceSingleCents && (
-                                        <span className="text-rn-text-muted"> ({discounts.memberPercent}% off)</span>
+                                    {effectiveMemberDiscountPercent && (
+                                        <span className="text-rn-text-muted"> ({effectiveMemberDiscountPercent}% off)</span>
+                                    )}
+                                </p>
+                            )}
+                            {!isPrivateTemplate && effectiveMemberPrice && effectiveMemberPrice < track.priceSingleCents && (
+                                <p className="rn-meta text-rn-primary">
+                                    <Tag className="inline h-3 w-3 mr-rn-1" />
+                                    {organizer.name} member: {formatPrice(effectiveMemberPrice)}
+                                    {effectiveMemberDiscountPercent && memberDiscountMode !== 'FIXED' && (
+                                        <span className="text-rn-text-muted"> ({effectiveMemberDiscountPercent}% off)</span>
                                     )}
                                 </p>
                             )}
@@ -442,29 +675,33 @@ export default async function TrackDetailPage({ params }: PageProps) {
                 </div>
 
                 {/* Multi-course Discounts info */}
-                {discounts.multiCourseTiers && discounts.multiCourseTiers.length > 0 && (
-                    <Card className="mt-rn-4 border-rn-primary/20 bg-rn-primary/5">
-                        <CardHeader className="pb-rn-2">
-                            <CardTitle className="rn-h4 flex items-center gap-rn-2">
-                                <Tag className="h-5 w-5 text-rn-primary" />
-                                Multi-course discounts
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="space-y-rn-1">
-                                {discounts.multiCourseTiers.map((tier, idx) => (
-                                    <li key={idx} className="rn-body text-rn-text-muted">
-                                        {tier.count}+ courses: {tier.percent 
-                                            ? `${tier.percent}% off` 
-                                            : tier.cents 
-                                                ? `${formatPrice(tier.cents)} off per course`
-                                                : ''}
-                                    </li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                    </Card>
-                )}
+                {(() => {
+                    const multiCourseTiers = orgDiscounts.multiCourseTiers ?? periodDiscounts.multiCourseTiers
+                    if (!multiCourseTiers || multiCourseTiers.length === 0) return null
+                    return (
+                        <Card className="mt-rn-4 border-rn-primary/20 bg-rn-primary/5">
+                            <CardHeader className="pb-rn-2">
+                                <CardTitle className="rn-h4 flex items-center gap-rn-2">
+                                    <Tag className="h-5 w-5 text-rn-primary" />
+                                    Multi-course discounts
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="space-y-rn-1">
+                                    {multiCourseTiers.map((tier, idx) => (
+                                        <li key={idx} className="rn-body text-rn-text-muted">
+                                            {tier.count}+ courses: {tier.percent 
+                                                ? `${tier.percent}% off` 
+                                                : tier.cents 
+                                                    ? `${formatPrice(tier.cents)} off per course`
+                                                    : ''}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    )
+                })()}
             </div>
         </main>
     )

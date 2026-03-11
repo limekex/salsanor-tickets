@@ -51,6 +51,11 @@ export async function getOrganizerBySlug(slug: string) {
     const organizer = await prisma.organizer.findUnique({
         where: { slug },
         include: {
+            MembershipTier: {
+                where: { enabled: true, isDefault: true },
+                take: 1,
+                select: { isDefault: true }
+            },
             OrgDiscountRule: {
                 where: {
                     enabled: true,
@@ -80,6 +85,7 @@ export async function getOrganizerBySlug(slug: string) {
                             pricePairCents: true,
                             memberPriceSingleCents: true,
                             memberPricePairCents: true,
+                            memberDiscountMode: true,
                             capacityTotal: true
                         }
                     },
@@ -115,11 +121,22 @@ export async function getOrganizerBySlug(slug: string) {
     
     if (!organizer) return null
     
+    // Resolve effective member discount percent (priority: org rules > period rules)
+    // Period rules aren't available here so we only use org rules
+    const hasDefaultTier = (organizer.MembershipTier?.length ?? 0) > 0
+    const orgRulePercent = (organizer.OrgDiscountRule ?? [])
+        .filter(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+        .map(r => ((r.config as { discountPercent?: number }).discountPercent ?? 0))
+        .reduce((max, p) => Math.max(max, p), 0)
+    const resolvedMemberDiscountPercent = hasDefaultTier ? (orgRulePercent || null) : null
+
     // Serialize Decimal fields for client components
     return {
         ...organizer,
         mvaRate: organizer.mvaRate ? organizer.mvaRate.toNumber() : null,
         stripeFeePercentage: organizer.stripeFeePercentage ? organizer.stripeFeePercentage.toNumber() : null,
+        resolvedMemberDiscountPercent,
+        MembershipTier: organizer.MembershipTier
     }
 }
 
@@ -151,6 +168,11 @@ export async function getOrganizerCourses(slug: string) {
     const organizer = await prisma.organizer.findUnique({
         where: { slug },
         include: {
+            MembershipTier: {
+                where: { enabled: true, isDefault: true },
+                take: 1,
+                select: { isDefault: true }
+            },
             OrgDiscountRule: {
                 where: {
                     enabled: true,
@@ -180,6 +202,7 @@ export async function getOrganizerCourses(slug: string) {
                             pricePairCents: true,
                             memberPriceSingleCents: true,
                             memberPricePairCents: true,
+                            memberDiscountMode: true,
                             capacityTotal: true
                         }
                     },
@@ -200,10 +223,21 @@ export async function getOrganizerCourses(slug: string) {
     
     if (!organizer) return null
     
+    // Resolve effective member discount percent (priority: org rules > period rules)
+    // Period rules aren't available here so we only use org rules
+    const hasDefaultTier2 = (organizer.MembershipTier?.length ?? 0) > 0
+    const orgRulePercent2 = (organizer.OrgDiscountRule ?? [])
+        .filter(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+        .map(r => ((r.config as { discountPercent?: number }).discountPercent ?? 0))
+        .reduce((max, p) => Math.max(max, p), 0)
+    const resolvedMemberDiscountPercent2 = hasDefaultTier2 ? (orgRulePercent2 || null) : null
+
     return {
         ...organizer,
         mvaRate: organizer.mvaRate ? organizer.mvaRate.toNumber() : null,
         stripeFeePercentage: organizer.stripeFeePercentage ? organizer.stripeFeePercentage.toNumber() : null,
+        resolvedMemberDiscountPercent: resolvedMemberDiscountPercent2,
+        MembershipTier: organizer.MembershipTier
     }
 }
 

@@ -31,8 +31,8 @@ export const courseTrackSchema = z.object({
     checkInWindowAfter: z.coerce.number().min(0).max(240).optional(),
     priceSingleCents: z.coerce.number().min(0),
     pricePairCents: z.coerce.number().optional(),
-    memberPriceSingleCents: z.coerce.number().optional(),
-    memberPricePairCents: z.coerce.number().optional(),
+    memberPriceSingleCents: z.union([z.coerce.number().min(0), z.null()]).optional(),
+    memberPricePairCents: z.union([z.coerce.number().min(0), z.null()]).optional(),
     // Virtual meeting fields (VIRTUAL template / VIRTUAL/HYBRID delivery)
     meetingUrl: z.string().url().optional().or(z.literal('')),
     meetingPassword: z.string().optional(),

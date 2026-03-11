@@ -155,6 +155,7 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
           slug: true,
           name: true,
           logoUrl: true,
+          membershipEnabled: true,
           OrgDiscountRule: {
             where: {
               enabled: true,
@@ -165,6 +166,11 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
               ruleType: true,
               config: true
             }
+          },
+          MembershipTier: {
+            where: { enabled: true, isDefault: true },
+            take: 1,
+            select: { isDefault: true }
           }
         }
       },
@@ -185,6 +191,7 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
           pricePairCents: true,
           memberPriceSingleCents: true,
           memberPricePairCents: true,
+          memberDiscountMode: true,
           capacityTotal: true
         }
       },
@@ -204,7 +211,38 @@ export async function getPublicCoursePeriods(filters?: CourseFilters) {
   })
 
   // Filter out periods with no tracks after filtering
-  return periods.filter(p => p.CourseTrack.length > 0)
+  // Resolve effective member discount percent with correct priority:
+  // 1. Org discount rules (MEMBERSHIP_TIER_PERCENT)
+  // 2. Period discount rules (MEMBERSHIP_TIER_PERCENT)
+  // (Track fixed price is handled per-card, not here)
+  return periods
+    .filter(p => p.CourseTrack.length > 0)
+    .map(period => {
+      const hasDefaultTier = (period.Organizer.MembershipTier?.length ?? 0) > 0
+
+      const orgRulePercent = (period.Organizer.OrgDiscountRule ?? [])
+        .filter(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+        .map(r => (r.config as { discountPercent?: number }).discountPercent ?? 0)
+        .reduce((max, p) => Math.max(max, p), 0)
+
+      const periodRulePercent = (period.DiscountRule ?? [])
+        .filter(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
+        .map(r => (r.config as { discountPercent?: number }).discountPercent ?? 0)
+        .reduce((max, p) => Math.max(max, p), 0)
+
+      const resolvedMemberDiscountPercent = hasDefaultTier
+        ? (orgRulePercent || periodRulePercent || null)
+        : null
+
+      return {
+        ...period,
+        Organizer: {
+          ...period.Organizer,
+          resolvedMemberDiscountPercent,
+          MembershipTier: period.Organizer.MembershipTier
+        }
+      }
+    })
 }
 
 /**

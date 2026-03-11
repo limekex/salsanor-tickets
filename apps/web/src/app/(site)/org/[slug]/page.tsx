@@ -187,18 +187,16 @@ export default async function OrganizerPage({ params }: { params: Params }) {
 
                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                     {period.CourseTrack.slice(0, 3).map((track) => {
-                                        // Parse discount info from period and org rules
-                                        const allRules = [
-                                            ...(period.DiscountRule || []),
-                                            ...(organizer.OrgDiscountRule || [])
-                                        ]
-                                        const memberRule = allRules.find(r => r.ruleType === 'MEMBERSHIP_TIER_PERCENT')
-                                        const multiCourseRule = allRules.find(r => r.ruleType === 'MULTI_COURSE_TIERED')
+                                        // Parse discount info - use default membership tier if available
+                                        const defaultTier = (organizer as any).MembershipTier?.[0]
+                                        const hasActiveMembershipTiers = !!defaultTier
+                                        const multiCourseRule = period.DiscountRule?.find(r => r.ruleType === 'MULTI_COURSE_TIERED')
                                         const discountInfo = {
-                                            memberDiscountPercent: memberRule?.config && typeof memberRule.config === 'object' 
-                                                ? (memberRule.config as any).discountPercent 
+                                            memberDiscountPercent: hasActiveMembershipTiers
+                                                ? ((organizer as any).resolvedMemberDiscountPercent ?? null)
                                                 : null,
-                                            hasMultiCourseDiscount: !!multiCourseRule
+                                            hasMultiCourseDiscount: !!multiCourseRule,
+                                            hasActiveMembershipTiers
                                         }
                                         
                                         return (

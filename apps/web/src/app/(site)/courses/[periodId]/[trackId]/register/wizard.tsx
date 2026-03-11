@@ -54,11 +54,18 @@ interface WizardTrack {
 interface WizardProps {
     track: WizardTrack
     periodId: string
-    customFields?: CustomFieldDefinition[]
+    trackCustomFields?: CustomFieldDefinition[] // Track-specific custom fields
+    periodCustomFields?: CustomFieldDefinition[] // Period-specific custom fields
     templateType?: string
 }
 
-export function RegistrationWizard({ track, periodId, customFields = [], templateType = 'INDIVIDUAL' }: WizardProps) {
+export function RegistrationWizard({ 
+    track, 
+    periodId, 
+    trackCustomFields = [], 
+    periodCustomFields = [], 
+    templateType = 'INDIVIDUAL' 
+}: WizardProps) {
     const isPartner = templateType === 'PARTNER'
     const isPrivate = templateType === 'PRIVATE'
 
@@ -67,12 +74,16 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
     const [hasPartner, setHasPartner] = useState(false)
     const [partnerEmail, setPartnerEmail] = useState('')
     const [selectedSlots, setSelectedSlots] = useState<number[]>([])
-    const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
-    const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({})
+    // Separate state for track and period custom fields
+    const [trackFieldValues, setTrackFieldValues] = useState<CustomFieldValues>({})
+    const [trackFieldErrors, setTrackFieldErrors] = useState<Record<string, string>>({})
+    const [periodFieldValues, setPeriodFieldValues] = useState<CustomFieldValues>({})
+    const [periodFieldErrors, setPeriodFieldErrors] = useState<Record<string, string>>({})
     const { addCourseItem, getCartOrganizerId, getCartOrganizerName, clearCart } = useCart()
     const router = useRouter()
 
-    const hasCustomFields = customFields.length > 0
+    const hasTrackCustomFields = trackCustomFields.length > 0
+    const hasPeriodCustomFields = periodCustomFields.length > 0
 
     // Slot availability state for PRIVATE template (legacy all-weeks mode)
     const [availableSlots, setAvailableSlots] = useState<SlotAvailability[]>([])
@@ -145,19 +156,25 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
     /*
      * Step layout by template type:
      *
-     * PARTNER  : 1=Role  2=Partner  [3=CustomFields]  last=Summary
-     * PRIVATE  : 1=SlotSelection  [2=CustomFields]  last=Summary
-     * others   : [1=CustomFields]  last=Summary
+     * Step order:
+     * 1. Template-specific (PRIVATE: slot selection, PARTNER: role + partner)
+     * 2. Track-specific custom fields (if any)
+     * 3. Period-specific custom fields (if any)
+     * 4. Summary
      *
-     * We normalise: for non-PARTNER the first real step is always 1.
-     * The PARTNER path injects 2 extra steps at the front.
-     * The PRIVATE path injects 1 step at the front.
+     * PARTNER  : 1=Role  2=Partner  [3=TrackFields]  [4=PeriodFields]  last=Summary
+     * PRIVATE  : 1=SlotSelection  [2=TrackFields]  [3=PeriodFields]  last=Summary
+     * others   : [1=TrackFields]  [2=PeriodFields]  last=Summary
      */
     const partnerSteps = isPartner ? 2 : 0
     const privateSteps = isPrivate ? 1 : 0
     const templateSteps = partnerSteps + privateSteps
-    const customFieldStep = hasCustomFields ? templateSteps + 1 : null
-    const summaryStep = (hasCustomFields ? 1 : 0) + templateSteps + 1
+    
+    // Calculate step numbers
+    let currentStepOffset = templateSteps
+    const trackFieldsStep = hasTrackCustomFields ? ++currentStepOffset : null
+    const periodFieldsStep = hasPeriodCustomFields ? ++currentStepOffset : null
+    const summaryStep = ++currentStepOffset
     const totalSteps = summaryStep
 
     const currentOrganizerId = track.CoursePeriod?.Organizer?.id
@@ -329,14 +346,23 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
         if (isPrivate && step === 1 && selectedSlotWeeks.length === 0) {
             return // Must select at least one slot+week
         }
-        // Validate custom fields before advancing past that step
-        if (customFieldStep !== null && step === customFieldStep) {
-            const errors = validateCustomFields(customFields, customFieldValues)
+        // Validate track custom fields before advancing
+        if (trackFieldsStep !== null && step === trackFieldsStep) {
+            const errors = validateCustomFields(trackCustomFields, trackFieldValues)
             if (Object.keys(errors).length > 0) {
-                setCustomFieldErrors(errors)
+                setTrackFieldErrors(errors)
                 return
             }
-            setCustomFieldErrors({})
+            setTrackFieldErrors({})
+        }
+        // Validate period custom fields before advancing
+        if (periodFieldsStep !== null && step === periodFieldsStep) {
+            const errors = validateCustomFields(periodCustomFields, periodFieldValues)
+            if (Object.keys(errors).length > 0) {
+                setPeriodFieldErrors(errors)
+                return
+            }
+            setPeriodFieldErrors({})
         }
         setStep(s => s + 1)
     }
@@ -382,6 +408,9 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                 }))
                 : undefined,
             weekday: isPrivate ? track.weekday : undefined,
+            // Custom field values
+            trackCustomFieldValues: hasTrackCustomFields ? trackFieldValues : undefined,
+            periodCustomFieldValues: hasPeriodCustomFields ? periodFieldValues : undefined,
             priceSnapshot: price
         })
 
@@ -604,15 +633,28 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                     </div>
                 )}
 
-                {/* ── Custom Fields step (for all templates) ──────────────── */}
-                {customFieldStep !== null && step === customFieldStep && (
+                {/* ── Track Custom Fields step ──────────────────────────── */}
+                {trackFieldsStep !== null && step === trackFieldsStep && (
                     <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">Please fill in the following details:</p>
+                        <p className="text-sm text-muted-foreground">Please fill in the track-specific details:</p>
                         <CustomFieldsForm
-                            definitions={customFields}
-                            values={customFieldValues}
-                            onChange={setCustomFieldValues}
-                            errors={customFieldErrors}
+                            definitions={trackCustomFields}
+                            values={trackFieldValues}
+                            onChange={setTrackFieldValues}
+                            errors={trackFieldErrors}
+                        />
+                    </div>
+                )}
+
+                {/* ── Period Custom Fields step ─────────────────────────── */}
+                {periodFieldsStep !== null && step === periodFieldsStep && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Please fill in additional registration details:</p>
+                        <CustomFieldsForm
+                            definitions={periodCustomFields}
+                            values={periodFieldValues}
+                            onChange={setPeriodFieldValues}
+                            errors={periodFieldErrors}
                         />
                     </div>
                 )}
@@ -653,12 +695,32 @@ export function RegistrationWizard({ track, periodId, customFields = [], templat
                                     </div>
                                 </>
                             )}
-                            {hasCustomFields && Object.keys(customFieldValues).length > 0 && (
+                            {hasTrackCustomFields && Object.keys(trackFieldValues).length > 0 && (
                                 <div className="border-t pt-2 mt-2 space-y-1">
-                                    {customFields
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Track Details</span>
+                                    {trackCustomFields
                                         .filter(f => f.type !== 'HEADING' && f.type !== 'PARAGRAPH')
                                         .map(f => {
-                                            const val = customFieldValues[f.id]
+                                            const val = trackFieldValues[f.id]
+                                            if (val === undefined || val === null || val === '') return null
+                                            return (
+                                                <div key={f.id} className="flex justify-between">
+                                                    <span className="text-muted-foreground">{f.label}:</span>
+                                                    <span className="font-medium text-right ml-2">
+                                                        {Array.isArray(val) ? val.join(', ') : String(val)}
+                                                    </span>
+                                                </div>
+                                            )
+                                        })}
+                                </div>
+                            )}
+                            {hasPeriodCustomFields && Object.keys(periodFieldValues).length > 0 && (
+                                <div className="border-t pt-2 mt-2 space-y-1">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Registration Details</span>
+                                    {periodCustomFields
+                                        .filter(f => f.type !== 'HEADING' && f.type !== 'PARAGRAPH')
+                                        .map(f => {
+                                            const val = periodFieldValues[f.id]
                                             if (val === undefined || val === null || val === '') return null
                                             return (
                                                 <div key={f.id} className="flex justify-between">

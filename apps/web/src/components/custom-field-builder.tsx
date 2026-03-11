@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -54,7 +53,7 @@ const defaultField = (type: FieldType, order: number): CustomFieldDefinition => 
 export function CustomFieldBuilder({ fields, onChange }: CustomFieldBuilderProps) {
   const [editingField, setEditingField] = useState<CustomFieldDefinition | null>(null)
   const [showTypeSelector, setShowTypeSelector] = useState(false)
-  const [optionsText, setOptionsText] = useState('')
+  const [editingOptions, setEditingOptions] = useState<SelectOption[]>([])
 
   const sortedFields = [...fields].sort((a, b) => a.order - b.order)
 
@@ -62,7 +61,7 @@ export function CustomFieldBuilder({ fields, onChange }: CustomFieldBuilderProps
     const newField = defaultField(type, fields.length)
     setShowTypeSelector(false)
     setEditingField(newField)
-    setOptionsText('')
+    setEditingOptions([])
   }
 
   function saveField(field: CustomFieldDefinition) {
@@ -93,24 +92,49 @@ export function CustomFieldBuilder({ fields, onChange }: CustomFieldBuilderProps
   function startEdit(field: CustomFieldDefinition) {
     setEditingField({ ...field })
     if (OPTION_FIELD_TYPES.includes(field.type)) {
-      setOptionsText(field.options?.map(o => `${o.value}|${o.label}`).join('\n') ?? '')
+      setEditingOptions(field.options?.map(o => ({ ...o })) ?? [])
     } else {
-      setOptionsText('')
+      setEditingOptions([])
     }
   }
 
-  function parseOptions(text: string): SelectOption[] {
-    return text.split('\n')
-      .map(line => line.trim())
-      .filter(Boolean)
-      .map(line => {
-        const [value, ...rest] = line.split('|')
-        return { value: value.trim(), label: rest.join('|').trim() || value.trim() }
-      })
-      .filter(opt => opt.value !== '')
+  function addOption() {
+    setEditingOptions([...editingOptions, { value: '', label: '' }])
   }
 
-  const hasOptions = editingField && OPTION_FIELD_TYPES.includes(editingField.type)
+  function updateOption(index: number, key: 'value' | 'label', newValue: string) {
+    const updated = [...editingOptions]
+    const current = updated[index]
+    
+    if (key === 'value') {
+      // Auto-fill label from value if label hasn't been manually edited
+      // (i.e., label is empty or still matches the old value)
+      const shouldAutoFillLabel = !current.label || current.label === current.value
+      updated[index] = { 
+        ...current, 
+        value: newValue,
+        label: shouldAutoFillLabel ? newValue : current.label
+      }
+    } else {
+      updated[index] = { ...current, [key]: newValue }
+    }
+    setEditingOptions(updated)
+  }
+
+  function removeOption(index: number) {
+    setEditingOptions(editingOptions.filter((_, i) => i !== index))
+  }
+
+  function moveOption(index: number, direction: 'up' | 'down') {
+    if (direction === 'up' && index === 0) return
+    if (direction === 'down' && index === editingOptions.length - 1) return
+    const swapIndex = direction === 'up' ? index - 1 : index + 1
+    const updated = [...editingOptions]
+    ;[updated[index], updated[swapIndex]] = [updated[swapIndex], updated[index]]
+    setEditingOptions(updated)
+  }
+
+  const hasOptions = editingField != null && OPTION_FIELD_TYPES.includes(editingField.type)
 
   return (
     <div className="space-y-3">
@@ -295,18 +319,74 @@ export function CustomFieldBuilder({ fields, onChange }: CustomFieldBuilderProps
                   )}
 
                   {hasOptions && (
-                    <div className="space-y-2">
-                      <Label htmlFor="field-options">
-                        Options <span className="text-muted-foreground font-normal">(one per line, format: value|Label)</span>
-                      </Label>
-                      <Textarea
-                        id="field-options"
-                        value={optionsText}
-                        onChange={e => setOptionsText(e.target.value)}
-                        placeholder={'none|No restrictions\nvegetarian|Vegetarian\nvegan|Vegan'}
-                        rows={5}
-                        className="font-mono text-sm"
-                      />
+                    <div className="space-y-3">
+                      <Label>Options</Label>
+                      <div className="space-y-2">
+                        {editingOptions.map((option, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <div className="flex-1 grid grid-cols-2 gap-2">
+                              <Input
+                                value={option.value}
+                                onChange={e => updateOption(idx, 'value', e.target.value)}
+                                placeholder="Value (stored)"
+                                className="text-sm"
+                              />
+                              <Input
+                                value={option.label}
+                                onChange={e => updateOption(idx, 'label', e.target.value)}
+                                placeholder="Label (shown)"
+                                className="text-sm"
+                              />
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => moveOption(idx, 'up')}
+                                disabled={idx === 0}
+                              >
+                                <ChevronUp className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => moveOption(idx, 'down')}
+                                disabled={idx === editingOptions.length - 1}
+                              >
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => removeOption(idx)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        {editingOptions.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-2 border border-dashed rounded">
+                            No options yet. Add at least one option.
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addOption}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Option
+                      </Button>
                     </div>
                   )}
 
@@ -328,12 +408,17 @@ export function CustomFieldBuilder({ fields, onChange }: CustomFieldBuilderProps
               <Button
                 type="button"
                 onClick={() => {
+                  // Filter out empty options and ensure labels
+                  const cleanOptions = editingOptions
+                    .filter(o => o.value.trim() !== '')
+                    .map(o => ({ value: o.value.trim(), label: o.label.trim() || o.value.trim() }))
+                  
                   const fieldToSave = hasOptions
-                    ? { ...editingField, options: parseOptions(optionsText) }
+                    ? { ...editingField, options: cleanOptions }
                     : editingField
                   saveField(fieldToSave)
                 }}
-                disabled={!editingField.label.trim()}
+                disabled={!editingField.label.trim() || (hasOptions && editingOptions.filter(o => o.value.trim()).length === 0)}
               >
                 Save Field
               </Button>

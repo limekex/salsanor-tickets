@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import type { CustomFieldValues } from '@/types/custom-fields'
 
 // Course registration cart item
 export interface CourseCartItem {
@@ -21,6 +22,9 @@ export interface CourseCartItem {
     slotDetails?: { slotIndex: number; startTime: string; endTime: string }[]  // time ranges per slot index
     weekDetails?: { weekIndex: number; weekStart: string }[]  // week start dates
     weekday?: number  // 0=Sunday, 1=Monday, etc.
+    // Custom field values
+    trackCustomFieldValues?: CustomFieldValues
+    periodCustomFieldValues?: CustomFieldValues
     priceSnapshot: number
     addedAt: number
 }

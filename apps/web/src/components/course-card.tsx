@@ -20,12 +20,17 @@ type CourseTrack = {
   pricePairCents: number | null
   memberPriceSingleCents?: number | null
   memberPricePairCents?: number | null
+  memberDiscountMode?: 'ENABLED' | 'FIXED' | 'DISABLED' | null
   capacityTotal: number
   // Template type and slot booking fields
   templateType?: string | null
   pricePerSlotCents?: number | null
   slotDurationMinutes?: number | null
   slotCount?: number | null
+  // Team pricing fields
+  pricePerPersonCents?: number | null
+  teamMinSize?: number | null
+  teamMaxSize?: number | null
 }
 
 type CoursePeriod = {
@@ -41,6 +46,7 @@ type CoursePeriod = {
 type DiscountInfo = {
   memberDiscountPercent?: number | null
   hasMultiCourseDiscount?: boolean
+  hasActiveMembershipTiers?: boolean // Whether org has a default membership tier set
 }
 
 type CourseCardProps = {
@@ -72,8 +78,25 @@ export function CourseCard({
   const isInCart = items.some(item => item.type === 'course' && item.trackId === track.id)
   
   // Determine effective member price
-  const hasMemberPrice = track.memberPriceSingleCents && track.memberPriceSingleCents > 0
-  const memberDiscountPercent = discountInfo?.memberDiscountPercent
+  // Show member pricing only if:
+  // - Org has active tiers
+  // - Track's memberDiscountMode is not DISABLED
+  const memberDiscountMode = track.memberDiscountMode ?? 'ENABLED'
+  const showMemberPricing = discountInfo?.hasActiveMembershipTiers !== false && memberDiscountMode !== 'DISABLED'
+  const hasMemberPrice = showMemberPricing && track.memberPriceSingleCents && track.memberPriceSingleCents > 0
+  const memberDiscountPercent = showMemberPricing ? discountInfo?.memberDiscountPercent : null
+
+  // For PRIVATE templates:
+  // 1. Use memberPriceSingleCents as fixed per-slot member price if set
+  // 2. Otherwise fall back to percent discount from discount rules
+  let privateMemberPrice: number | null = null
+  if (track.templateType === 'PRIVATE' && showMemberPricing && track.pricePerSlotCents) {
+    if (track.memberPriceSingleCents && track.memberPriceSingleCents > 0) {
+      privateMemberPrice = track.memberPriceSingleCents
+    } else if (memberDiscountPercent) {
+      privateMemberPrice = Math.round(track.pricePerSlotCents * (1 - memberDiscountPercent / 100))
+    }
+  }
 
   return (
     <Card className="flex flex-col h-full hover:shadow-md transition-shadow">
@@ -106,9 +129,31 @@ export function CourseCard({
                 <span>Per slot:</span>
                 <span className="font-semibold">{formatPrice(track.pricePerSlotCents)}</span>
               </div>
+              {privateMemberPrice && privateMemberPrice < track.pricePerSlotCents && (
+                <div className="flex justify-between text-green-600">
+                  <span>Member:</span>
+                  <span className="font-semibold">{formatPrice(privateMemberPrice)}</span>
+                  {memberDiscountPercent && (
+                    <span className="text-xs text-green-600 font-medium ml-2">-{memberDiscountPercent}%</span>
+                  )}
+                </div>
+              )}
               {track.slotDurationMinutes && (
                 <div className="text-xs text-muted-foreground">
                   {track.slotDurationMinutes} min slots · {track.slotCount} available
+                </div>
+              )}
+            </>
+          ) : track.templateType === 'TEAM' && track.pricePerPersonCents ? (
+            /* TEAM template: Show per-person pricing */
+            <>
+              <div className="flex justify-between">
+                <span>Per person:</span>
+                <span className="font-semibold">{formatPrice(track.pricePerPersonCents)}</span>
+              </div>
+              {(track.teamMinSize || track.teamMaxSize) && (
+                <div className="text-xs text-muted-foreground">
+                  Team size: {track.teamMinSize ?? 2}–{track.teamMaxSize ?? 10} people
                 </div>
               )}
             </>
@@ -118,7 +163,7 @@ export function CourseCard({
                 <span>Single:</span>
                 <span className="font-semibold">{formatPrice(track.priceSingleCents)}</span>
               </div>
-              {track.pricePairCents && (
+              {track.pricePairCents && track.pricePairCents > 0 && (
                 <div className="flex justify-between">
                   <span>Couple:</span>
                   <span className="font-semibold text-green-600">{formatPrice(track.pricePairCents)}</span>

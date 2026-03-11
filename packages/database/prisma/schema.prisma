@@ -190,6 +190,7 @@ model CourseTrack {
   updatedAt              DateTime           @updatedAt
   memberPricePairCents   Int?
   memberPriceSingleCents Int?
+  memberDiscountMode     MemberDiscountMode @default(ENABLED) // ENABLED, FIXED, or DISABLED
   checkInWindowBefore    Int                @default(30)
   checkInWindowAfter     Int                @default(30)
   allowSelfCheckIn       Boolean            @default(false)
@@ -206,8 +207,9 @@ model CourseTrack {
   maxAge Int? // Maximum participant age
 
   // Team configuration (TEAM template)
-  teamMinSize Int? // Minimum team size
-  teamMaxSize Int? // Maximum team size
+  teamMinSize         Int? // Minimum team size
+  teamMaxSize         Int? // Maximum team size
+  pricePerPersonCents Int? // Price per person for TEAM template
 
   // Slot booking configuration (PRIVATE template)
   slotStartTime       String? // Start of availability window (HH:mm, e.g., "12:00")
@@ -216,6 +218,9 @@ model CourseTrack {
   slotCount           Int? // Number of slots available per session
   pricePerSlotCents   Int? // Price per slot in cents
   maxContinuousSlots  Int? // Max slots a user can book at once (e.g., 2)
+
+  // Track-specific custom registration fields (similar to CoursePeriod.customFields)
+  customFields Json? // Array of CustomFieldDefinition objects for track-specific questions
 
   CoursePeriod   CoursePeriod     @relation(fields: [periodId], references: [id])
   Registration   Registration[]
@@ -578,9 +583,9 @@ model MembershipTier {
   description        String?
   priceCents         Int
   benefits           Json?
-  discountPercent    Decimal      @default(0)
   priority           Int          @default(0)
   enabled            Boolean      @default(true)
+  isDefault          Boolean      @default(false) // Show this tier's discount as the advertised member price
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   validationRequired Boolean      @default(false)
@@ -981,6 +986,13 @@ enum DeliveryMethod {
   IN_PERSON
   VIRTUAL
   HYBRID
+}
+
+// Controls how membership discounts are applied to a track
+enum MemberDiscountMode {
+  ENABLED  // Use org discount rules (default)
+  FIXED    // Use fixed member price (memberPriceSingleCents/memberPricePairCents)
+  DISABLED // No membership discount for this track
 }
 
 enum CheckInType {

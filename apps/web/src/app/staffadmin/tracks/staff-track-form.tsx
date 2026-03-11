@@ -24,14 +24,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { createCourseTrackStaff, updateCourseTrackStaff } from '@/app/actions/staffadmin-tracks'
+import { createCourseTrackStaff, updateCourseTrackStaff, saveTrackCustomFields } from '@/app/actions/staffadmin-tracks'
 import { uploadTrackImage } from '@/app/actions/upload'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ImageUpload } from '@/components/image-upload'
 import { LocationPicker, type LocationValue } from '@/components/location-picker'
-import { ExternalLink, Clock, MapPin, Users, CreditCard, Image as ImageIcon, ScanLine, Info, Video, Baby, UsersRound, UserCheck, Settings2, Calendar, Ticket, User, CalendarClock } from 'lucide-react'
+import { CustomFieldBuilder } from '@/components/custom-field-builder'
+import type { CustomFieldDefinition } from '@/types/custom-fields'
+import { ExternalLink, Clock, MapPin, Users, CreditCard, Image as ImageIcon, ScanLine, Info, Video, Baby, UsersRound, UserCheck, Settings2, Calendar, Ticket, User, CalendarClock, FormInput } from 'lucide-react'
 import Link from 'next/link'
 import type { CourseTrack, CourseTemplateType, DeliveryMethod } from '@salsanor/database'
 import { COURSE_TEMPLATE_LABELS, DELIVERY_METHOD_LABELS } from '@/types/custom-fields'
@@ -102,6 +104,12 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
         latitude: track?.latitude || undefined,
         longitude: track?.longitude || undefined,
     })
+
+    // Custom fields state (track can override period-level custom fields)
+    const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>(
+        Array.isArray((track as any)?.customFields) ? ((track as any).customFields as CustomFieldDefinition[]) : []
+    )
+    const [isSavingFields, setIsSavingFields] = useState(false)
 
     const form = useForm<CourseTrackFormValues>({
         resolver: zodResolver(courseTrackSchema),
@@ -312,8 +320,9 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
         // Pricing
         formData.append('priceSingleCents', data.priceSingleCents.toString())
         if (data.pricePairCents) formData.append('pricePairCents', data.pricePairCents.toString())
-        if (data.memberPriceSingleCents) formData.append('memberPriceSingleCents', data.memberPriceSingleCents.toString())
-        if (data.memberPricePairCents) formData.append('memberPricePairCents', data.memberPricePairCents.toString())
+        // Always send member pricing fields — empty string signals "clear to null"
+        formData.append('memberPriceSingleCents', data.memberPriceSingleCents?.toString() ?? '')
+        formData.append('memberPricePairCents', data.memberPricePairCents?.toString() ?? '')
         // Virtual meeting fields
         if (data.meetingUrl) formData.append('meetingUrl', data.meetingUrl)
         if (data.meetingPassword) formData.append('meetingPassword', data.meetingPassword)
@@ -354,6 +363,19 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
                 })
             }
         })
+    }
+
+    // Handler for saving custom fields separately
+    async function handleSaveCustomFields() {
+        if (!track) return
+        setIsSavingFields(true)
+        try {
+            await saveTrackCustomFields(track.id, customFields)
+        } catch (e) {
+            console.error('Failed to save custom fields:', e)
+        } finally {
+            setIsSavingFields(false)
+        }
     }
 
     return (
@@ -1467,6 +1489,45 @@ export function StaffTrackForm({ periodId, track, hasMembershipProduct = false, 
                     </CardContent>
                 </Card>
                 )}
+
+                {/* Custom Registration Fields — track-level override */}
+                <Card>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <FormInput className="h-5 w-5" />
+                            Custom Registration Fields
+                        </CardTitle>
+                        <CardDescription>
+                            Add extra questions specific to this track that participants must answer when registering.
+                            These will be shown in addition to any period-level custom fields.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {!isEditing && (
+                            <p className="text-sm text-muted-foreground">
+                                Save the track first to add track-specific custom registration fields.
+                            </p>
+                        )}
+                        {isEditing && (
+                            <>
+                                <CustomFieldBuilder
+                                    fields={customFields}
+                                    onChange={setCustomFields}
+                                />
+                                <div className="flex justify-end">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleSaveCustomFields}
+                                        disabled={isSavingFields}
+                                    >
+                                        {isSavingFields ? 'Saving...' : 'Save Custom Fields'}
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {/* Form Actions */}
                 <div className="flex justify-end gap-4 pt-4 border-t">
